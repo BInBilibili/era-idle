@@ -84,7 +84,7 @@
         <div class="row"><button id="setSave">立即存档</button><button id="setExport">导出</button><button id="setImport">导入</button></div>
       </div></div>
       <div class="acts"><button class="primary" data-act="closeModal">关闭</button></div>`);
-    document.querySelectorAll('[data-theme]').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('#modalBox [data-theme]').forEach(btn => btn.onclick = () => {
       applyTheme(btn.dataset.theme);
       if (E.S) E.save(true);
       U.closeModal(); U.render(); U.toast('已切换到' + (btn.dataset.theme === 'light' ? '浅色' : '深色') + '主题');
@@ -117,8 +117,12 @@
   function wireGlobal() {
     document.addEventListener('click', onClick);
     document.addEventListener('dragover', e => {
-      const t = e.target.closest('[data-act="jobslot"],[data-act="eqslot"],[data-act="selectChar"]');
-      if (t) e.preventDefault();
+      const t = e.target.closest('[data-act="recslot"],[data-act="eqslot"],[data-act="selectChar"]');
+      if (t) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; t.classList.add('hover'); }
+    });
+    document.addEventListener('dragleave', e => {
+      const t = e.target.closest('[data-act="recslot"],[data-act="eqslot"]');
+      if (t) t.classList.remove('hover');
     });
     document.addEventListener('drop', onDrop);
     document.addEventListener('dragstart', e => {
@@ -158,7 +162,7 @@
         break;
       case 'tab': S.ui.tab[k] = v; U.render(); break;
       case 'sort': S.ui.tab.whSort = v; U.render(); break;
-      case 'recslot': openJobSlot(id, +(i || 0)); break;
+      case 'recslot': openJobSlot(el.dataset.job || id, +(i || 0)); break;
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
       case 'upg': {
         const r = E.buyUpgrade(id, +i);
@@ -274,6 +278,7 @@
   }
   function openJobSlot(jobId, slotIdx) {
     const S = E.S, job = E.JOB_BY_ID[jobId];
+    if (!job) return;
     const idx = slotIdx || 0;
     const recipe = E.jobRecipes(job)[idx] || { name: job.name };
     const list = S.order.slice(0, E.onFieldCap()).map(id => S.chars[id]).filter(Boolean);
