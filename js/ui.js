@@ -421,10 +421,9 @@ const UI = {
       const job = jobId ? E.JOB_BY_ID[jobId] : null;
       const dim = i >= cap ? 'dim' : '';
       return `<div class="chip ${dim}" draggable="true" data-drag="char" data-id="${cid}" title="拖到工作页的项目卡上可派驻">
-        ${this.avatar(c)}
+        <div class="avwrap">${this.avatar(c)}${job ? `<span class="corner" title="当前工作：${this.esc(job.name)}">${this.jobIcon(job)}</span>` : ''}</div>
         <div class="cn">${this.esc(E.charName(c))}</div>
         ${c.stars > 1 ? `<span class="star">${'★'.repeat(c.stars)}</span>` : ''}
-        ${job ? `<span class="corner">${this.jobIcon(job)}</span>` : ''}
       </div>`;
     }).join('') + `</div>`;
   },
@@ -978,9 +977,9 @@ const UI = {
             const jobId = Object.keys(S.jobs).find(j => S.jobs[j].slots && S.jobs[j].slots.includes(cid));
             return `${i === E.onFieldCap() ? '<div class="sep"></div>' : ''}
               <div class="chip ${dim ? 'dim' : ''} ${cid === sel ? 'sel' : ''}" draggable="true" data-drag="order" data-id="${cid}" data-act="selectChar">
-                ${this.avatar(ch)}<div class="cn">${this.esc(E.charName(ch))}</div>
+                <div class="avwrap">${this.avatar(ch)}${jobId ? `<span class="corner" title="当前工作：${this.esc(E.JOB_BY_ID[jobId].name)}">${this.jobIcon(E.JOB_BY_ID[jobId])}</span>` : ''}</div>
+                <div class="cn">${this.esc(E.charName(ch))}</div>
                 ${ch.stars > 1 ? `<span class="star">${'★'.repeat(ch.stars)}</span>` : ''}
-                ${jobId ? `<span class="corner">${this.jobIcon(E.JOB_BY_ID[jobId])}</span>` : ''}
               </div>`;
           }).join('')}
         </div>

@@ -6,6 +6,7 @@
   const E = window.Engine, U = window.UI;
   let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null;
   let pendingOffline = null;
+  let resetting = false;   // 「重开」确认后置 true，阻止 beforeunload/visibilitychange 把旧存档写回去
   const OFFLINE_POPUP_SEC = 120;     // 离开超过 2 分钟才弹结算框，避免切标签页就打扰
 
   /* ---------------- 启动 ---------------- */
@@ -70,9 +71,9 @@
     tickTimer = setInterval(gameTick, E.GAME.tickMs);
     if (saveTimer) clearInterval(saveTimer);
     saveTimer = setInterval(() => E.save(true), 15000);
-    window.addEventListener('beforeunload', () => E.save(true));
+    window.addEventListener('beforeunload', () => { if (!resetting) E.save(true); });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { E.save(true); return; }
+      if (document.hidden) { if (!resetting) E.save(true); return; }
       // 回到前台：立刻按真实离开时长补结算，不等被节流的下一跳
       gameTick();
     });
@@ -98,15 +99,20 @@
         <div><b>存档</b><div class="tiny muted">自动存档每 15 秒；关闭页面也会存</div></div>
         <div class="row"><button id="setSave">立即存档</button><button id="setExport">导出</button><button id="setImport">导入</button></div>
       </div></div>
+      <div class="card" style="margin-top:10px;border-color:#5a2a30"><div class="row" style="justify-content:space-between">
+        <div><b class="red">重新开始</b><div class="tiny muted">清空全部进度，回到起名页；不可恢复</div></div>
+        <button class="danger" id="setReset">重开</button>
+      </div></div>
       <div class="acts"><button class="primary" data-act="closeModal">关闭</button></div>`);
     document.querySelectorAll('#modalBox [data-theme]').forEach(btn => btn.onclick = () => {
       applyTheme(btn.dataset.theme);
       if (E.S) E.save(true);
       U.closeModal(); U.render(); U.toast('已切换到' + (btn.dataset.theme === 'light' ? '浅色' : '深色') + '主题');
     });
-    const sv = document.getElementById('setSave'); if (sv) sv.onclick = () => { E.save(); U.toast('已存档', 'good'); };
+    const sv = document.getElementById('setSave'); if (sv) sv.onclick = () => { E.save(true); U.toast('已保存', 'good'); };
     const ex = document.getElementById('setExport'); if (ex) ex.onclick = () => { U.closeModal(); doExport(); };
     const im = document.getElementById('setImport'); if (im) im.onclick = () => { U.closeModal(); doImport(); };
+    const rs = document.getElementById('setReset'); if (rs) rs.onclick = () => { U.closeModal(); doReset(); };
   }
 
   function showTips() {
@@ -194,7 +200,7 @@
     document.getElementById('btnSave').onclick = () => { E.save(); U.render(); };
     document.getElementById('btnExport').onclick = doExport;
     document.getElementById('btnImport').onclick = doImport;
-    document.getElementById('btnReset').onclick = doReset;
+    const br = document.getElementById('btnReset'); if (br) br.onclick = doReset;
     const bs = document.getElementById('btnSettings');
     if (bs) bs.onclick = openSettings;
     document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') U.closeModal(); });
@@ -680,6 +686,9 @@
       <div class="sub">会清空全部进度，回到起名页。<b class="red">不可恢复</b> —— 强烈建议先点「导出」备份。</div>
       <div class="acts"><button data-act="closeModal">取消</button><button class="danger" id="okReset">确认清空</button></div>`);
     document.getElementById('okReset').onclick = () => {
+      resetting = true;
+      if (tickTimer) clearInterval(tickTimer);
+      if (saveTimer) clearInterval(saveTimer);
       localStorage.removeItem(E.GAME.saveKey);
       location.reload();
     };
