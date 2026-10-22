@@ -7,7 +7,7 @@ import { join } from 'node:path';
 const url = process.argv[2] || 'file:///D:/game/%E4%BB%BF%E6%A2%85%E5%B0%94%E6%B2%83%E6%94%BE%E7%BD%AE%E6%B8%B8%E6%88%8F/index.html?demo&page=job:mining';
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const port = 9400 + Math.floor(Math.random() * 200);
-const prof = mkdtempSync(join(tmpdir(), 'era-bt-'));
+const prof = process.env.ERA_PROFILE || mkdtempSync(join(tmpdir(), 'era-bt-'));
 const proc = spawn(EDGE, ['--headless=new', '--disable-gpu', '--no-first-run', '--remote-debugging-port=' + port, '--user-data-dir=' + prof, '--window-size=1440,900', url], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

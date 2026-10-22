@@ -84,6 +84,10 @@ ok(E.assignedCount(mining) === 1, '同一角色只占一条配方（沙），石
 console.log('== 战斗 ==');
 E.clearSlot('mining', 0);
 S.techs['bow'] = true;
+// 固定战斗数值，避免随机重伤导致测试抖动
+Object.assign(S.chars.player.lv, { hp: 20, atk: 20, str: 20, def: 20 });
+S.chars.player.xp = { hp: 0, atk: 0, str: 0, def: 0 };
+S.chars.player.hpNow = 999;
 E.assignSlot('hunting', 0, 'player');
 for (let i = 0; i < 1500; i++) E.tick(0.2);
 ok(S.stats.kills > 0, '击杀数 ' + S.stats.kills);
