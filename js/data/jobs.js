@@ -22,8 +22,8 @@
  *   job.powerUse = 该工作运转中每秒耗电（9 个工作合计 9.65 瓦）；升级项 watt = 该档是否 +1 瓦。
  *
  * inputs / outputs 一律用中文物品名（引擎自己映射到物品 id）。
- * 「石器装备 / 金属装备 / 衣物」是工作表 §2 的泛称：85 件装备逐件配方在 资源表.md 各时代「造价」栏，
- *   工作表 §3.3 明确「本节不重复抄」，因此这里保留泛称占位并在 note 标出来源，不编造逐件配方。
+ * 装备制造（加工 / 锻造 / 裁缝）标记 equipment:true：85 件装备的配方由引擎从 items.js 的 cost 生成，
+ *   不在这里重复抄材料，避免物品造价与工作配方两处漂移。
  * 工作表写「投料比例写实现时回填」的（熔炼 → 钢铁）inputs 留空，并在 note 标出。
  */
 window.JOBS = [
@@ -233,13 +233,8 @@ window.JOBS = [
     tech: "石器工艺",
     category: "craft",
     duration: 3,
-    inputs: { "木材": 2, "石头": 1 },
-    outputs: { "石器装备": 1 },
+    equipment: true,
     powerUse: 0,
-    recipes: [
-      { name: "硅片", inputs: { "沙": 2 }, outputs: { "硅片": 1 }, era: "stone", unlockTech: "陶器", duration: 4 },
-      { name: "光纤", inputs: { "玻璃": 2 }, outputs: { "光纤": 1 }, era: "industrial", unlockTech: "温室", duration: 4 }
-    ],
     upgrades: [
       { name: "工作台", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
       { name: "工匠坊", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
@@ -247,7 +242,7 @@ window.JOBS = [
       { name: "电动工具", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "基础配方 3 秒 / 2 木材 + 1 石头 → 1 石器装备（泛称：石器时代 15 件装备全部由本工作造，那时锻造 / 裁缝未解锁）；沙 / 玻璃 两个变体各 4 秒。本工作共 17 件装备 + 2 种中间品（硅片 / 光纤），逐件材料与数量以 资源表.md 各时代「造价」栏为准（工作表 §3.3 明确不重复抄）。硅片 = 沙 → 芯片 入口，光纤 = 玻璃 → 精密零件 入口，石器时代点出「石器工艺」就能造，但原料要等 *陶器 / *温室。"
+    note: "3 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。石器时代 15 件装备全部由本工作造（那时锻造 / 裁缝未解锁）；中世纪的长弓 / 弩也留在这里。共 17 件装备，不产出硅片 / 光纤（已分别移到 半导体制造 / 玻璃制造）。"
   },
   {
     id: "research",
@@ -376,8 +371,7 @@ window.JOBS = [
     tech: "锻造",
     category: "craft",
     duration: 5,
-    inputs: { "铁锭": 2 },
-    outputs: { "金属装备": 1 },
+    equipment: true,
     powerUse: 0,
     upgrades: [
       { name: "铁砧", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "" },
@@ -386,7 +380,7 @@ window.JOBS = [
       { name: "蒸汽锤", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "5 秒 / 2 金属锭 → 1 金属装备或武器（泛称）。51 件：主材料是金属锭 / 钢铁 / 合金 / 电子元件的装备与武器，逐件材料与数量以 资源表.md「造价」栏为准（工作表 §3.3 明确不重复抄，不在此编造）。inputs 的「铁锭」是「2 金属锭」的默认写法，实际按所造装备换料。"
+    note: "5 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。51 件：主材料是金属锭 / 钢铁 / 合金 / 电子元件的装备与武器；石器时代装备与长弓 / 弩归 加工，布料 / 皮革 / 毛料 / 超织物防具归 裁缝。"
   },
   {
     id: "carpentry",
@@ -444,8 +438,7 @@ window.JOBS = [
     tech: "缝制",
     category: "craft",
     duration: 5,
-    inputs: { "布料": 3 },
-    outputs: { "衣物": 1 },
+    equipment: true,
     powerUse: 0,
     upgrades: [
       { name: "缝纫针", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "布料": 50 }, note: "" },
@@ -454,7 +447,7 @@ window.JOBS = [
       { name: "缝纫机", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "5 秒 / 3 布料或皮革 → 1 衣物（泛称）。17 件：主材料是布料 / 皮革 / 毛料 / 超织物的防具，逐件材料与数量以 资源表.md「造价」栏为准。石器时代的皮革货是例外，全部由 #8 加工 造。标准 4 档，价格按 §1.1 阶梯推导。"
+    note: "5 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。17 件：主材料是布料 / 皮革 / 毛料 / 超织物的防具；石器时代的皮革货是例外，全部由 加工 造。"
   },
   {
     id: "pharmacy",
@@ -621,6 +614,10 @@ window.JOBS = [
     inputs: { "沙": 3 },
     outputs: { "玻璃": 1 },
     powerUse: 0.4,
+    recipes: [
+      { name: "玻璃", inputs: { "沙": 3 }, outputs: { "玻璃": 1 }, era: "industrial", unlockTech: null, duration: 5 },
+      { name: "光纤", inputs: { "玻璃": 2 }, outputs: { "光纤": 1 }, era: "industrial", unlockTech: null, duration: 4 }
+    ],
     upgrades: [
       { name: "坩埚", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "沙": 50 }, note: "" },
       { name: "玻璃坊", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "沙": 150 }, note: "" },
@@ -628,7 +625,7 @@ window.JOBS = [
       { name: "自动玻璃线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "5 秒 / 3 沙 → 1 玻璃；玻璃供 光纤（→ 精密零件）、建造、医疗 3 档升级项。由 *温室（作物栽培 → 200）解锁。运转时耗电 0.4 瓦。"
+    note: "5 秒 / 3 沙 → 1 玻璃；4 秒 / 2 玻璃 → 1 光纤（供 精密装配）。由 *温室（作物栽培 → 200）解锁。运转时耗电 0.4 瓦。"
   },
   {
     id: "gunpowder",
@@ -667,13 +664,17 @@ window.JOBS = [
     inputs: { "硅片": 2, "稀土": 1, "机械零件": 1 },
     outputs: { "芯片": 1 },
     powerUse: 0.625,
+    recipes: [
+      { name: "硅片", inputs: { "沙": 2 }, outputs: { "硅片": 1 }, era: "info", unlockTech: null, duration: 4 },
+      { name: "芯片", inputs: { "硅片": 2, "稀土": 1, "机械零件": 1 }, outputs: { "芯片": 1 }, era: "info", unlockTech: null, duration: 8 }
+    ],
     upgrades: [
       { name: "光刻机", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "硅片": 50 }, note: "" },
       { name: "无尘车间", watt: 0, bonusPct: 100, cost: { "钛合金": 300, "精密零件": 150 }, note: "" },
       { name: "全自动晶圆厂", watt: 1, bonusPct: 150, cost: { "钛合金": 2000, "精密零件": 500 }, note: "耗电 +1 瓦；+150% 是全表最高一档" }
     ],
     special: null,
-    note: "8 秒 / 2 硅片 + 1 稀土 + 1 机械零件 → 1 芯片；芯片配方附加值 +3.8%。只有 3 档升级项（表内写 3 档）。运转时耗电 0.625 瓦。"
+    note: "4 秒 / 2 沙 → 1 硅片；8 秒 / 2 硅片 + 1 稀土 + 1 机械零件 → 1 芯片（+3.8%）。只有 3 档升级项（表内写 3 档）。运转时耗电 0.625 瓦。"
   },
   {
     id: "precision_assembly",
@@ -837,7 +838,7 @@ window.JOBS = [
  *   素食食材 = 浆果 / 块根 / 野菌 / 坚果（items.js cat:"food"）
  *   肉食食材 = 肉类食材（items.js id:"meat"）
  *   种子     = 谷物种子 / 豆类种子 / 蔬菜种子 / 甜菜种子 / 药草种子（cat:"seed"）
- *   石器装备 / 金属装备 / 衣物 = 装备泛称：17 + 51 + 17 件逐件配方在 资源表.md「造价」栏
+ *   石器装备 / 金属装备 / 衣物 = 装备泛称：17 + 51 + 17 件由 engine.equipmentRecipes 从物品造价生成
  *   科研点 / 电力 = 特殊产出，不是仓库物品（科研点记进科研系统，电力记进电网）
  */
 

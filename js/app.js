@@ -4,7 +4,9 @@
 'use strict';
 (function () {
   const E = window.Engine, U = window.UI;
-  let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null;
+  let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null;
+  let pendingOffline = null;
+  const OFFLINE_POPUP_SEC = 120;     // 离开超过 2 分钟才弹结算框，避免切标签页就打扰
 
   /* ---------------- 启动 ---------------- */
   function boot() {
@@ -15,7 +17,14 @@
     if (saved) {
       E.S = saved;
       if (q.get('page')) E.S.ui.page = q.get('page');
+      // 离线收益：用存档里的 lastSave 算现实离开时长，期望值一次结算
+      const away = (Date.now() - (saved.lastSave || Date.now())) / 1000;
+      const rep = E.settleOffline(away);
+      pendingOffline = rep;
       startGame();
+      E.save(true);
+      pendingOffline = null;
+      if (rep) setTimeout(() => showOffline(rep), 320);
     } else if (q.has('demo')) {
       E.S = E.newState(q.get('name') || '演示者');
       E.S.chars.player.name = E.S.name;
@@ -54,7 +63,7 @@
     if (!S.shop.slots.length) E.refreshShop(true);
     E.refreshShop(false);
     U.render();
-    if (!S.ui.tipsSeen) { S.ui.tipsSeen = true; setTimeout(showTips, 300); }
+    if (!S.ui.tipsSeen && !pendingOffline) { S.ui.tipsSeen = true; setTimeout(showTips, 300); }
     if (new URLSearchParams(location.search).has('settings')) setTimeout(openSettings, 500);
     lastTick = performance.now();
     if (tickTimer) clearInterval(tickTimer);
@@ -98,19 +107,29 @@
 
   function showTips() {
     U.modal(`<h3>🏛️ 三步开始</h3>
-      <div class="card" style="margin-bottom:8px"><b>1 · 派人干活</b><div class="sub">左侧「工作」→ 打开「伐木」→ 点配方卡右上角的 ＋ 入驻槽，选你的角色。每张配方都有独立槽位。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>1 · 派人干活</b><div class="sub">左侧「工作」→ 打开「伐木」→ 点项目卡右上角的 ＋ 弹出下拉菜单，或把角色头像拖到整张卡上。每个项目都有独立槽位。</div></div>
       <div class="card" style="margin-bottom:8px"><b>2 · 研究科技</b><div class="sub">把角色派去「科研」攒科研点 → 科研页下方就是科技树，研究「火 / 语言 / 石器工艺」，新工作会逐个出现。</div></div>
       <div class="card" style="margin-bottom:8px"><b>3 · 滚起来</b><div class="sub">仓库里卖东西换金币 → 造升级项 → 提升产出；粮食会腐坏，记得保持粮仓有吃的。右上角 ⚙ 设置里可以切换浅色主题。</div></div>
       <div class="acts"><button class="primary" data-act="closeModal">开始</button></div>`);
   }
 
-  function gameTick() {    const now = performance.now();
+  function gameTick() {
+    const now = performance.now();
     let dt = (now - lastTick) / 1000;
     lastTick = now;
-    if (dt > 5) dt = 5;           // 切后台回来不要爆
     if (dt <= 0) return;
     try {
-      E.tick(dt);
+      if (dt >= E.GAME.offlineMinSec) {
+        // 切后台 / 电脑休眠回来：按离线期望值结算，不再丢时间
+        const rep = E.settleOffline(dt);
+        E.save(true);
+        U.render();
+        if (rep && rep.used >= OFFLINE_POPUP_SEC) showOffline(rep);
+        return;
+      }
+      // 小抖动按 0.2 秒分步追平（单步别把战斗模拟撑坏）
+      const steps = Math.min(300, Math.max(1, Math.ceil(dt / 0.2)));
+      for (let i = 0; i < steps; i++) E.tick(dt / steps);
       U.tick();
     } catch (e) { console.error(e); }
   }
@@ -118,11 +137,28 @@
   /* ---------------- 全局事件 ---------------- */
   function wireGlobal() {
     document.addEventListener('click', onClick);
+    document.addEventListener('click', e => {
+      if (!slotMenuEl) return;
+      if (e.target.closest('#slotMenu') || e.target.closest('[data-act="recslot"]')) return;
+      closeSlotMenu();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlotMenu(); });
     document.addEventListener('dragover', e => {
+      const card = e.target.closest('[data-drop-job]');
+      if (card && dragData && dragData.kind === 'char') {
+        e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+        if (!card.classList.contains('dropok')) {
+          document.querySelectorAll('.recipe.dropok').forEach(x => x.classList.remove('dropok'));
+          card.classList.add('dropok');
+        }
+        return;
+      }
       const t = e.target.closest('[data-act="recslot"],[data-act="eqslot"],[data-act="selectChar"]');
       if (t) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; t.classList.add('hover'); }
     });
     document.addEventListener('dragleave', e => {
+      const card = e.target.closest('[data-drop-job]');
+      if (card && !card.contains(e.relatedTarget)) card.classList.remove('dropok');
       const t = e.target.closest('[data-act="recslot"],[data-act="eqslot"]');
       if (t) t.classList.remove('hover');
     });
@@ -137,8 +173,11 @@
     document.addEventListener('dragend', e => {
       const el = e.target.closest('[draggable="true"]');
       if (el) el.style.opacity = '';
-      document.querySelectorAll('.chip.hover,.slot.hover').forEach(x => x.classList.remove('hover'));
+      document.querySelectorAll('.chip.hover,.slot.hover,.recipe.dropok').forEach(x => x.classList.remove('hover', 'dropok'));
     });
+    const page = document.getElementById('page');
+    if (page) page.addEventListener('scroll', closeSlotMenu, { passive: true });
+    window.addEventListener('resize', closeSlotMenu);
 
     document.getElementById('btnSave').onclick = () => { E.save(); U.render(); };
     document.getElementById('btnExport').onclick = doExport;
@@ -164,7 +203,7 @@
         break;
       case 'tab': S.ui.tab[k] = v; U.render(); break;
       case 'sort': S.ui.tab.whSort = v; U.render(); break;
-      case 'recslot': openJobSlot(el.dataset.job || id, +(i || 0)); break;
+      case 'recslot': openJobSlot(el.dataset.job || id, +(i || 0), el); break;
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
       case 'upg': {
         const r = E.buyUpgrade(id, +i);
@@ -209,6 +248,16 @@
       }
       case 'sendgift': openGift(id); break;
       case 'pull': doPull(id); break;
+      case 'claimCodex': {
+        const r = E.codexClaim(k, id);
+        U.toast(r.ok ? '领取 ' + r.n + ' 个英雄碎片' : (r.why || '没有可领取的奖励'), r.ok ? 'good' : 'bad');
+        U.render(); break;
+      }
+      case 'claimAllCodex': {
+        const r = E.codexClaimAll();
+        U.toast(r.count ? '一键领取 ' + r.count + ' 项，共 ' + r.n + ' 个英雄碎片' : '没有可领取的奖励', r.count ? 'good' : 'bad');
+        U.render(); break;
+      }
       case 'buildgen': {
         const gens = window.JOB_POWER_GENERATORS || {};
         let g = null;
@@ -236,8 +285,17 @@
 
   /* ---------------- 拖拽 ---------------- */
   function onDrop(e) {
+    if (!dragData) return;
+    const card = e.target.closest('[data-drop-job]');
+    if (card && dragData.kind === 'char') {
+      e.preventDefault();
+      assignJob(card.dataset.dropJob, +(card.dataset.dropI || 0), dragData.id);
+      dragData = null;
+      document.querySelectorAll('.recipe.dropok').forEach(x => x.classList.remove('dropok'));
+      return;
+    }
     const target = e.target.closest('[data-act="recslot"],[data-act="eqslot"],[data-act="selectChar"]');
-    if (!target || !dragData) return;
+    if (!target) return;
     e.preventDefault();
     const kind = dragData.kind, id = dragData.id;
     if (target.dataset.act === 'recslot' && kind === 'char') assignJob(target.dataset.job, +(target.dataset.i || 0), id);
@@ -278,26 +336,52 @@
     U.toast(E.charName(c) + ' → ' + job.name + (r && E.jobRecipes(job).length > 1 ? ' · ' + r.name : ''));
     U.render();
   }
-  function openJobSlot(jobId, slotIdx) {
+  function closeSlotMenu() {
+    if (slotMenuEl) { slotMenuEl.remove(); slotMenuEl = null; }
+  }
+  function openJobSlot(jobId, slotIdx, anchor) {
+    closeSlotMenu();
     const S = E.S, job = E.JOB_BY_ID[jobId];
-    if (!job) return;
+    if (!job || !anchor) return;
     const idx = slotIdx || 0;
     const recipe = E.jobRecipes(job)[idx] || { name: job.name };
     const list = S.order.slice(0, E.onFieldCap()).map(id => S.chars[id]).filter(Boolean);
     const curId = S.jobs[jobId].slots ? S.jobs[jobId].slots[idx] : null;
-    U.modal(`<h3>入驻 · ${U.esc(job.name)}${E.jobRecipes(job).length > 1 ? ' · ' + U.esc(recipe.name) : ''}</h3>
-      <div class="sub" style="margin-bottom:10px">只有前 ${E.onFieldCap()} 名角色可以上场。当前：${curId ? U.esc(E.charName(S.chars[curId])) : '空'}</div>
-      <div class="chips">${list.map(c => {
+    const menu = document.createElement('div');
+    menu.id = 'slotMenu';
+    menu.className = 'slotmenu';
+    menu.innerHTML = `
+      <div class="pmh">入驻 · ${U.esc(job.name)}${E.jobRecipes(job).length > 1 ? ' · ' + U.esc(recipe.name) : ''}</div>
+      <div class="pms">前 ${E.onFieldCap()} 名角色可上场${curId ? ' · 当前：' + U.esc(E.charName(S.chars[curId])) : ' · 当前：空'}</div>
+      <div class="pmlist">${list.length ? list.map(c => {
         let ok = true, why = '';
         if (job.special === 'blackSoul' && c.cid !== 'yuki') { ok = false; why = '仅星见由岐'; }
         if (job.special === 'eraSim' && c.cid !== 'dashao') { ok = false; why = '仅大少'; }
-        return `<div class="chip ${ok ? '' : 'dim'}" data-act="pickchar" data-job="${jobId}" data-i="${idx}" data-id="${c.cid}" style="cursor:pointer">
-          ${U.avatar(c)}<div class="cn">${U.esc(E.charName(c))}</div><div class="tiny dim">${why || '精通 ' + E.masteryLvl(c, jobId)}</div></div>`;
-      }).join('')}</div>
-      <div class="acts"><button data-act="unassign" data-job="${jobId}" data-i="${idx}">撤下</button><button data-act="closeModal">取消</button></div>`);
-    document.querySelectorAll('[data-act="pickchar"]').forEach(el => el.onclick = () => { assignJob(el.dataset.job, +el.dataset.i, el.dataset.id); U.closeModal(); });
-    const un = document.querySelector('[data-act="unassign"]');
-    if (un) un.onclick = () => { E.clearSlot(jobId, idx); U.closeModal(); U.render(); };
+        return `<button type="button" class="pmitem ${c.cid === curId ? 'on' : ''} ${ok ? '' : 'dim'}" data-pickchar data-id="${c.cid}" ${ok ? '' : 'disabled'}>
+          ${U.avatar(c, 'sm')}<span class="nm">${U.esc(E.charName(c))}</span><span class="mm">${why || '精通 ' + E.masteryLvl(c, jobId)}</span>
+        </button>`;
+      }).join('') : '<div class="pmempty">没有可上场的角色</div>'}</div>
+      <div class="pmfoot">
+        <button type="button" data-menu-unassign ${curId ? '' : 'disabled'}>撤下</button>
+        <button type="button" data-menu-close>取消</button>
+      </div>`;
+    document.body.appendChild(menu);
+    const r = anchor.getBoundingClientRect();
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 8));
+    let top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    slotMenuEl = menu;
+    menu.querySelectorAll('[data-pickchar]').forEach(el => el.onclick = () => {
+      const cid = el.dataset.id;
+      closeSlotMenu();
+      assignJob(jobId, idx, cid);
+    });
+    const un = menu.querySelector('[data-menu-unassign]');
+    if (un) un.onclick = () => { closeSlotMenu(); E.clearSlot(jobId, idx); U.render(); };
+    menu.querySelector('[data-menu-close]').onclick = closeSlotMenu;
   }
   function openEquipSlot(slot) {
     const S = E.S, cid = S.ui.charSel || S.order[0], c = S.chars[cid];
@@ -407,7 +491,7 @@
     const r = E.pull(poolId);
     if (!r.ok) { U.toast(r.why || '抽卡失败', 'bad'); return; }
     let html = '<h3>抽卡结果</h3>';
-    if (r.type === 'new') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:44px">🌟</div><h2 class="gold">${U.esc(r.hero.name)}</h2><div class="sub">新角色加入！</div></div>`;
+    if (r.type === 'new') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:44px">🌟</div><h2 class="gold">${U.esc(r.hero.name)}</h2><div class="sub">${r.gen ? '随机普通角色加入！' : '新角色加入！'}</div></div>`;
     else if (r.type === 'dup') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:40px">✨</div><h2>${U.esc(r.hero.name)}</h2><div class="sub">重复角色 → 星尘 ×${r.n}</div></div>`;
     else if (r.type === 'stardust') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:40px">✨</div><h2>星尘 ×${r.n}</h2><div class="sub">该池已集齐，保底转为星尘</div></div>`;
     else if (r.type === 'gift') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:40px">🎁</div><h2>${U.esc(r.gift.name)}</h2><div class="sub">好感度礼物 +${r.gift.favor}</div></div>`;
@@ -416,6 +500,46 @@
     const again = document.getElementById('againBtn');
     if (again) again.onclick = () => { U.closeModal(); doPull(poolId); };
     U.render();
+  }
+
+  /* ---------------- 离线结算弹窗 ---------------- */
+  function showOffline(rep) {
+    if (!rep) return;
+    const itOf = g => E.ITEMS[g.id] || null;
+    const topGain = rep.gained.slice(0, 10);
+    const topSpend = rep.spent.slice(0, 4);
+    const raidWin = rep.raids.filter(r => r.win).length;
+    const rows = [];
+    topGain.forEach(g => {
+      const it = itOf(g);
+      rows.push(`<div class="row" style="justify-content:space-between;padding:2px 0"><span>${it ? U.itemIcon(it) : '📦'} ${U.esc(it ? it.name : g.id)}</span><b class="green mono">+${E.fmt(g.n)}</b></div>`);
+    });
+    if (rep.gold) rows.push(`<div class="row" style="justify-content:space-between;padding:2px 0"><span>💰 金币</span><b class="${rep.gold > 0 ? 'gold' : 'red'} mono">${rep.gold > 0 ? '+' : ''}${E.fmt(rep.gold)}</b></div>`);
+    if (rep.research > 0) rows.push(`<div class="row" style="justify-content:space-between;padding:2px 0"><span>🔬 科研点</span><b class="blue mono">+${E.fmt(rep.research, 0)}</b></div>`);
+    if (rep.kills > 0) rows.push(`<div class="row" style="justify-content:space-between;padding:2px 0"><span>⚔️ 击杀</span><b class="mono">${E.fmt(rep.kills)}</b></div>`);
+    if (!rows.length) rows.push('<div class="dim small">这段时间没有产出（还有工作没派人？）</div>');
+    if (rep.gained.length > topGain.length) rows.push(`<div class="tiny dim" style="margin-top:4px">另有 ${rep.gained.length - topGain.length} 种物品没列出</div>`);
+
+    let html = `<h3>🌙 离线结算</h3>
+      <div class="sub" style="margin-bottom:10px">离开了 <b>${E.fmtTime(rep.away)}</b>，按 <b>${E.fmtTime(rep.used)}</b> 结算${rep.capped ? '（离线收益上限 8 小时）' : ''}。</div>
+      <div class="card">${rows.join('')}</div>`;
+
+    const loss = [];
+    if (rep.food.after < rep.food.before - 0.5) {
+      loss.push(`<div class="row" style="justify-content:space-between"><span>🍎 粮仓</span><span class="mono red">${E.fmt(rep.food.before, 0)} → ${E.fmt(rep.food.after, 0)}</span></div>`);
+    }
+    if (topSpend.length) {
+      loss.push(`<div class="tiny muted" style="margin-top:4px">消耗：${topSpend.map(g => { const it = itOf(g); return U.esc(it ? it.name : g.id) + ' −' + E.fmt(g.n); }).join(' · ')}</div>`);
+    }
+    if (rep.raids.length) {
+      loss.push(`<div class="row" style="justify-content:space-between;margin-top:4px"><span>🛡️ 袭击 ${rep.raids.length} 次</span><span class="mono">${raidWin === rep.raids.length ? '<span class="green">全部击退</span>' : '<span class="red">失守 ' + (rep.raids.length - raidWin) + ' 次</span>'}</span></div>`);
+    }
+    if (loss.length) html += `<div class="card" style="margin-top:8px">${loss.join('')}</div>`;
+    if (rep.injured.length) {
+      html += `<div class="card" style="margin-top:8px"><b class="red">重伤</b><div class="tiny muted" style="margin-top:2px">${rep.injured.map(n => U.esc(n)).join('、')} 离线期间被打伤，需要休养或派去医疗。</div></div>`;
+    }
+    html += `<div class="acts"><button class="primary" data-act="closeModal">收下</button></div>`;
+    U.modal(html);
   }
 
   /* ---------------- 存档操作 ---------------- */

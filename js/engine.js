@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.8';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.11';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -16,23 +16,30 @@ const GAME = {
   weaponDefaultInterval: 2.4,
   mineBaseSec: 3,           // 采矿基础时长：权重 100 的矿石 = 3 秒，其余 = 3×100/权重
   secPerDay: 24,            // 1 天 = 24 秒（1 秒 = 1 小时）：只有按「天」写的数值靠它换算
+  offlineMinSec: 60,        // 离开 < 60 秒不结算（交给正常 tick 追 5 秒）
+  offlineCapSec: 8 * 3600,  // 离线结算上限 8 小时
+  offlineChunkSec: 15,      // 离线生产按 15 秒的时间块推进
 };
 
+/* 卡池里的有名英雄：只有 大少 / Laremehpe 两位。
+   其余 7 位 retired=true —— 数据保留（旧存档、#黑暗之魂 的门槛、刘的商店折扣仍按 id 查得到），
+   但不再进任何卡池、不进图鉴、不可获得。 */
 const HEROES = [
-  { id:'yuki',   name:'星见由岐',       pool:'神人俱乐部', hp:12, atk:10, str:12, def:6,  job:'锻造',     e1:'黑暗之魂',           e2:'黑暗之魂+' },
-  { id:'finger', name:'一根手指扣晕你', pool:'神人俱乐部', hp:4,  atk:12, str:14, def:10, job:'火药制作', e1:'让这个瞬间成为永恒', e2:'让这个瞬间成为永恒+' },
-  { id:'chao',   name:'超超',           pool:'神人俱乐部', hp:10, atk:8,  str:6,  def:16, job:'种植',     e1:'开拓者',             e2:'开拓者+' },
-  { id:'juju',   name:'居居',           pool:'神人俱乐部', hp:6,  atk:6,  str:6,  def:6,  job:'畜牧',     e1:'习惯',               e2:'习惯+' },
-  { id:'lare',   name:'Laremehpe',      pool:'P社',        hp:8,  atk:10, str:8,  def:8,  job:'科研',     e1:'波浪式地向前进',      e2:'波浪式地向前进+' },
-  { id:'dashao', name:'大少',           pool:'steam游戏群', hp:14, atk:6,  str:8,  def:12, job:'医疗',     e1:'模拟纪元',           e2:'模拟纪元+' },
-  { id:'muyi',   name:'木易天二人一',   pool:'steam游戏群', hp:8,  atk:9,  str:10, def:7,  job:'伐木',     e1:'潜水摸鱼',           e2:'潜水摸鱼+' },
-  { id:'liu',    name:'刘',             pool:'steam游戏群', hp:7,  atk:8,  str:9,  def:10, job:'烹饪',     e1:'人缘好',             e2:'人缘好+' },
-  { id:'space',  name:'空白TheSpace',   pool:'双池',        hp:12, atk:7,  str:8,  def:9,  job:'切石机',   e1:'搬石',               e2:'搬石+' },
+  { id:'dashao', name:'大少',           pool:'limited', hp:14, atk:6,  str:8,  def:12, job:'医疗',     e1:'模拟纪元',           e2:'模拟纪元+' },
+  { id:'lare',   name:'Laremehpe',      pool:'limited', hp:8,  atk:10, str:8,  def:8,  job:'科研',     e1:'波浪式地向前进',      e2:'波浪式地向前进+' },
+  { id:'yuki',   name:'星见由岐',       pool:null, retired:true, hp:12, atk:10, str:12, def:6,  job:'锻造',     e1:'黑暗之魂',           e2:'黑暗之魂+' },
+  { id:'finger', name:'一根手指扣晕你', pool:null, retired:true, hp:4,  atk:12, str:14, def:10, job:'火药制作', e1:'让这个瞬间成为永恒', e2:'让这个瞬间成为永恒+' },
+  { id:'chao',   name:'超超',           pool:null, retired:true, hp:10, atk:8,  str:6,  def:16, job:'种植',     e1:'开拓者',             e2:'开拓者+' },
+  { id:'juju',   name:'居居',           pool:null, retired:true, hp:6,  atk:6,  str:6,  def:6,  job:'畜牧',     e1:'习惯',               e2:'习惯+' },
+  { id:'muyi',   name:'木易天二人一',   pool:null, retired:true, hp:8,  atk:9,  str:10, def:7,  job:'伐木',     e1:'潜水摸鱼',           e2:'潜水摸鱼+' },
+  { id:'liu',    name:'刘',             pool:null, retired:true, hp:7,  atk:8,  str:9,  def:10, job:'烹饪',     e1:'人缘好',             e2:'人缘好+' },
+  { id:'space',  name:'空白TheSpace',   pool:null, retired:true, hp:12, atk:7,  str:8,  def:9,  job:'切石机',   e1:'搬石',               e2:'搬石+' },
 ];
+/* 只有 2 个池：限定（有名英雄 + 随机普通角色）/ 常驻（只有随机普通角色）。
+   namedW / normalW = 出角色时单个角色的权重：限定池里有名英雄 → 随机普通角色 = 10 : 1。 */
 const POOLS = [
-  { id:'shenren', name:'神人俱乐部', heroes:['yuki','finger','chao','juju','space'] },
-  { id:'pshe',    name:'P社',        heroes:['lare'] },
-  { id:'steam',   name:'steam游戏群', heroes:['dashao','muyi','liu','space'] },
+  { id:'limited',  name:'限定', heroes:['dashao','lare'], normal:true, namedW:10, normalW:1 },
+  { id:'standard', name:'常驻', heroes:[],                normal:true, namedW:10, normalW:1 },
 ];
 const GIFTS = [
   { id:'gift1', name:'便利贴', favor:2,  w:50, price:400  },
@@ -92,6 +99,62 @@ const ENEMY_BY_NAME = {}; ENEMIES.forEach(e => ENEMY_BY_NAME[e.name] = e);
 const POOL_BY_ID = {}; POOLS.forEach(p => POOL_BY_ID[p.id] = p);
 const HERO_BY_ID = {}; HEROES.forEach(h => HERO_BY_ID[h.id] = h);
 
+/* ---------- 抽卡常数 / 随机普通角色 ---------- */
+const PULL_COST = 10;      // 一次抽卡消耗的英雄碎片
+const PITY_LIMIT = 30;     // 连续 N 抽没新角色 → 下一抽必新（每池独立）
+const CODEX_REWARD = { items: 1, enemies: 3, chars: 5 };   // 图鉴首次收录可领的碎片
+
+/* 随机普通角色：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐。
+   每个存档首次进入招募页时生成 【6】 个（固定下来，不是每次抽卡现造），
+   这样限定池与常驻池才有稳定的「已拥有 / 集齐」与保底口径。 */
+const NORMAL = {
+  n: 6,
+  sur: ['林','陈','周','许','沈','顾','苏','何','罗','唐','宋','韩','叶','程','陆','温','夏','江','白','严'],
+  given: ['子墨','清和','南星','知秋','砚青','小满','听雨','若川','行舟','望舒','星野','一鸣','怀瑾','停云','衔月','拾光','长庚','临川'],
+  hp: [6, 12], atk: [5, 11], str: [5, 12], def: [5, 12],
+};
+function rndInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+function ensureNormals() {
+  if (!S) return [];
+  if (!S.gacha) S.gacha = { pity:{}, pulls:0, noNew:{}, normals:[] };
+  if (!Array.isArray(S.gacha.normals)) S.gacha.normals = [];
+  if (S.gacha.normals.length) return S.gacha.normals;
+  const jobs = JOBS.filter(j => !j.special);
+  const used = {}, list = [];
+  for (let i = 0; i < NORMAL.n; i++) {
+    let name, guard = 0;
+    do {
+      name = NORMAL.sur[rndInt(0, NORMAL.sur.length - 1)] + NORMAL.given[rndInt(0, NORMAL.given.length - 1)];
+      guard++;
+    } while (used[name] && guard < 200);
+    used[name] = 1;
+    const j = jobs.length ? jobs[rndInt(0, jobs.length - 1)] : null;
+    list.push({
+      id: 'gen' + (i + 1), gen: true, name,
+      hp: rndInt(NORMAL.hp[0], NORMAL.hp[1]), atk: rndInt(NORMAL.atk[0], NORMAL.atk[1]),
+      str: rndInt(NORMAL.str[0], NORMAL.str[1]), def: rndInt(NORMAL.def[0], NORMAL.def[1]),
+      job: j ? j.name : null, e1: null, e2: null,
+    });
+  }
+  S.gacha.normals = list;
+  return list;
+}
+function genDef(id) { return ensureNormals().find(d => d.id === id) || null; }
+function heroDef(id) { return HERO_BY_ID[id] || genDef(id); }
+function poolMembers(poolId) {
+  const p = POOL_BY_ID[poolId]; if (!p) return [];
+  const out = (p.heroes || []).map(id => ({ id, def: HERO_BY_ID[id], gen: false }));
+  if (p.normal) ensureNormals().forEach(d => out.push({ id: d.id, def: d, gen: true }));
+  return out;
+}
+/* 图鉴「角色」页用：所有可获得的角色（有名英雄 + 普通角色），退役的不算 */
+function poolHeroList() {
+  const out = [], seen = {};
+  HEROES.forEach(h => { if (h.retired) return; out.push({ id:h.id, def:h, gen:false }); seen[h.id] = 1; });
+  ensureNormals().forEach(d => { if (!seen[d.id]) { out.push({ id:d.id, def:d, gen:true }); seen[d.id] = 1; } });
+  return out;
+}
+
 /* 未在物品表里出现的材料名 → 运行时补一条（容错，正常不应触发） */
 function ensureItemByName(name) {
   if (!name) return null;
@@ -114,6 +177,7 @@ let S = null;
 function newChar(cid, opts) {
   return {
     cid, name: opts.name, kind: opts.kind || 'hero', pool: opts.pool || null,
+    gen: !!opts.gen, job: opts.job || null,
     stars: opts.stars || 1, favor: 0,
     lv: { hp: opts.hp, atk: opts.atk, str: opts.str, def: opts.def },
     xp: { hp:0, atk:0, str:0, def:0 },
@@ -133,7 +197,8 @@ function newState(name) {
     jobs: {}, techs: {}, recipes: {},
     housing: 0, comfort: [], forts: [], whUpg: 0, granary: 0,
     shop: { slots: [], next: 0 },
-    gacha: { pity: {}, pulls: 0, noNew: {} },
+    gacha: { pity: {}, pulls: 0, noNew: {}, normals: [] },
+    codex: { items: {}, enemies: {}, chars: {} },
     combat: {},
     raid: { next: GAME.raidPeriod, last: null, count: 0 },
     power: { built: {}, on: {} },
@@ -324,13 +389,15 @@ function masteryPct(c, jobId) { return 1 + masteryLvl(c, jobId) * 0.001; }
 function masteryNext(c, jobId) {
   const lv = masteryLvl(c, jobId);
   if (lv >= 100) return 1;
+  const cur = Math.pow(lv / 100, 2) * GAME.masteryXpMax;
   const need = Math.pow((lv + 1) / 100, 2) * GAME.masteryXpMax;
-  return clamp(masteryOf(c,jobId).xp / need, 0, 1);
+  return clamp((masteryOf(c,jobId).xp - cur) / (need - cur), 0, 1);
 }
 function charBonusFor(c, job) {
   if (!c || c.kind === 'player') return 0;
-  const h = HERO_BY_ID[c.cid]; if (!h) return 0;
-  if (h.job !== job.name) return 0;
+  const h = HERO_BY_ID[c.cid];
+  const jobName = h ? h.job : c.job;      // 随机普通角色的工作加成记在角色本身
+  if (jobName !== job.name) return 0;
   return 0.2 * (c.stars || 1);
 }
 function favorUnlocked(c) { return c.favor >= 25; }
@@ -386,13 +453,52 @@ function miningRecipes(job) {
     duration: Math.round((GAME.mineBaseSec * 100 / (o.weight || 1)) * 10) / 10,
   }));
 }
+/* 装备制造：三份工作按「主材料」分 85 件；配方直接由物品表造价生成，避免两处维护。 */
+const TAILORING_ITEMS = new Set([
+  '布帽', '布衬衣', '布衬裤', '羊毛袜', '银项链',
+  '棉帽', '棉衬衣', '棉衬裤', '棉袜',
+  '战术内衬', '战术内衬裤', '恒温内衬', '恒温袜',
+  '超织物头套', '超织物内衬', '超织物护腿', '超织物袜',
+]);
+const EQUIP_RECIPE_CACHE = {};
+function equipmentJobId(it) {
+  if (it.era === 'stone') return 'crafting';
+  if (it.name === '长弓' || it.name === '弩') return 'crafting';
+  return TAILORING_ITEMS.has(it.name) ? 'tailoring' : 'forging';
+}
+function equipmentRecipes(job) {
+  if (EQUIP_RECIPE_CACHE[job.id]) return EQUIP_RECIPE_CACHE[job.id];
+  const list = [];
+  for (const id of ITEM_ORDER) {
+    const it = ITEMS[id];
+    if (!it || (it.cat !== 'equip' && it.cat !== 'weapon') || !it.cost) continue;
+    if (it.cost.soul || it.cost.ember) continue;          // 黑魂套是抽卡掉落，不走制造
+    if (equipmentJobId(it) !== job.id) continue;
+    const inputs = {};
+    for (const cid in it.cost) inputs[itemName(cid)] = it.cost[cid];
+    let unlockTech = null;
+    if (it.name === '长弓') unlockTech = '缝制';
+    if (it.name === '弩') unlockTech = '金属冶炼';
+    list.push({
+      name: it.name, inputs, outputs: { [it.name]: 1 },
+      era: it.era, unlockTech, duration: job.duration || 3,
+    });
+  }
+  EQUIP_RECIPE_CACHE[job.id] = list;
+  return list;
+}
 function jobRecipes(job) {
   if (job.special === 'mining') return miningRecipes(job);
+  if (job.equipment) return equipmentRecipes(job);
   if (job.recipes && job.recipes.length) return job.recipes;
   return [{ name: job.name, inputs: job.inputs || {}, outputs: job.outputs || {}, era: job.era, duration: job.duration || 2 }];
 }
 function jobRecipe(job, idx) { const l = jobRecipes(job); return l[clamp(idx, 0, l.length - 1)]; }
-function recipeVisible(r) { return !r || !r.tech || researched(r.tech); }
+function recipeVisible(r) {
+  if (!r) return true;
+  const tech = r.unlockTech || r.tech;
+  return !tech || researched(tech);
+}
 function recipeDuration(job, r) { return (r && r.duration) || job.duration || 2; }
 function ensureSlots(js, n) {
   if (!Array.isArray(js.slots)) js.slots = [];
@@ -798,43 +904,51 @@ function gachaPity(poolId) {
 }
 function shardCount() { const id = N2I('英雄碎片'); return id ? (S.items[id]||0) : 0; }
 function ownsHero(hid) { return !!S.chars[hid]; }
-function poolComplete(poolId) { const p = POOL_BY_ID[poolId]; return p.heroes.every(h => ownsHero(h)); }
+function poolComplete(poolId) { return poolMembers(poolId).every(m => ownsHero(m.id)); }
 function pull(poolId) {
-  const pool = POOL_BY_ID[poolId]; if (!pool) return { ok:false };
+  const pool = POOL_BY_ID[poolId]; if (!pool) return { ok:false, why:'没有这个卡池' };
   const shardId = N2I('英雄碎片'); if (!shardId) return { ok:false };
-  if ((S.items[shardId]||0) < 20) return { ok:false, why:'英雄碎片不足（需要 20 个）' };
-  removeItem(shardId, 20);
+  if ((S.items[shardId]||0) < PULL_COST) return { ok:false, why:'英雄碎片不足（需要 ' + PULL_COST + ' 个）' };
+  removeItem(shardId, PULL_COST);
   S.gacha.pulls++; S.stats.pulls++;
   const noNew = gachaPity(poolId);
-  const needPity = noNew >= 30;
+  const needPity = noNew >= PITY_LIMIT;
   const isChar = needPity || Math.random() < 0.30;
   if (!isChar) {
     const roll = Math.random() * 100;
     let acc = 0, tier = GIFTS[0];
     for (const g of GIFTS) { acc += g.w; if (roll <= acc) { tier = g; break; } }
     addItem(tier.id, 1);
-    S.gacha.noNew[poolId] = noNew + 0;
+    S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出新角色」
     return { ok:true, type:'gift', gift: tier };
   }
   // 抽角色
-  const owned = pool.heroes.filter(h => ownsHero(h));
-  const all = pool.heroes;
-  let hid;
+  const members = poolMembers(poolId);
+  const missing = members.filter(m => !ownsHero(m.id));
+  let pick;
   if (needPity) {
-    const missing = all.filter(h => !ownsHero(h));
-    if (missing.length) hid = missing[Math.floor(Math.random()*missing.length)];
-    else { addItem(N2I('星尘') || ensureItemByName('星尘'), 30); S.gacha.noNew[poolId] = 0; return { ok:true, type:'stardust', n:30, pity:true }; }
+    if (!missing.length) {
+      addItem(N2I('星尘') || ensureItemByName('星尘'), 30);
+      S.gacha.noNew[poolId] = 0;
+      return { ok:true, type:'stardust', n:30, pity:true };
+    }
+    pick = missing[Math.floor(Math.random()*missing.length)];
   } else {
-    hid = all[Math.floor(Math.random()*all.length)];
+    // 限定池：有名英雄单角色权重 10，随机普通角色单角色权重 1
+    const wp = members.map(m => ({ m, weight: m.gen ? (pool.normalW || 1) : (pool.namedW || 1) }));
+    const hit = weightedPick(wp);
+    pick = hit ? hit.m : members[members.length - 1];
   }
+  const hid = pick.id;
   if (ownsHero(hid)) {
     addItem(N2I('星尘') || ensureItemByName('星尘'), 10);
     S.gacha.noNew[poolId] = needPity ? 0 : noNew + 1;
-    return { ok:true, type:'dup', hero: HERO_BY_ID[hid], n:10 };
+    return { ok:true, type:'dup', hero: pick.def, gen: pick.gen, n:10 };
   }
   // 新角色
-  const h = HERO_BY_ID[hid];
-  const c = newChar(hid, { name: h.name, kind:'hero', pool: poolId, hp: h.hp, atk: h.atk, str: h.str, def: h.def, stars: 1 });
+  const h = pick.def;
+  const c = newChar(hid, { name: h.name, kind:'hero', pool: poolId, gen: !!pick.gen, job: h.job,
+    hp: h.hp, atk: h.atk, str: h.str, def: h.def, stars: 1 });
   c.hpNow = charStats(c).maxHp;
   S.chars[hid] = c;
   S.order.push(hid);
@@ -842,7 +956,42 @@ function pull(poolId) {
   S.gacha.noNew[poolId] = 0;
   S.discoveredShard = true;
   log('抽到新角色 <b class="gold">' + h.name + '</b>！');
-  return { ok:true, type:'new', hero: h };
+  return { ok:true, type:'new', hero: h, gen: !!pick.gen };
+}
+
+/* ---------- 图鉴收集奖励（英雄碎片） ---------- */
+function codexSeen(kind, id) {
+  if (kind === 'chars') return id !== 'player' && !!(S.seen.chars && S.seen.chars[id]);
+  return !!(S.seen[kind] && S.seen[kind][id]);
+}
+function codexClaimed(kind, id) { return !!(S.codex && S.codex[kind] && S.codex[kind][id]); }
+function codexClaimable(kind, id) { return codexSeen(kind, id) && !codexClaimed(kind, id); }
+function codexClaim(kind, id) {
+  if (!codexClaimable(kind, id)) return { ok:false, why:'没有可领取的奖励' };
+  if (!S.codex) S.codex = { items:{}, enemies:{}, chars:{} };
+  if (!S.codex[kind]) S.codex[kind] = {};
+  const n = CODEX_REWARD[kind] || 0;
+  S.codex[kind][id] = true;
+  addItem(N2I('英雄碎片') || ensureItemByName('英雄碎片'), n);
+  S.discoveredShard = true;
+  return { ok:true, n };
+}
+function codexUnclaimed() {
+  let items = 0, enemies = 0, chars = 0;
+  for (const id in ITEMS) if (codexClaimable('items', id)) items++;
+  ENEMIES.forEach(e => { if (codexClaimable('enemies', e.id)) enemies++; });
+  poolHeroList().forEach(x => { if (codexClaimable('chars', x.id)) chars++; });
+  return {
+    items, enemies, chars, total: items + enemies + chars,
+    shards: items * CODEX_REWARD.items + enemies * CODEX_REWARD.enemies + chars * CODEX_REWARD.chars,
+  };
+}
+function codexClaimAll() {
+  let count = 0, n = 0;
+  for (const id in ITEMS) { const r = codexClaim('items', id); if (r.ok) { count++; n += r.n; } }
+  ENEMIES.forEach(e => { const r = codexClaim('enemies', e.id); if (r.ok) { count++; n += r.n; } });
+  poolHeroList().forEach(x => { const r = codexClaim('chars', x.id); if (r.ok) { count++; n += r.n; } });
+  return { ok: count > 0, count, n };
 }
 function giftTo(cid, giftId) {
   const c = S.chars[cid], g = GIFTS.find(x => x.id === giftId);
@@ -943,6 +1092,246 @@ function doRaid() {
   log(out.win ? '<b class="green">击退了袭击</b>（强度 ' + fmt(strength) + ' ≤ 战力 ' + fmt(def) + '）'
              : '<b class="red">基地失守</b>（强度 ' + fmt(strength) + ' > 战力 ' + fmt(def) + '），被抢走约 10% 资源。');
   return out;
+}
+
+/* ---------- 离线结算 ----------
+   口径来自 design/战斗系统.md「九、离线结算」：在线逐帧，离线用期望值。
+   · 时长 = min(现实离开秒数, 8 小时)；低于 60 秒不结算（正常 tick 追平）
+   · 非战斗工作：按 15 秒时间块推进（含食物消耗 / 粮仓腐坏 / 回血 / 潜水摸鱼）
+   · 战斗工作（狩猎 / 黑暗之魂 / 模拟纪元）：不做逐回合模拟，按
+     「期望击杀时长 → 击杀数 × 单杀掉落」一次算完，O(1)
+   · 袭击：离线期间每 2 小时判定照常补算
+   返回结算报告，app.js 用它弹「离线收益」框。 */
+function offlineRegenPctPerSec() {
+  const pct = healerPresent()
+    ? (CC.healerRegenPctPerDay || 15) : (CC.naturalRegenPctPerDay || 5);
+  return pct / 100 / GAME.secPerDay;
+}
+/* 期望数量 → 整数：整数部分照给，小数部分按概率补 1，保证多次结算不丢期望 */
+function offlineRound(v) {
+  if (!(v > 0)) return 0;
+  const whole = Math.floor(v);
+  return whole + (Math.random() < v - whole ? 1 : 0);
+}
+function offlineCombatChars() {
+  const set = {};
+  JOBS.forEach(j => {
+    if (j.special !== 'hunting' && j.special !== 'blackSoul' && j.special !== 'eraSim') return;
+    const js = S.jobs[j.id];
+    if (!js || !js.slots) return;
+    js.slots.forEach(id => { if (id && S.chars[id]) set[id] = 1; });
+  });
+  return set;
+}
+function offlineEnemies(job, c) {
+  if (job.special === 'hunting') {
+    const region = (job.regions || REGIONS)[combatState(job.id).region || 0];
+    const names = (region && region.enemies) || [];
+    return names.map(n => ENEMY_BY_NAME[n]).filter(Boolean);
+  }
+  const lvl = c ? masteryLvl(c, job.id) : 1;
+  const list = ENEMIES.filter(e => e.type === (job.special === 'blackSoul' ? 'blackSoul' : 'eraSim'));
+  const pool = list.filter(e => (e.unlockLevel || 1) <= lvl);
+  if (pool.length) return [pool[pool.length - 1]];
+  return list.length ? [list[0]] : [];
+}
+/* 单场对决的期望：击杀时长 / 被打进重伤的时长 / 获胜概率 */
+function offlineFight(c, e) {
+  const st = charStats(c);
+  const dps = Math.max(0.001, charDps(c, e));
+  const tKill = e.hp / dps;
+  const eAtk = Math.floor((e.atk + 9) * 64);
+  const pDef = Math.floor((c.lv.def + 9) * 64);
+  const eHit = eAtk < pDef ? eAtk / (2 * pDef) : 1 - pDef / (2 * eAtk);
+  const eMaxHit = e.maxHit || Math.floor(10 * (2.2 + (e.str || 0) / 10));
+  const eDps = eHit * ((eMaxHit + 1) / 2) * (1 - Math.min(80, st.dr) / 100) / (e.interval || 2.4);
+  const floor = st.maxHp * 0.2;
+  const tInjure = Math.max(0.01, ((c.hpNow || st.maxHp) - floor) / Math.max(0.001, eDps));
+  // 胜率：能在被打进重伤前击杀掉这一只的比例；1 = 稳赢（design §九「× 胜率」）
+  const pWin = tKill <= tInjure ? 1 : Math.max(0, tInjure / tKill);
+  return { e, dps, tKill, tInjure, pWin, win: pWin >= 1 };
+}
+function offlineLoot(e) {
+  const out = {};
+  (e.loot || []).forEach(l => {
+    if (l.name === '随机材料') return;
+    const p = l.chance === undefined ? 1 : l.chance;
+    const min = l.min || 1, max = l.max || min;
+    const id = iid(normName(l.name));
+    if (!id) return;
+    out[id] = (out[id] || 0) + p * ((min + max) / 2);
+  });
+  return out;
+}
+function offlineCombat(jobId, sec, rep) {
+  const job = JOB_BY_ID[jobId], js = S.jobs[jobId];
+  if (!job || !js || !js.slots || !js.slots.some(Boolean)) return;
+  if (!jobVisible(job)) return;
+  const c = S.chars[js.slots[0]];
+  if (!c) return;
+  const st = charStats(c);
+  if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
+  const regen = offlineRegenPctPerSec();
+  let time = sec;
+  // 出发时重伤：先扣掉养伤时间，养好才继续打
+  if (c.injured) {
+    const healSec = Math.max(0, st.maxHp * 0.5 - c.hpNow) / Math.max(1e-6, st.maxHp * regen);
+    if (healSec >= time) {
+      c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regen * time);
+      rep.stats.injuredTime += time;
+      return;
+    }
+    time -= healSec; c.hpNow = st.maxHp * 0.5; c.injured = false;
+    rep.stats.injuredTime += healSec;
+  }
+  const enemies = offlineEnemies(job, c);
+  if (!enemies.length) return;
+  const fights = enemies.map(e => offlineFight(c, e));
+  const share = time / fights.length;
+  const bonus = huntingBonus(c, job);
+  let lost = false, kills = 0, dealt = 0;
+  fights.forEach(f => {
+    if (f.pWin < 1) lost = true;
+    const k = share / (f.tKill + 3) * f.pWin;   // 3 秒刷下一只（同在线），胜率<1 部分只算打赢的场次
+    if (k <= 0) return;
+    kills += k; dealt += k * f.e.hp;
+    S.seen.enemies[f.e.id] = true;
+    c.know = c.know || {};
+    const per = bonus > 1.25 ? 2 : 1;
+    c.know[f.e.name] = Math.min(100, (c.know[f.e.name] || 0) + per * k);
+    const loot = offlineLoot(f.e);
+    for (const id in loot) {
+      const n = offlineRound(loot[id] * k);
+      if (n > 0) addItem(id, n);
+    }
+  });
+  if (job.special === 'eraSim' && kills > 0) {
+    // 模拟纪元每杀再随机给 2 份材料：按 materialPool 的权重补期望值
+    const pool = materialPool();
+    const total = pool.reduce((a, b) => a + b.weight, 0);
+    if (total > 0) pool.forEach(it => {
+      const n = offlineRound(kills * 2 * it.weight / total);
+      if (n > 0) addItem(it.id, n);
+    });
+  }
+  if (kills > 0) {
+    S.stats.kills += Math.round(kills);
+    gainMastery(c, job.id, 4 * kills);
+    xpGain(c, 'str', 8 * kills);
+    xpGain(c, 'atk', 6 * kills);
+    xpGain(c, 'atk', dealt * 0.4);            // 在线是每次命中给：atk 0.4×伤害
+    xpGain(c, 'str', dealt * 0.2);
+  }
+  if (lost) {
+    // 打不过 → 重伤（design/战斗系统.md §八）；产出只保留打赢的部分
+    c.injured = true;
+    c.hpNow = 1;
+    c.jobPaused = job.id;
+  } else {
+    // 全程打赢：按自然恢复继续回血，不会凭空受伤
+    c.hpNow = Math.min(st.maxHp, (c.hpNow || st.maxHp) + st.maxHp * regen * time);
+  }
+  rep.kills += kills;
+  rep.stats.battles++;
+  const cs = S.combat[jobId];
+  if (cs) { cs.enemy = null; cs.respawn = 0; cs.tP = 0; cs.tE = 0; }
+}
+/* 15 秒的生产块：与 tick() 同序，只是不跑战斗与袭击 */
+function offlineChunk(dt, combatChars) {
+  const chars = onFieldChars();
+  const need = chars.length * GAME.foodPerCharSec * dt;
+  if (need > 0) consumeFood(need);
+  for (const id in S.jobs) {
+    const js = S.jobs[id];
+    if (!js.slots || !js.slots.some(Boolean)) continue;
+    const job = JOB_BY_ID[id];
+    if (!job) continue;
+    if (!jobVisible(job)) { js.slots = js.slots.map(() => null); continue; }
+    if (job.special === 'hunting' || job.special === 'blackSoul' || job.special === 'eraSim') continue;
+    produceJob(id, dt);
+  }
+  // 潜水摸鱼：木易天二人一待命也按伐木产出
+  const muyi = S.chars.muyi;
+  if (muyi && muyi.favor >= 50 && !isWorking(muyi.cid)) {
+    const rate = muyi.favor >= 100 ? 1 : 0.5;
+    S._muyiAcc = (S._muyiAcc || 0) + dt * rate / 2;
+    while (S._muyiAcc >= 1) { S._muyiAcc -= 1; addItem('wood', 1); gainMastery(muyi, 'woodcutting', 1); }
+  }
+  // 回血 / 重伤解除（战斗岗角色的血量由 offlineCombat 单独结算）
+  const regen = offlineRegenPctPerSec();
+  chars.forEach(c => {
+    if (combatChars[c.cid]) return;
+    const st = charStats(c);
+    if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
+    c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regen * dt);
+    if (c.injured && c.hpNow > st.maxHp * 0.5) { c.injured = false; log('<b class="green">' + charName(c) + '</b> 伤愈归队。'); }
+  });
+  granaryDecay(dt);
+}
+/* 主入口：传现实离开秒数，返回结算报告；不足 60 秒返回 null（交给正常 tick）*/
+function settleOffline(awaySec) {
+  if (!S) return null;
+  awaySec = Number(awaySec);
+  if (!isFinite(awaySec) || awaySec <= 0) return null;
+  const used = Math.min(awaySec, GAME.offlineCapSec);
+  if (used < GAME.offlineMinSec) return null;
+  const before = {
+    items: Object.assign({}, S.items),
+    gold: S.gold, research: S.research,
+    food: granaryTotal(), kills: S.stats.kills,
+    injured: Object.keys(S.chars).filter(id => S.chars[id].injured),
+  };
+  const rep = {
+    away: awaySec, used, capped: awaySec > used + 1,
+    gained: [], spent: [], gold: 0, research: 0, kills: 0,
+    injured: [], raids: [],
+    food: { before: before.food, after: before.food },
+    stats: { battles: 0, injuredTime: 0 },
+  };
+  const combatChars = offlineCombatChars();
+  // 1) 生产 / 食物 / 腐坏 / 回血
+  let left = used;
+  while (left > 0.001) {
+    const dt = Math.min(GAME.offlineChunkSec, left);
+    S.playtime += dt;
+    offlineChunk(dt, combatChars);
+    left -= dt;
+  }
+  // 2) 战斗：期望值一次算完（狩猎按区域里每种怪均分时间）
+  JOBS.forEach(j => {
+    if (j.special === 'hunting' || j.special === 'blackSoul' || j.special === 'eraSim') offlineCombat(j.id, used, rep);
+  });
+  // 3) 袭击：离线期间每 2 小时的判定补算（最多 12 次，防止旧存档连环打）
+  let guard = 0;
+  while (S.playtime >= S.raid.next && guard < 12) {
+    const out = doRaid();
+    rep.raids.push({ win: out.win, strength: out.strength, defense: out.defense });
+    S.raid.next += GAME.raidPeriod;
+    guard++;
+  }
+  if (guard >= 12) S.raid.next = S.playtime + GAME.raidPeriod;
+  // 4) 汇总差值
+  const ids = {};
+  Object.keys(before.items).forEach(id => { ids[id] = 1; });
+  Object.keys(S.items).forEach(id => { ids[id] = 1; });
+  for (const id in ids) {
+    const d = (S.items[id] || 0) - (before.items[id] || 0);
+    if (d >= 1) rep.gained.push({ id, n: Math.floor(d) });
+    else if (d <= -1) rep.spent.push({ id, n: Math.floor(-d) });
+  }
+  const worth = x => (ITEMS[x.id] ? (ITEMS[x.id].price || 0) : 0) * x.n;
+  rep.gained.sort((a, b) => worth(b) - worth(a));
+  rep.spent.sort((a, b) => worth(b) - worth(a));
+  rep.gold = Math.round(S.gold - before.gold);
+  rep.research = S.research - before.research;
+  rep.kills = Math.round(S.stats.kills - before.kills);
+  rep.food.after = granaryTotal();
+  Object.keys(S.chars).forEach(id => {
+    if (S.chars[id].injured && before.injured.indexOf(id) < 0) rep.injured.push(charName(S.chars[id]));
+  });
+  log('离线 <b>' + fmtTime(used) + '</b> 结算：' + rep.gained.length + ' 种物品 · ' +
+      (rep.kills > 0 ? '击杀 ' + fmt(rep.kills) + ' · ' : '') + '袭击 ' + rep.raids.length + ' 次');
+  return rep;
 }
 
 /* ---------- 主循环 ---------- */
@@ -1062,7 +1451,9 @@ function migrate(st) {
   });
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
-  merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{} }, st.gacha || {});
+  merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, normals:[] }, st.gacha || {});
+  if (!Array.isArray(merged.gacha.normals)) merged.gacha.normals = [];
+  merged.codex = Object.assign({ items:{}, enemies:{}, chars:{} }, st.codex || {});
   merged.combat = st.combat || {};
   merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
   merged.raid = Object.assign({ next: merged.playtime + GAME.raidPeriod, last:null, count:0 }, st.raid || {});
@@ -1099,8 +1490,11 @@ window.Engine = {
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
   recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   refreshShop, buyShopSlot, sellItem, shopPool,
-  gachaPity, shardCount, ownsHero, poolComplete, pull, giftTo, starUp,
+  gachaPity, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, ensureNormals, genDef, heroDef,
+  pull, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,
+  codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
   wealth, basePower, raidStrength, doRaid, tick, log, toast,
+  settleOffline, offlineCombatChars,
   gold: () => S.gold, research: () => S.research,
 };

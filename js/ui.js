@@ -13,7 +13,7 @@ const JOB_BRIEF = {
   hunting: '派角色去野外打怪，掉落皮革与肉。',
   husbandry: '圈养猎来的野生动物，产出肉与毛皮。',
   cooking: '把生食做成更耐放、更顶饱的熟食。',
-  crafting: '加工石器、硅片与光纤。',
+  crafting: '打造石器时代的装备；中世纪后也做长弓与弩。',
   research: '产出科研点，用来研究科技树。',
   stonecutting: '把石头切成石材。',
   pottery: '把沙烧成陶器。',
@@ -144,8 +144,9 @@ const UI = {
     const S = E.S;
     const ic = Object.keys(E.ITEMS).filter(id => S.seen.items[id]).length;
     const ec = E.ENEMIES.filter(e => S.seen.enemies[e.id]).length;
-    const cc = E.HEROES.filter(h => S.chars[h.id]).length;
-    const total = Object.keys(E.ITEMS).length + E.ENEMIES.length + E.HEROES.length;
+    const heroes = E.poolHeroList();
+    const cc = heroes.filter(x => S.chars[x.id]).length;
+    const total = Object.keys(E.ITEMS).length + E.ENEMIES.length + heroes.length;
     return Math.round((ic + ec + cc) / total * 100);
   },
 
@@ -180,7 +181,7 @@ const UI = {
       const jobId = Object.keys(S.jobs).find(j => S.jobs[j].slots && S.jobs[j].slots.includes(cid));
       const job = jobId ? E.JOB_BY_ID[jobId] : null;
       const dim = i >= cap ? 'dim' : '';
-      return `<div class="chip ${dim}" draggable="true" data-drag="char" data-id="${cid}" title="拖到工作页的入驻槽可派驻">
+      return `<div class="chip ${dim}" draggable="true" data-drag="char" data-id="${cid}" title="拖到工作页的项目卡上可派驻">
         ${this.avatar(c)}
         <div class="cn">${this.esc(E.charName(c))}</div>
         ${c.stars > 1 ? `<span class="star">${'★'.repeat(c.stars)}</span>` : ''}
@@ -230,11 +231,11 @@ const UI = {
 
       <div class="card" style="margin-top:12px">
         <div class="row" style="justify-content:space-between"><span class="small muted">可用角色（前 ${E.onFieldCap()} 名可上场）</span>
-        <span class="tiny dim">把头像拖到下方任意配方的入驻槽</span></div>
+        <span class="tiny dim">把头像拖到下方任意项目卡（整张卡都算拖入点）</span></div>
         <div style="margin-top:8px">${this.chips()}</div>
       </div>
 
-      <div class="row" style="justify-content:space-between;margin-top:16px"><h3 style="font-size:15px">配方与入驻</h3><span class="tiny dim">每条配方独立入驻、独立进度</span></div>
+      <div class="row" style="justify-content:space-between;margin-top:16px"><h3 style="font-size:15px">项目</h3><span class="tiny dim">每个项目独立入驻、独立进度</span></div>
       <div class="grid recgrid" style="margin-top:8px">
         ${rows.map(({ r, i }) => this.recipeCard(job, js, r, i)).join('')}
       </div>
@@ -282,11 +283,12 @@ const UI = {
     const mastery = c ? E.masteryLvl(c, job.id) : 0;
     const mnext = c ? E.masteryNext(c, job.id) : 0;
     const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
-    return `<div class="card recipe ${c ? 'run' : ''}">
+    return `<div class="card recipe ${c ? 'run' : ''}" data-drop-job="${job.id}" data-drop-i="${i}" title="拖入角色到整张卡即可入驻">
       <div class="row" style="justify-content:space-between">
         <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.recipeIcon(job, r)}</span><b class="small">${this.esc(r.name || job.name)}</b></div>
         <div class="slot mini ${c ? 'filled' : ''}" data-act="recslot" data-job="${job.id}" data-i="${i}" title="${c ? this.esc(E.charName(c)) : '点击选择入驻角色'}">
-          ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}        </div>
+          ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
+        </div>
       </div>
       <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs) : ''}</div>
       <div class="row tiny" style="justify-content:space-between;margin-top:6px">
@@ -732,13 +734,18 @@ const UI = {
     const S = E.S;
     const tab = S.ui.tab.codex || 'items';
     const itemIds = Object.keys(E.ITEMS);
+    const charDefs = E.poolHeroList();
+    const pending = E.codexUnclaimed();
     const seenItems = itemIds.filter(id => S.seen.items[id]);
     const seenEnemies = E.ENEMIES.filter(e => S.seen.enemies[e.id]);
-    const seenChars = E.HEROES.filter(h => S.chars[h.id]);
+    const ownedChars = charDefs.filter(x => S.chars[x.id]);
+    const claimBtn = (k, id, n) => `<button class="claimbtn" data-act="claimCodex" data-k="${k}" data-id="${id}">领取 +${n}</button>`;
     let h = `<div class="wrap"><div class="pagehead"><h2>图鉴</h2>
       <span class="badge">物品 ${seenItems.length}/${itemIds.length}</span>
       <span class="badge">敌人 ${seenEnemies.length}/${E.ENEMIES.length}</span>
-      <span class="badge">角色 ${seenChars.length}/${E.HEROES.length}</span></div>
+      <span class="badge">角色 ${ownedChars.length}/${charDefs.length}</span>
+      ${pending.total ? `<button class="gold" data-act="claimAllCodex">全部领取 · ${pending.total} 项（+${pending.shards} 碎片）</button>` : ''}</div>
+      <div class="hint">首次收录后条目会亮金边 + 出现「领取」：物品 ${E.CODEX_REWARD.items} 个 / 敌人 ${E.CODEX_REWARD.enemies} 个 / 角色 ${E.CODEX_REWARD.chars} 个英雄碎片。每个条目只能领一次。</div>
       <div class="tabs">
         <div class="tab ${tab === 'items' ? 'active' : ''}" data-act="tab" data-k="codex" data-v="items">物品</div>
         <div class="tab ${tab === 'enemies' ? 'active' : ''}" data-act="tab" data-k="codex" data-v="enemies">敌人</div>
@@ -748,27 +755,37 @@ const UI = {
       h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">` +
         itemIds.slice().sort((a, b) => E.ITEM_ORDER.indexOf(a) - E.ITEM_ORDER.indexOf(b)).map(id => {
           const it = E.ITEMS[id], seen = S.seen.items[id];
-          return `<div class="card" style="padding:9px 10px;${seen ? '' : 'opacity:.45'}">
+          const claimable = E.codexClaimable('items', id);
+          return `<div class="card ${claimable ? 'claim' : ''}" style="padding:9px 10px;${seen ? '' : 'opacity:.45'}">
+            ${claimable ? claimBtn('items', id, E.CODEX_REWARD.items) : ''}
             <div class="row" style="gap:8px">${seen ? this.itemIcon(it) : '❔'}<b class="small">${seen ? this.esc(it.name) : '？？？'}</b></div>
             ${seen ? `<div class="tiny muted" style="margin-top:4px">${this.esc(it.era ? (E.ERA_NAME[it.era] || '') : '')}${it.price ? ' · ' + E.fmt(it.price) + ' 金' : ''}</div>` : ''}
           </div>`;
         }).join('') + `</div>`;
     } else if (tab === 'enemies') {
-      h += `<table class="t"><thead><tr><th>敌人</th><th>区域/类型</th><th class="r">生命</th><th class="r">命中</th><th class="r">力量</th><th class="r">防御</th><th class="r">减免</th><th>掉落</th></tr></thead><tbody>` +
-        E.ENEMIES.map(e => { const seen = S.seen.enemies[e.id]; return `<tr style="${seen ? '' : 'opacity:.45'}">
+      h += `<table class="t"><thead><tr><th>敌人</th><th>区域/类型</th><th class="r">生命</th><th class="r">命中</th><th class="r">力量</th><th class="r">防御</th><th class="r">减免</th><th>掉落</th><th>奖励</th></tr></thead><tbody>` +
+        E.ENEMIES.map(e => {
+          const seen = S.seen.enemies[e.id];
+          const claimable = E.codexClaimable('enemies', e.id);
+          const claimed = E.codexClaimed('enemies', e.id);
+          return `<tr class="${claimable ? 'claim' : ''}" style="${seen ? '' : 'opacity:.45'}">
           <td>${seen ? this.esc(e.name) : '？？？'}</td><td class="small">${this.esc(e.region || (e.type === 'blackSoul' ? '黑暗之魂' : '模拟纪元'))}</td>
           <td class="r mono">${seen ? e.hp : '—'}</td><td class="r mono">${seen ? e.atk : '—'}</td><td class="r mono">${seen ? e.str : '—'}</td><td class="r mono">${seen ? e.def : '—'}</td><td class="r mono">${seen ? (e.dr || 0) + '%' : '—'}</td>
-          <td class="tiny">${seen ? (e.loot || []).map(l => l.name).join('、') : '—'}</td></tr>`; }).join('') + `</tbody></table>`;
+          <td class="tiny">${seen ? (e.loot || []).map(l => l.name).join('、') : '—'}</td>
+          <td>${claimable ? `<button class="claimbtn inline" data-act="claimCodex" data-k="enemies" data-id="${e.id}">领取 +${E.CODEX_REWARD.enemies}</button>` : (claimed ? '<span class="tiny dim">已领</span>' : '—')}</td></tr>`;
+        }).join('') + `</tbody></table>`;
     } else {
       h += `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">` +
-        E.HEROES.map(hero => {
-          const owned = S.chars[hero.id];
-          return `<div class="card" style="${owned ? '' : 'opacity:.5'}">
+        charDefs.map(x => {
+          const def = x.def, owned = S.chars[x.id];
+          const claimable = E.codexClaimable('chars', x.id);
+          return `<div class="card ${claimable ? 'claim' : ''}" style="${owned ? '' : 'opacity:.5'}">
+            ${claimable ? claimBtn('chars', x.id, E.CODEX_REWARD.chars) : ''}
             <div class="row">${owned ? this.avatar(owned) : '<div class="av empty">？</div>'}
-              <div><b>${owned ? this.esc(hero.name) : '？？？'}</b><div class="tiny muted">${this.esc(hero.pool)}</div></div></div>
-            ${owned ? `<div class="tiny muted" style="margin-top:6px">生命 ${hero.hp} · 命中 ${hero.atk} · 力量 ${hero.str} · 防御 ${hero.def}</div>
-              <div class="tiny dim">自带加成：${this.esc(hero.job)} +20%</div>
-              <div class="tiny ${owned.favor >= 50 ? 'gold' : 'dim'}" style="margin-top:4px">${this.esc(hero.e1)}${owned.favor >= 100 ? ' / ' + this.esc(hero.e2) : ''}</div>` : `<div class="tiny dim" style="margin-top:6px">尚未在招募中抽到</div>`}
+              <div><b>${owned ? this.esc(def.name) : '？？？'}</b><div class="tiny muted">${x.gen ? '随机普通角色' : '限定'}</div></div></div>
+            ${owned ? `<div class="tiny muted" style="margin-top:6px">生命 ${def.hp} · 命中 ${def.atk} · 力量 ${def.str} · 防御 ${def.def}</div>
+              <div class="tiny dim">自带加成：${def.job ? this.esc(def.job) + ' +20%' : '无'}</div>
+              <div class="tiny ${def.e1 ? 'gold' : 'dim'}" style="margin-top:4px">${def.e1 ? this.esc(def.e1) + (owned.favor >= 100 ? ' / ' + this.esc(def.e2) : '') : '无社交恩赐'}</div>` : `<div class="tiny dim" style="margin-top:6px">尚未在招募中抽到</div>`}
           </div>`;
         }).join('') + `</div>`;
     }
@@ -780,20 +797,38 @@ const UI = {
   pageRecruit() {
     const S = E.S;
     const shards = E.shardCount();
+    const cost = E.PULL_COST;
     let h = `<div class="wrap"><div class="pagehead"><h2>招募</h2>
       <span class="badge">英雄碎片 <b class="gold">${shards}</b></span>
       <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span></div>
-      <div class="hint">20 个英雄碎片抽一次（商店第 6 格 2,000 金/个）。30% 出角色，70% 出好感度礼物。连续 30 抽无新角色，第 31 抽必出。</div>
-      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));margin-top:14px">`;
+      <div class="hint">${cost} 个英雄碎片抽一次（商店第 6 格 2,000 金/个；图鉴首次收录也能领碎片）。30% 出角色，70% 出好感度礼物。连续 30 次抽到重复角色，下一抽必出新角色。<br>
+        限定池：出角色时，大少 / Laremehpe 的单角色概率 = 随机普通角色的 <b>10 倍</b>。常驻池只出随机普通角色。</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
     E.POOLS.forEach(p => {
-      const complete = E.poolComplete(p.id);
+      const members = E.poolMembers(p.id);
+      const owned = members.filter(m => E.ownsHero(m.id)).length;
+      const complete = owned === members.length;
       const pity = E.gachaPity(p.id);
+      const gens = members.filter(m => m.gen);
+      const genOwned = gens.filter(m => E.ownsHero(m.id)).length;
+      const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
       h += `<div class="card">
-        <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${p.heroes.filter(x => E.ownsHero(x)).length}/${p.heroes.length}${p.heroes.length > 1 ? '' : ' 人池'}</span></div>
-        <div class="row" style="margin-top:8px;gap:6px">${p.heroes.map(hid => { const hero = E.HEROES.find(x => x.id === hid); const owned = E.ownsHero(hid); return `<div class="chip" style="min-width:56px;${owned ? '' : 'opacity:.42'}">${owned ? this.avatar(S.chars[hid], 'sm') : '<div class="av sm empty">？</div>'}<div class="cn tiny">${owned ? this.esc(hero.name) : '？？？'}</div>${p.heroes.filter(x => x === hid).length > 1 ? '' : ''}</div>`; }).join('')}</div>
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${owned}/${members.length}</span></div>
+        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+          ${named.map(hero => {
+            const own = E.ownsHero(hero.id);
+            return `<div class="chip" style="min-width:56px;${own ? '' : 'opacity:.42'}" title="${own ? this.esc(hero.name) : '未拥有'}">
+              ${own ? this.avatar(S.chars[hero.id], 'sm') : '<div class="av sm empty">？</div>'}
+              <div class="cn tiny">${own ? this.esc(hero.name) : '？？？'}</div></div>`;
+          }).join('')}
+          <div class="chip" style="min-width:56px" title="随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐">
+            <div class="av sm empty">？</div><div class="cn tiny">普通角色</div>
+            <div class="tiny gold">${genOwned}/${gens.length}</div>
+          </div>
+        </div>
         <div class="row" style="margin-top:10px;justify-content:space-between">
           <span class="tiny ${pity >= 25 ? 'gold' : 'muted'}">保底 ${pity}/30</span>
-          <button class="gold" data-act="pull" data-id="${p.id}" ${shards < 20 ? 'disabled' : ''}>抽一次（20 碎片）</button>
+          <button class="gold" data-act="pull" data-id="${p.id}" ${shards < cost ? 'disabled' : ''}>抽一次（${cost} 碎片）</button>
         </div>
       </div>`;
     });
@@ -803,7 +838,7 @@ const UI = {
         <div class="chips" style="margin-top:8px">
           ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip"><div class="cn">${this.esc(E.charName(c))}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
         </div>
-        <div class="tiny dim" style="margin-top:8px">好感 25 解锁头像使用权；50 解锁一级社交恩赐；100 解锁二级。</div>
+        <div class="tiny dim" style="margin-top:8px">好感 25 解锁头像使用权；50 解锁一级社交恩赐；100 解锁二级（随机普通角色没有社交恩赐，只有头像与属性）。</div>
       </div>
     </div>`;
     return h;

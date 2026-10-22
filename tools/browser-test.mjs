@@ -76,39 +76,41 @@ try {
   })()`);
   ok(nav.startsWith('1|') && !nav.includes('科技树'), '科研只出现一次且名称为「科研」：' + nav);
 
-  console.log('== 点击入驻槽 ==');
-  const modalOpened = await js(`(function(){
+  console.log('== 点击入驻槽：下拉菜单 ==');
+  const dropdown = await js(`(function(){
     const slot=document.querySelector('[data-act="recslot"]');
     if(!slot) return 'NO_SLOT';
     slot.click();
-    const m=document.getElementById('modal');
-    return (m.classList.contains('show')? 'OPEN ':'CLOSED ') + document.getElementById('modalBox').textContent.slice(0,24);
+    const menu=document.getElementById('slotMenu');
+    const modal=document.getElementById('modal').classList.contains('show');
+    return (menu? 'OPEN ':'MISSING ') + 'modal=' + modal + ' ' + (menu?menu.textContent.slice(0,24):'');
   })()`);
-  ok(/^OPEN/.test(modalOpened), '点击槽位弹出选择框：' + modalOpened);
+  ok(/^OPEN/.test(dropdown) && dropdown.includes('modal=false'), '点击槽位弹出下拉菜单而非弹窗：' + dropdown);
 
   const picked = await js(`(function(){
-    const chip=document.querySelector('[data-act="pickchar"]');
+    const chip=document.querySelector('#slotMenu [data-pickchar]');
     if(!chip) return 'NO_CHIP';
     chip.click();
-    return 'n=' + Engine.assignedCount(Engine.JOB_BY_ID.mining);
+    return 'menu=' + (document.getElementById('slotMenu')?'OPEN':'CLOSED') + ' n=' + Engine.assignedCount(Engine.JOB_BY_ID.mining);
   })()`);
-  ok(picked === 'n=1', '弹窗选人后入驻成功：' + picked);
+  ok(picked.startsWith('menu=CLOSED') && picked.endsWith('n=1'), '下拉选人后入驻成功：' + picked);
 
-  console.log('== 拖拽入驻（切到另一条配方）==');
+  console.log('== 整张项目卡拖拽 ==');
   const dropped = await js(`(function(){
     Engine.clearSlot('mining',0);
     UI.render();
     const chip=document.querySelector('[data-drag="char"]');
-    const slots=[...document.querySelectorAll('[data-act="recslot"]')];
-    const slot=slots[3]||slots[1];
-    if(!chip||!slot) return 'MISSING';
+    const cards=[...document.querySelectorAll('[data-drop-job]')];
+    const card=cards[3]||cards[1];
+    if(!chip||!card) return 'MISSING';
     const dt=new DataTransfer();
     chip.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));
-    slot.dispatchEvent(new DragEvent('dragover',{bubbles:true,dataTransfer:dt}));
-    slot.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));
-    return 'n=' + Engine.assignedCount(Engine.JOB_BY_ID.mining) + ' slots=' + JSON.stringify(Engine.S.jobs.mining.slots);
+    card.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:dt}));
+    const highlighted=card.classList.contains('dropok');
+    card.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt}));
+    return 'hl=' + highlighted + ' n=' + Engine.assignedCount(Engine.JOB_BY_ID.mining) + ' slots=' + JSON.stringify(Engine.S.jobs.mining.slots);
   })()`);
-  ok(/^n=1/.test(dropped), '拖拽入驻成功：' + dropped);
+  ok(/^hl=true/.test(dropped) && / n=1/.test(dropped), '整张项目卡片可拖入：' + dropped);
 
   console.log('== 设置 / 主题 ==');
   const dbg = await js(`(function(){
@@ -208,6 +210,44 @@ try {
     return (k?k.textContent:'') + '|' + (li?li.textContent:'') + '|' + document.querySelectorAll('.tech .tu').length;
   })()`);
   ok(/^作用\|解锁工作「烹饪」\|[1-9]/.test(techEffect), '科技卡列出具体作用：' + techEffect);
+
+  console.log('== 招募：限定 / 常驻 ==');
+  const recruit = await js(`(function(){
+    Engine.S.ui.page='recruit';
+    Engine.addItem('英雄碎片', 30);
+    UI.render();
+    const btns=[...document.querySelectorAll('[data-act="pull"]')];
+    const txt=document.getElementById('mainWrap').textContent;
+    return JSON.stringify({
+      pools: btns.map(b=>b.dataset.id),
+      btn: btns.map(b=>b.textContent.trim()),
+      has10x: txt.includes('10 倍'),
+      normal: txt.includes('普通角色')
+    });
+  })()`);
+  const rc = JSON.parse(recruit);
+  ok(rc.pools.join(',') === 'limited,standard', '招募页只有限定 / 常驻两个池：' + rc.pools.join(','));
+  ok(rc.btn.length === 2 && rc.btn.every(t => t.includes('10 碎片')), '每池按钮都是 10 碎片：' + rc.btn.join(' | '));
+  ok(rc.has10x && rc.normal, '招募页写明 10 倍与随机普通角色');
+
+  console.log('== 图鉴领取 ==');
+  const codex = await js(`(function(){
+    Engine.S.ui.page='codex';
+    Engine.S.ui.tab.codex='items';
+    Engine.addItem('木材',1);
+    UI.render();
+    const claims=[...document.querySelectorAll('[data-act="claimCodex"]')];
+    const all=document.querySelector('[data-act="claimAllCodex"]');
+    const gold=document.querySelectorAll('.card.claim').length;
+    const before=Engine.shardCount();
+    const btn=claims[0];
+    if(btn) btn.click();
+    return JSON.stringify({claims: claims.length, gold, all: !!all, before, after: Engine.shardCount()});
+  })()`);
+  const cx = JSON.parse(codex);
+  ok(cx.gold > 0 && cx.claims > 0, '收录条目有金边 + 领取按钮：金边 ' + cx.gold + ' / 按钮 ' + cx.claims);
+  ok(cx.all, '有未领奖励时显示「全部领取」');
+  ok(cx.after === cx.before + 1, '点领取到账 1 碎片：' + cx.before + ' → ' + cx.after);
 } catch (e) {
   console.error('测试异常：', e.message);
   fails++;

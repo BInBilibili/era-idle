@@ -146,8 +146,8 @@ window.ITEMS = {
   /* ============================================================
    * §六 信息时代 · 6.1 资源（7 种）
    * ============================================================ */
-  silicon_wafer:   { name: '硅片',     era: 'info', cat: 'material', storage: 'warehouse', price: 12,    src: '加工（2 沙）', use: '半导体制造' },
-  optical_fiber:   { name: '光纤',     era: 'info', cat: 'material', storage: 'warehouse', price: 37,    src: '加工（2 玻璃）', use: '精密装配' },
+  silicon_wafer:   { name: '硅片',     era: 'info', cat: 'material', storage: 'warehouse', price: 12,    src: '半导体制造（2 沙）', use: '半导体制造' },
+  optical_fiber:   { name: '光纤',     era: 'info', cat: 'material', storage: 'warehouse', price: 37,    src: '玻璃制造（2 玻璃）', use: '精密装配' },
   precision_part:  { name: '精密零件', era: 'info', cat: 'material', storage: 'warehouse', price: 347,   src: '精密装配', use: '信息时代装备、太空时代装备、合成制造、仓库升级' },
   chip:            { name: '芯片',     era: 'info', cat: 'material', storage: 'warehouse', price: 110.5, src: '半导体制造', use: '精密装配、AI 核心、信息时代装备、电池升级项' },
   aluminum_alloy:  { name: '铝合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 28,    src: '熔炼（铝土矿）', use: '战术头盔、复合护腿、防暴盾' },
