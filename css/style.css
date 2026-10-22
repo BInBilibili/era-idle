@@ -220,3 +220,54 @@ table.t td.c,table.t th.c{text-align:center}
   .split{grid-template-columns:1fr}
   .shopgrid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
 }
+
+/* ===== 浅色主题 ===== */
+html[data-theme="light"]{
+  --bg:#eef1f6; --bg2:#f2f5f9; --panel:#ffffff; --panel2:#f3f6fa; --panel3:#e7edf5;
+  --line:#d7dfea; --line2:#c3cedd; --text:#1d2836; --muted:#5c6b7d; --dim:#8b98a8;
+}
+html[data-theme="light"] body{background:radial-gradient(1200px 700px at 70% -10%, #ffffff 0%, #eef1f6 55%) fixed;color:var(--text)}
+html[data-theme="light"] #hud{background:rgba(255,255,255,.9)}
+html[data-theme="light"] nav#side{background:linear-gradient(180deg,#f7f9fc,#eef2f8)}
+html[data-theme="light"] .card{background:linear-gradient(180deg,#ffffff,#f7f9fc)}
+html[data-theme="light"] button{background:var(--panel2);border-color:var(--line2);color:var(--text)}
+html[data-theme="light"] button:hover:not(:disabled){background:#e9eff7;border-color:#a9b8cc}
+html[data-theme="light"] button.primary{background:linear-gradient(180deg,#3d7fd0,#2f6ab5);color:#fff}
+html[data-theme="light"] #modal .box{background:linear-gradient(180deg,#ffffff,#f6f8fb)}
+html[data-theme="light"] .slot{background:#f1f5fa;border-color:#c9d4e2}
+html[data-theme="light"] .bar{background:#e3e9f2}
+html[data-theme="light"] .res{background:#fff}
+html[data-theme="light"] .tech{background:#f7f9fc}
+html[data-theme="light"] .chip{background:#fff}
+html[data-theme="light"] table.t th{background:#f2f6fb}
+html[data-theme="light"] .shopitem{background:#fff}
+html[data-theme="light"] input,html[data-theme="light"] textarea{background:#fff;color:var(--text)}
+html[data-theme="light"] .nav.active{background:#e4edf9}
+
+/* ===== 配方入驻卡 ===== */
+.nav .sub.green{color:#49d39a}
+html[data-theme="light"] .nav .sub.green{color:#1f8a5b}
+.recgrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.slot.mini{width:42px;height:42px;min-height:42px;padding:2px;border-radius:10px;flex-direction:row;flex:none;justify-content:center}
+.slot.mini .av.sm{width:32px;height:32px}
+.slot .plus{color:var(--muted);font-size:17px;line-height:1}
+.bar.sm{height:7px;border-radius:5px}
+.bar.sm>i{transition:width .18s linear}
+html[data-theme="light"] .icon{background:#eef3f9}
+html[data-theme="light"] .slot:hover{background:#e9eff7}
+html[data-theme="light"] .slot.filled{background:#f4f8fd;border-color:#b7c6d9}
+
+html[data-theme="light"] nav#side .nav{color:#3a4a5e}
+html[data-theme="light"] nav#side .nav.active{color:#16202c}
+html[data-theme="light"] nav#side .grp{color:#93a0b1}
+html[data-theme="light"] nav#side .nav .sub{color:#7b8a9d}
+html[data-theme="light"] .chip .cn{color:#2c3a4b}
+html[data-theme="light"] .slot .nm{color:#3a4a5e}
+html[data-theme="light"] .recipe .io{color:#4a5a6c}
+html[data-theme="light"] .recipe.run{border-color:#8ec7aa;background:#f2fbf6}
+html[data-theme="light"] .jobhead .title,html[data-theme="light"] .pagehead h2{color:#16202c}
+html[data-theme="light"] table.t td{color:#25303d}
+html[data-theme="light"] .log{background:#fff}
+
+.chip .star{top:2px;left:4px;right:auto}
+.chip .corner{top:2px;right:3px;bottom:auto;background:transparent;backdrop-filter:none}

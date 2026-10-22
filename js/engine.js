@@ -13,6 +13,7 @@ const GAME = {
   raidPeriod: 7200,         // 袭击间隔（秒）
   shopRefresh: 60,
   weaponDefaultInterval: 2.4,
+  mineBaseSec: 3,           // 采矿基础时长：权重 100 的矿石 = 3 秒，其余 = 3×100/权重
 };
 
 const HEROES = [
@@ -135,12 +136,13 @@ function newState(name) {
     raid: { next: GAME.raidPeriod, last: null, count: 0 },
     power: { built: {}, on: {} },
     ui: { page: 'warehouse', charSel: null, tab: {} },
+    settings: { theme: 'dark' },
     discoveredShard: false,
     log: [],
     stats: { kills:0, raids:0, pulls:0 },
   };
   JOBS.forEach(j => {
-    st.jobs[j.id] = { char: null, prog: 0, recipe: 0, up: [0,0,0,0] };
+    st.jobs[j.id] = { slots: [], prog: [], blocked: [], up: [0,0,0,0] };
   });
   const pc = newChar('player', { name: st.name, kind:'player', hp:1, atk:1, str:1, def:1 });
   st.chars.player = pc; st.order.push('player');
@@ -347,14 +349,14 @@ function powerProduced() {
   const g = window.JOB_POWER_GENERATORS || {};
   for (const era in g) (g[era] || []).forEach(x => { if (S.power.built[x.id]) p += x.watt || 0; });
   const pj = S.jobs.power;
-  if (pj && pj.char) p += 10;   // 电力工作：2 木材 / 3 秒 → 10 瓦
+  if (pj && assignedCount(JOB_BY_ID.power) > 0) p += 10;   // 电力工作：2 木材 / 3 秒 → 10 瓦
   return p;
 }
 function powerDemand() {
   let d = 0;
   for (const id in S.jobs) {
     const js = S.jobs[id];
-    if (!js.char) continue;
+    if (!js.slots || !js.slots.some(Boolean)) continue;
     if (POWERED_JOBS.includes(id)) d += 1;
     if (js.up) js.up.forEach((u, k) => { const job = JOB_BY_ID[id]; if (u && job && job.upgrades && job.upgrades[k] && job.upgrades[k].watt) d += job.upgrades[k].watt; });
   }
@@ -370,10 +372,66 @@ function powerEfficiency() {
 function powerNow() { return powerProduced(); }
 
 /* ---------- 工作 ---------- */
-function jobRecipe(job, idx) {
-  const list = (job.recipes && job.recipes.length) ? job.recipes : null;
-  if (!list) return { name: job.name, inputs: job.inputs || {}, outputs: job.outputs || {}, era: job.era };
-  return list[clamp(idx,0,list.length-1)];
+/* 采矿：每种矿石一条配方，各自按科技解锁；时长与权重成反比（权重 100 = 基础 3 秒） */
+function miningRecipes(job) {
+  return (job.ores || []).map(o => ({
+    name: o.name,
+    outputs: { [o.name]: 1 },
+    inputs: {},
+    era: job.era,
+    tech: o.tech || null,
+    weight: o.weight,
+    duration: Math.round((GAME.mineBaseSec * 100 / (o.weight || 1)) * 10) / 10,
+  }));
+}
+function jobRecipes(job) {
+  if (job.special === 'mining') return miningRecipes(job);
+  if (job.recipes && job.recipes.length) return job.recipes;
+  return [{ name: job.name, inputs: job.inputs || {}, outputs: job.outputs || {}, era: job.era, duration: job.duration || 2 }];
+}
+function jobRecipe(job, idx) { const l = jobRecipes(job); return l[clamp(idx, 0, l.length - 1)]; }
+function recipeVisible(r) { return !r || !r.tech || researched(r.tech); }
+function recipeDuration(job, r) { return (r && r.duration) || job.duration || 2; }
+function ensureSlots(js, n) {
+  if (!Array.isArray(js.slots)) js.slots = [];
+  if (!Array.isArray(js.prog)) js.prog = [];
+  if (!Array.isArray(js.blocked)) js.blocked = [];
+  while (js.slots.length < n) js.slots.push(null);
+  while (js.prog.length < n) js.prog.push(0);
+  while (js.blocked.length < n) js.blocked.push(null);
+}
+function slotChar(js, i) { const id = js.slots && js.slots[i]; return id ? S.chars[id] : null; }
+function assignedCount(job) {
+  if (!job) return 0;
+  const js = S.jobs[job.id];
+  if (!js || !js.slots) return 0;
+  const rs = jobRecipes(job);
+  return js.slots.filter((id, i) => id && S.chars[id] && recipeVisible(rs[i])).length;
+}
+function isWorking(cid) {
+  for (const id in S.jobs) {
+    const js = S.jobs[id];
+    if (js.slots && js.slots.some(x => x === cid)) return true;
+  }
+  return false;
+}
+function assignSlot(jobId, slotIdx, cid) {
+  const job = JOB_BY_ID[jobId];
+  if (!job) return false;
+  for (const id in S.jobs) {
+    const j = S.jobs[id];
+    if (j.slots) j.slots = j.slots.map(x => (x === cid ? null : x));
+  }
+  ensureSlots(S.jobs[jobId], Math.max(1, jobRecipes(job).length));
+  S.jobs[jobId].slots[slotIdx] = cid;
+  S.jobs[jobId].prog[slotIdx] = 0;
+  return true;
+}
+function clearSlot(jobId, slotIdx) {
+  const js = S.jobs[jobId];
+  if (!js || !js.slots) return;
+  js.slots[slotIdx] = null;
+  if (js.prog) js.prog[slotIdx] = 0;
 }
 function recipeInputs(r) { const o = {}; for (const k in (r.inputs||{})) { const id = iid(normName(k)); if (id) o[id] = r.inputs[k]; } return o; }
 function recipeOutputs(r) { const o = {}; for (const k in (r.outputs||{})) { const id = iid(normName(k)); if (id) o[id] = r.outputs[k]; } return o; }
@@ -413,8 +471,8 @@ function canMake(r, mult) {
   }
   return true;
 }
-function jobSpeed(jobId) {
-  const js = S.jobs[jobId], job = JOB_BY_ID[jobId], c = js.char ? S.chars[js.char] : null;
+function jobSpeed(jobId, slotIdx) {
+  const js = S.jobs[jobId], job = JOB_BY_ID[jobId], c = slotChar(js, slotIdx || 0);
   let m = 1;
   if (js.up) js.up.forEach((u, k) => { if (u && job.upgrades && job.upgrades[k]) m += (job.upgrades[k].bonusPct || 0) / 100; });
   m *= comfortMult();
@@ -437,64 +495,60 @@ function produceJob(jobId, dt) {
   const js = S.jobs[jobId], job = JOB_BY_ID[jobId];
   if (!job) return;
   if (job.special === 'hunting' || job.special === 'blackSoul' || job.special === 'eraSim') { combatTick(jobId, dt); return; }
-  if (!js.char) { js.prog = clamp(js.prog, 0, 1); return; }
-  const c = S.chars[js.char]; if (!c) { js.char = null; return; }
-  if (c.injured) return;
-  const gate = jobGate(jobId);
-  if (!gate.ok) return;
-  const r = jobRecipe(job, js.recipe || 0);
-  const ins = r.inputs || {};
-  const rawOuts = r.outputs || {};
-  if (Object.keys(ins).length && !canMake(r)) { js.blocked = 'input'; return; }
-  js.blocked = null;
-  const speed = jobSpeed(jobId);
-  const dur = Math.max(0.4, (job.duration || 2)) / speed;
-  js.prog = (js.prog || 0) + dt / dur;
-  while (js.prog >= 1) {
-    js.prog -= 1;
-    if (Object.keys(ins).length && !canMake(r)) { js.prog = 0; js.blocked = 'input'; break; }
-    if (!consumeInputs(r)) { js.prog = 0; js.blocked = 'input'; break; }
-    // 采矿的随机矿池
-    if (job.special === 'mining') {
-      const pool = miningPool(job);
-      const pick = weightedPick(pool);
-      if (pick) addItem(pick.id, 1);
-      gainMastery(c, jobId, (job.duration||3) * 0.55);
-      js.done = (js.done||0) + 1;
-      continue;
-    }
-    if (job.special === 'power') {
-      // 电力的产出由 powerProduced() 统一结算（10 瓦），这里只消耗燃料
-      gainMastery(c, jobId, (job.duration||3));
-      js.done = (js.done||0) + 1;
-      continue;
-    }
-    for (const name in rawOuts) {
-      const n = rawOuts[name];
-      if (name.indexOf('科研') >= 0) { S.research += n; continue; }
-      if (name.indexOf('电力') >= 0) continue;
-      if (GENERIC_OUT[name]) {
-        for (let k = 0; k < n; k++) {
-          const real = GENERIC_OUT[name]();
-          if (!real) continue;
-          const oid = iid(real);
-          if (ITEMS[oid] && ITEMS[oid].storage === 'granary') addFood(oid, 1); else addItem(oid, 1);
-        }
-        continue;
+  if (!jobVisible(job)) return;
+  const rs = jobRecipes(job);
+  ensureSlots(js, rs.length);
+  for (let i = 0; i < rs.length; i++) {
+    const r = rs[i];
+    const cid = js.slots[i];
+    if (!cid) { js.prog[i] = 0; js.blocked[i] = null; continue; }
+    const c = S.chars[cid];
+    if (!c) { js.slots[i] = null; continue; }
+    if (!recipeVisible(r)) { js.slots[i] = null; js.prog[i] = 0; continue; }
+    if (c.injured) { js.blocked[i] = 'injury'; continue; }
+    const ins = r.inputs || {};
+    const rawOuts = r.outputs || {};
+    if (Object.keys(ins).length && !canMake(r)) { js.blocked[i] = 'input'; continue; }
+    js.blocked[i] = null;
+    const speed = jobSpeed(jobId, i);
+    const dur = Math.max(0.4, recipeDuration(job, r)) / speed;
+    js.prog[i] = (js.prog[i] || 0) + dt / dur;
+    while (js.prog[i] >= 1) {
+      js.prog[i] -= 1;
+      if (Object.keys(ins).length && !canMake(r)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
+      if (!consumeInputs(r)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
+      if (job.special === 'power') {
+        // 电力的产出由 powerProduced() 统一结算（10 瓦），这里只消耗燃料
+        gainMastery(c, jobId, recipeDuration(job, r)); js.done = (js.done||0) + 1; continue;
       }
-      const id = iid(normName(name));
-      if (!id) continue;
-      if (ITEMS[id] && ITEMS[id].storage === 'granary') addFood(id, n);
-      else addItem(id, n);
+      for (const name in rawOuts) {
+        const n = rawOuts[name];
+        if (name.indexOf('科研') >= 0) { S.research += n; continue; }
+        if (name.indexOf('电力') >= 0) continue;
+        if (GENERIC_OUT[name]) {
+          for (let k = 0; k < n; k++) {
+            const real = GENERIC_OUT[name]();
+            if (!real) continue;
+            const oid = iid(real);
+            if (ITEMS[oid] && ITEMS[oid].storage === 'granary') addFood(oid, 1); else addItem(oid, 1);
+          }
+          continue;
+        }
+        const id = iid(normName(name));
+        if (!id) continue;
+        if (ITEMS[id] && ITEMS[id].storage === 'granary') addFood(id, n);
+        else addItem(id, n);
+      }
+      gainMastery(c, jobId, recipeDuration(job, r));
+      js.done = (js.done||0) + 1;
     }
-    gainMastery(c, jobId, (job.duration||2));
-    js.done = (js.done||0) + 1;
   }
 }
 function jobGate(jobId) {
-  const js = S.jobs[jobId], job = JOB_BY_ID[jobId];
+  const job = JOB_BY_ID[jobId];
+  if (!job) return { ok:false, why:'未知工作' };
   if (!jobVisible(job)) return { ok:false, why:'未解锁' };
-  if (!js.char) return { ok:false, why:'未入驻' };
+  if (assignedCount(job) <= 0) return { ok:false, why:'未入驻' };
   return { ok:true };
 }
 function miningPool(job) {
@@ -569,8 +623,10 @@ function enemyFor(job, js, c) {
 }
 function combatTick(jobId, dt) {
   const js = S.jobs[jobId], job = JOB_BY_ID[jobId];
-  if (!js.char) return;
-  const c = S.chars[js.char];
+  ensureSlots(js, 1);
+  const cid = js.slots[0];
+  if (!cid) return;
+  const c = S.chars[cid];
   if (!c || c.injured) return;
   const cs = combatState(jobId);
   if (!cs.enemy) {
@@ -899,8 +955,8 @@ function tick(dt) {
   // 工作
   for (const id in S.jobs) {
     const js = S.jobs[id];
-    if (!js.char) continue;
-    if (!jobVisible(JOB_BY_ID[id])) { js.char = null; continue; }
+    if (!js.slots || !js.slots.some(Boolean)) continue;
+    if (!jobVisible(JOB_BY_ID[id])) { js.slots = js.slots.map(() => null); continue; }
     produceJob(id, dt);
   }
   // 潜水摸鱼：木易天二人一即使待命也按伐木产出
@@ -927,13 +983,11 @@ function tick(dt) {
   // 袭击
   if (S.playtime >= S.raid.next) { S.raid.next = S.playtime + GAME.raidPeriod; doRaid(); }
 }
-function isAssigned(cid) {
-  for (const id in S.jobs) if (S.jobs[id].char === cid) return true;
-  return false;
-}
+function isAssigned(cid) { return isWorking(cid); }
 function healerPresent() {
   const js = S.jobs.medical || S.jobs.medicine;
-  return !!(js && js.char);
+  if (!js || !js.slots) return false;
+  return js.slots.some(id => id && S.chars[id]);
 }
 function consumeFood(n) {
   let left = n;
@@ -989,8 +1043,24 @@ function migrate(st) {
   merged.chars = st.chars || {};
   merged.order = st.order || [];
   merged.jobs = merged.jobs || {};
-  JOBS.forEach(j => { if (!merged.jobs[j.id]) merged.jobs[j.id] = { char:null, prog:0, recipe:0, up:[0,0,0,0] }; });
+  JOBS.forEach(j => {
+    let js = merged.jobs[j.id];
+    if (!js) js = merged.jobs[j.id] = {};
+    // 旧存档：单一 char / 数字 prog → 槽位数组
+    if (!Array.isArray(js.slots)) js.slots = [];
+    if (!Array.isArray(js.prog)) js.prog = [];
+    if (!Array.isArray(js.blocked)) js.blocked = [];
+    if (js.char) {
+      const ri = clamp(js.recipe || 0, 0, Math.max(0, jobRecipes(j).length - 1));
+      js.slots[ri] = js.char;
+    }
+    if (typeof js.prog === 'number') { js.prog = []; js.prog[clamp(js.recipe || 0, 0, Math.max(0, jobRecipes(j).length - 1))] = js.prog; }
+    delete js.char; delete js.recipe;
+    ensureSlots(js, Math.max(1, jobRecipes(j).length));
+    if (!Array.isArray(js.up)) js.up = [0,0,0,0];
+  });
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{} }, st.ui || {});
+  merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
   merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{} }, st.gacha || {});
   merged.combat = st.combat || {};
   merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
@@ -1024,7 +1094,8 @@ window.Engine = {
   onFieldCap, onFieldChars, isOnField, charPower, gearPower, charStats, charDps, weaponOf,
   masteryOf, masteryLvl, masteryPct, masteryNext, charBonusFor, charName,
   comfortValue, comfortMult, fortPower, fortWatts, fortReduce, powerProduced, powerDemand, powerEfficiency, powerNow,
-  jobRecipe, recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState,
+  jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
+  recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, shardCount, ownsHero, poolComplete, pull, giftTo, starUp,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,

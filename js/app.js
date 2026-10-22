@@ -46,11 +46,14 @@
 
   function startGame() {
     const S = E.S;
+    applyTheme((S.settings && S.settings.theme) || 'dark');
     if (!S.ui.page) S.ui.page = 'warehouse';
+    if (S.ui.page === 'tech') S.ui.page = 'job:research';
     if (!S.shop.slots.length) E.refreshShop(true);
     E.refreshShop(false);
     U.render();
     if (!S.ui.tipsSeen) { S.ui.tipsSeen = true; setTimeout(showTips, 300); }
+    if (new URLSearchParams(location.search).has('settings')) setTimeout(openSettings, 500);
     lastTick = performance.now();
     if (tickTimer) clearInterval(tickTimer);
     tickTimer = setInterval(gameTick, E.GAME.tickMs);
@@ -58,6 +61,37 @@
     saveTimer = setInterval(() => E.save(true), 15000);
     window.addEventListener('beforeunload', () => E.save(true));
     document.addEventListener('visibilitychange', () => { if (document.hidden) E.save(true); });
+  }
+
+  function applyTheme(theme) {
+    const t = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = t;
+    if (E.S) { E.S.settings = E.S.settings || {}; E.S.settings.theme = t; }
+  }
+  function openSettings() {
+    const S = E.S;
+    const theme = (S.settings && S.settings.theme) || 'dark';
+    U.modal(`<h3>⚙ 设置</h3>
+      <div class="card"><div class="row" style="justify-content:space-between">
+        <div><b>主题</b><div class="tiny muted">深色适合长时间挂机，浅色适合白天</div></div>
+        <div class="row">
+          <button class="${theme === 'dark' ? 'primary' : ''}" data-theme="dark">🌙 深色</button>
+          <button class="${theme === 'light' ? 'primary' : ''}" data-theme="light">☀️ 浅色</button>
+        </div>
+      </div></div>
+      <div class="card" style="margin-top:10px"><div class="row" style="justify-content:space-between">
+        <div><b>存档</b><div class="tiny muted">自动存档每 15 秒；关闭页面也会存</div></div>
+        <div class="row"><button id="setSave">立即存档</button><button id="setExport">导出</button><button id="setImport">导入</button></div>
+      </div></div>
+      <div class="acts"><button class="primary" data-act="closeModal">关闭</button></div>`);
+    document.querySelectorAll('[data-theme]').forEach(btn => btn.onclick = () => {
+      applyTheme(btn.dataset.theme);
+      if (E.S) E.save(true);
+      U.closeModal(); U.render(); U.toast('已切换到' + (btn.dataset.theme === 'light' ? '浅色' : '深色') + '主题');
+    });
+    const sv = document.getElementById('setSave'); if (sv) sv.onclick = () => { E.save(); U.toast('已存档', 'good'); };
+    const ex = document.getElementById('setExport'); if (ex) ex.onclick = () => { U.closeModal(); doExport(); };
+    const im = document.getElementById('setImport'); if (im) im.onclick = () => { U.closeModal(); doImport(); };
   }
 
   function showTips() {
@@ -104,6 +138,8 @@
     document.getElementById('btnExport').onclick = doExport;
     document.getElementById('btnImport').onclick = doImport;
     document.getElementById('btnReset').onclick = doReset;
+    const bs = document.getElementById('btnSettings');
+    if (bs) bs.onclick = openSettings;
     document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') U.closeModal(); });
   }
 
@@ -122,7 +158,7 @@
         break;
       case 'tab': S.ui.tab[k] = v; U.render(); break;
       case 'sort': S.ui.tab.whSort = v; U.render(); break;
-      case 'jobslot': openJobSlot(id); break;
+      case 'recslot': openJobSlot(id, +(i || 0)); break;
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
       case 'upg': {
         const r = E.buyUpgrade(id, +i);
@@ -194,11 +230,11 @@
 
   /* ---------------- 拖拽 ---------------- */
   function onDrop(e) {
-    const target = e.target.closest('[data-act="jobslot"],[data-act="eqslot"],[data-act="selectChar"]');
+    const target = e.target.closest('[data-act="recslot"],[data-act="eqslot"],[data-act="selectChar"]');
     if (!target || !dragData) return;
     e.preventDefault();
     const kind = dragData.kind, id = dragData.id;
-    if (target.dataset.act === 'jobslot' && kind === 'char') assignJob(target.dataset.id, id);
+    if (target.dataset.act === 'recslot' && kind === 'char') assignJob(target.dataset.job, +(target.dataset.i || 0), id);
     if (target.dataset.act === 'eqslot' && kind === 'item') equipItem(E.S.ui.charSel || E.S.order[0], id, true);
     if (target.dataset.act === 'selectChar' && kind === 'order') moveOrder(id, target.dataset.id);
     dragData = null;
@@ -209,46 +245,52 @@
     if (a < 0 || b < 0 || a === b) return;
     S.order.splice(a, 1);
     S.order.splice(b, 0, fromId);
-    // 被挤出上场区的角色自动退出工作
+    // 被挤出上场区的角色自动退出所有工作槽
     const cap = E.onFieldCap();
     S.order.forEach((cid, idx) => {
-      if (idx >= cap) Object.keys(S.jobs).forEach(j => { if (S.jobs[j].char === cid) S.jobs[j].char = null; });
+      if (idx >= cap) Object.keys(S.jobs).forEach(j => {
+        const js = S.jobs[j];
+        if (js.slots) js.slots = js.slots.map(x => (x === cid ? null : x));
+      });
     });
     U.render();
   }
-  function assignJob(jobId, cid) {
+  function assignJob(jobId, slotIdx, cid) {
     const S = E.S;
     const c = S.chars[cid]; if (!c) return;
     if (!E.isOnField(c)) { U.toast('该角色在待命队列（置灰），拖到前 ' + E.onFieldCap() + ' 名才能上场', 'bad'); return; }
     const job = E.JOB_BY_ID[jobId]; if (!job) return;
-    // 英雄专属工作限制
     const owner = job.staffOnly || job.owner;
     if (owner && E.charName(c) !== owner) { U.toast('只有 ' + owner + ' 可以入驻「' + job.name + '」', 'bad'); return; }
     if (job.special === 'blackSoul' && c.cid !== 'yuki') { U.toast('只有星见由岐可以入驻 #黑暗之魂', 'bad'); return; }
     if (job.special === 'eraSim' && c.cid !== 'dashao') { U.toast('只有大少可以入驻 #模拟纪元', 'bad'); return; }
-    Object.keys(S.jobs).forEach(j => { if (S.jobs[j].char === cid) S.jobs[j].char = null; });
-    S.jobs[jobId].char = cid;
-    S.jobs[jobId].prog = 0;
-    if (E.combatState) { const cs = E.combatState(jobId); cs.enemy = null; cs.respawn = 0; }
-    U.toast(E.charName(c) + ' → ' + job.name);
+    E.assignSlot(jobId, slotIdx || 0, cid);
+    if (E.combatState && (job.special === 'hunting' || job.special === 'blackSoul' || job.special === 'eraSim')) {
+      const cs = E.combatState(jobId); cs.enemy = null; cs.respawn = 0;
+    }
+    const r = E.jobRecipes(job)[slotIdx || 0];
+    U.toast(E.charName(c) + ' → ' + job.name + (r && E.jobRecipes(job).length > 1 ? ' · ' + r.name : ''));
     U.render();
   }
-  function openJobSlot(jobId) {
+  function openJobSlot(jobId, slotIdx) {
     const S = E.S, job = E.JOB_BY_ID[jobId];
+    const idx = slotIdx || 0;
+    const recipe = E.jobRecipes(job)[idx] || { name: job.name };
     const list = S.order.slice(0, E.onFieldCap()).map(id => S.chars[id]).filter(Boolean);
-    U.modal(`<h3>选择入驻角色 · ${U.esc(job.name)}</h3>
-      <div class="sub" style="margin-bottom:10px">只有前 ${E.onFieldCap()} 名角色可以上场。当前：${S.jobs[jobId].char ? U.esc(E.charName(S.chars[S.jobs[jobId].char])) : '空'}</div>
+    const curId = S.jobs[jobId].slots ? S.jobs[jobId].slots[idx] : null;
+    U.modal(`<h3>入驻 · ${U.esc(job.name)}${E.jobRecipes(job).length > 1 ? ' · ' + U.esc(recipe.name) : ''}</h3>
+      <div class="sub" style="margin-bottom:10px">只有前 ${E.onFieldCap()} 名角色可以上场。当前：${curId ? U.esc(E.charName(S.chars[curId])) : '空'}</div>
       <div class="chips">${list.map(c => {
         let ok = true, why = '';
         if (job.special === 'blackSoul' && c.cid !== 'yuki') { ok = false; why = '仅星见由岐'; }
         if (job.special === 'eraSim' && c.cid !== 'dashao') { ok = false; why = '仅大少'; }
-        return `<div class="chip ${ok ? '' : 'dim'}" data-act="pickchar" data-job="${jobId}" data-id="${c.cid}" style="cursor:pointer">
+        return `<div class="chip ${ok ? '' : 'dim'}" data-act="pickchar" data-job="${jobId}" data-i="${idx}" data-id="${c.cid}" style="cursor:pointer">
           ${U.avatar(c)}<div class="cn">${U.esc(E.charName(c))}</div><div class="tiny dim">${why || '精通 ' + E.masteryLvl(c, jobId)}</div></div>`;
       }).join('')}</div>
-      <div class="acts"><button data-act="unassign" data-job="${jobId}">清空入驻</button><button data-act="closeModal">取消</button></div>`);
-    document.querySelectorAll('[data-act="pickchar"]').forEach(el => el.onclick = () => { assignJob(el.dataset.job, el.dataset.id); U.closeModal(); });
+      <div class="acts"><button data-act="unassign" data-job="${jobId}" data-i="${idx}">撤下</button><button data-act="closeModal">取消</button></div>`);
+    document.querySelectorAll('[data-act="pickchar"]').forEach(el => el.onclick = () => { assignJob(el.dataset.job, +el.dataset.i, el.dataset.id); U.closeModal(); });
     const un = document.querySelector('[data-act="unassign"]');
-    if (un) un.onclick = () => { E.S.jobs[jobId].char = null; U.closeModal(); U.render(); };
+    if (un) un.onclick = () => { E.clearSlot(jobId, idx); U.closeModal(); U.render(); };
   }
   function openEquipSlot(slot) {
     const S = E.S, cid = S.ui.charSel || S.order[0], c = S.chars[cid];

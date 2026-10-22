@@ -4,6 +4,43 @@
 'use strict';
 const E = window.Engine;
 
+/* 工作的一句话简介（设计文档要求：工作页只显示粗略说明，不堆细节） */
+const JOB_BRIEF = {
+  woodcutting: '砍树，产出木材。',
+  mining: '开采矿石。每种矿石单独开采，越稀有的矿越慢。',
+  gathering: '采集野果、野菌与植物纤维。',
+  farming: '种地，把种子变成食材与草料。',
+  hunting: '派角色去野外打怪，掉落皮革与肉。',
+  husbandry: '圈养猎来的野生动物，产出肉与毛皮。',
+  cooking: '把生食做成更耐放、更顶饱的熟食。',
+  crafting: '加工石器、硅片与光纤。',
+  research: '产出科研点，用来研究科技树。',
+  stonecutting: '把石头切成石材。',
+  pottery: '把沙烧成陶器。',
+  medicine: '治疗重伤角色，制作药剂。',
+  smelting: '把矿石炼成金属锭。',
+  forging: '打造金属装备与武器。',
+  carpentry: '把木材加工成木板。',
+  weaving: '把植物纤维与毛料纺成布料。',
+  tailoring: '缝制衣物、皮甲与弓。',
+  pharmacy: '制作草药与医药。',
+  carpet_weaving: '编织地毯。',
+  papermaking: '把木材做成纸张。',
+  power: '用燃料发电，供耗电工作与工事使用。',
+  machining: '制造机械零件、水泥、混凝土与核燃料。',
+  chemistry: '炼油，产出化学燃料与塑料。',
+  glassmaking: '把沙做成玻璃。',
+  gunpowder: '制造火药。',
+  semiconductors: '制造芯片。',
+  precision_assembly: '制造精密零件。',
+  alien_mining: '在太空开采外星合金。',
+  particle_collider: '对撞粒子，制造反物质。',
+  synthesis: '合成超织物、AI 核心与生命维持单元。',
+  warp_core: '终局目标：制造曲速核心。',
+  black_soul: '与黑魂怪对决，掉落灵魂与余火。',
+  era_sim: '与僵尸对决，随机补给资源。',
+};
+
 const UI = {
   /* ---------------- 基础 ---------------- */
   toast(msg, kind) {
@@ -73,11 +110,11 @@ const UI = {
     const cur = S.ui.page;
     const nav = (key, icon, name, sub, extra) =>
       `<div class="nav ${cur === key ? 'active' : ''} ${extra || ''}" data-act="nav" data-page="${key}">
-         <span class="ic">${icon}</span><span class="nm">${name}</span>${sub ? `<span class="sub">${sub}</span>` : ''}
+         <span class="ic">${icon}</span><span class="nm">${name}</span>${sub ? `<span class="sub ${String(sub).indexOf('人在工作') >= 0 ? 'green' : ''}">${sub}</span>` : ''}
        </div>`;
     let h = '';
-    h += `<div class="grp">时代</div>`;
-    h += nav('tech', '🌳', '科技树', `${E.techsDone()}/${E.TECHS.length}`);
+    h += `<div class="grp">科研</div>`;
+    h += nav('job:research', '🔬', '科研 · 科技树', `${E.techsDone()}/${E.TECHS.length}`);
     // 战斗
     const hunt = E.JOB_BY_ID.hunting;
     const gifts = E.JOBS.filter(j => (j.special === 'blackSoul' || j.special === 'eraSim') && E.jobVisible(j));
@@ -102,17 +139,14 @@ const UI = {
     h += nav('warehouse', '📦', '#仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
     // 工作
     h += `<div class="grp">工作</div>`;
-    E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim') && E.jobVisible(j)).forEach(j => {
+    E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim' && j.special !== 'research') && E.jobVisible(j)).forEach(j => {
       h += nav('job:' + j.id, this.jobIcon(j), j.name, this.jobSub(j), this.jobSub(j) && j.id !== 'hunting' ? '' : '');
     });
     document.getElementById('side').innerHTML = h;
   },
   jobSub(job) {
-    const S = E.S, js = S.jobs[job.id];
-    if (!js || !js.char) return '未入驻';
-    const c = S.chars[js.char];
-    if (!c) return '未入驻';
-    return E.charName(c).slice(0, 5) + ' · ' + E.masteryLvl(c, job.id);
+    const n = E.assignedCount(job);
+    return n > 0 ? `<span class="green">${n}人在工作</span>` : '未入驻';
   },
   codexPct() {
     const S = E.S;
@@ -151,7 +185,7 @@ const UI = {
     const cap = E.onFieldCap();
     return `<div class="chips">` + S.order.map((cid, i) => {
       const c = S.chars[cid]; if (!c) return '';
-      const jobId = Object.keys(S.jobs).find(j => S.jobs[j].char === cid);
+      const jobId = Object.keys(S.jobs).find(j => S.jobs[j].slots && S.jobs[j].slots.includes(cid));
       const job = jobId ? E.JOB_BY_ID[jobId] : null;
       const dim = i >= cap ? 'dim' : '';
       return `<div class="chip ${dim}" draggable="true" data-drag="char" data-id="${cid}" title="拖到工作页的入驻槽可派驻">
@@ -182,67 +216,35 @@ const UI = {
     if (!job) return `<div class="empty">未知工作</div>`;
     if (!E.jobVisible(job)) return `<div class="empty">该工作尚未解锁</div>`;
     const js = S.jobs[jobId];
-    const c = js.char ? S.chars[js.char] : null;
-    if (job.special === 'hunting') return this.pageHunt(job, js, c);
-    if (job.special === 'blackSoul' || job.special === 'eraSim') return this.pageGiftJob(job, js, c);
-    if (job.special === 'power') return this.pagePower(job, js, c);
-    const gate = E.jobGate(jobId);
-    const speed = E.jobSpeed(jobId);
-    const dur = Math.max(0.4, (job.duration || 2) / speed);
-    const prog = js.prog || 0;
-    const recipes = (job.recipes && job.recipes.length) ? job.recipes : [{ name: job.name, inputs: job.inputs || {}, outputs: job.outputs || {}, era: job.era }];
-    const activeRecipe = E.jobRecipe(job, js.recipe || 0);
+    if (job.special === 'hunting') return this.pageHunt(job);
+    if (job.special === 'blackSoul' || job.special === 'eraSim') return this.pageGiftJob(job);
+    if (job.special === 'power') return this.pagePower(job);
+    const rs = E.jobRecipes(job);
+    E.ensureSlots(js, rs.length);
     const badges = [];
     if (job.watt) badges.push(`<span class="badge warn">⚡ ${job.watt} 瓦</span>`);
     if (job.era) badges.push(`<span class="badge">${E.ERA_NAME[job.era] || ''}</span>`);
+    const staffed = E.assignedCount(job);
+    const rows = rs.map((r, i) => ({ r, i })).filter(x => E.recipeVisible(x.r));
 
     let h = `<div class="wrap">
       <div class="jobhead">
         <div class="icon lg">${this.jobIcon(job)}</div>
         <div class="info">
-          <div class="title">${this.esc(job.name)} ${badges.join('')}</div>
-          <div class="sub">${this.esc(job.desc || job.note || '')}</div>
-        </div>
-        <div class="card" style="min-width:230px;display:flex;gap:10px;align-items:center;cursor:pointer" data-act="jobslot" data-id="${job.id}">
-          ${c ? this.avatar(c) : '<div class="av">＋</div>'}
-          <div>
-            <div class="small">${c ? this.esc(E.charName(c)) : '<span class="dim">拖入角色头像或点击选择</span>'}</div>
-            <div class="tiny muted">${c ? '精通 Lv.' + E.masteryLvl(c, job.id) + ' · 加成 +' + Math.round(E.charBonusFor(c, job) * 100) + '%' : '入驻槽'}</div>
-          </div>
+          <div class="title">${this.esc(job.name)} ${badges.join(' ')} ${staffed ? `<span class="badge on">${staffed} 人在工作</span>` : '<span class="badge off">无人入驻</span>'}</div>
+          <div class="sub">${this.esc(this.brief(job))}</div>
         </div>
       </div>
 
       <div class="card" style="margin-top:12px">
         <div class="row" style="justify-content:space-between"><span class="small muted">可用角色（前 ${E.onFieldCap()} 名可上场）</span>
-        <span class="tiny dim">拖拽头像到上方入驻槽</span></div>
+        <span class="tiny dim">把头像拖到下方任意配方的入驻槽</span></div>
         <div style="margin-top:8px">${this.chips()}</div>
       </div>
 
-      <div class="card progresswrap" style="margin-top:12px">
-        <div class="bar big" data-live="jobprog" data-job="${job.id}"><i style="width:${(prog * 100).toFixed(1)}%"></i><span>${(prog * 100).toFixed(1)}%</span></div>
-        <div class="row" style="margin-top:10px;font-size:12.5px;gap:18px">
-          <span>周期 <b class="mono" data-live="jobdur" data-job="${job.id}">${dur.toFixed(2)}s</b></span>
-          <span>产出倍率 <b class="mono green" data-live="jobmul" data-job="${job.id}">×${speed.toFixed(2)}</b></span>
-          <span>精通 <b class="mono">${c ? E.masteryLvl(c, job.id) : 0}</b></span>
-          <span>${c ? '<span class="badge on">有人驻守</span>' : '<span class="badge off">无人</span>'}</span>
-          ${js.blocked === 'input' ? '<span class="badge bad">材料不足</span>' : ''}
-          ${c && c.injured ? '<span class="badge bad">重伤休养</span>' : ''}
-        </div>
-        ${c ? `<div style="margin-top:8px" class="row"><span class="tiny muted" style="width:60px">精通经验</span><div class="bar xp" style="flex:1"><i style="width:${(E.masteryNext(c, job.id) * 100).toFixed(1)}%"></i></div></div>` : ''}
-      </div>
-
-      <div style="margin-top:16px">
-        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">配方</h3><span class="tiny dim">点卡片切换</span></div>
-        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-top:8px">
-          ${recipes.map((r, i) => {
-            const run = (js.recipe || 0) === i && c;
-            const ok = E.canMake(r);
-            return `<div class="card recipe ${run ? 'run' : ''} ${ok ? '' : 'nofood'}" data-act="recipe" data-id="${job.id}" data-i="${i}">
-              <div class="row" style="justify-content:space-between"><b class="small">${this.esc(r.name || job.name)}</b>${run ? '<span class="badge on">运行中</span>' : ''}</div>
-              <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs) : ''}</div>
-            </div>`;
-          }).join('')}
-        </div>
+      <div class="row" style="justify-content:space-between;margin-top:16px"><h3 style="font-size:15px">配方与入驻</h3><span class="tiny dim">每条配方独立入驻、独立进度</span></div>
+      <div class="grid recgrid" style="margin-top:8px">
+        ${rows.map(({ r, i }) => this.recipeCard(job, js, r, i)).join('')}
       </div>
 
       <div style="margin-top:16px">
@@ -262,10 +264,48 @@ const UI = {
         </div>
       </div>
 
-      ${job.special === 'mining' ? this.miningPanel(job) : ''}
-      ${job.special === 'research' ? `<div class="hint" style="margin-top:14px">科研点用于科技树。纸张（中世纪 *造纸）可让科研产出 +50%。</div>` : ''}
+      ${job.special === 'research' ? this.techTreeHtml() : ''}
     </div>`;
     return h;
+  },
+  brief(job) {
+    return JOB_BRIEF[job.id] || (job.note ? String(job.note).split(/[；。]/)[0] : '');
+  },
+  recipeIcon(job, r) {
+    const outs = Object.keys((r && r.outputs) || {});
+    for (const n of outs) {
+      const id = E.N2I(n);
+      if (id) return this.itemIcon(E.ITEMS[id]);
+    }
+    return this.jobIcon(job);
+  },
+  recipeCard(job, js, r, i) {
+    const S = E.S;
+    const cid = js.slots ? js.slots[i] : null;
+    const c = cid ? S.chars[cid] : null;
+    const prog = (js.prog && js.prog[i]) || 0;
+    const speed = E.jobSpeed(job.id, i);
+    const dur = Math.max(0.4, E.recipeDuration(job, r)) / speed;
+    const blocked = js.blocked && js.blocked[i] === 'input';
+    const mastery = c ? E.masteryLvl(c, job.id) : 0;
+    const mnext = c ? E.masteryNext(c, job.id) : 0;
+    const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
+    return `<div class="card recipe ${c ? 'run' : ''}">
+      <div class="row" style="justify-content:space-between">
+        <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.recipeIcon(job, r)}</span><b class="small">${this.esc(r.name || job.name)}</b></div>
+        <div class="slot mini ${c ? 'filled' : ''}" data-act="recslot" data-job="${job.id}" data-i="${i}" title="${c ? this.esc(E.charName(c)) : '点击选择入驻角色'}">
+          ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
+        </div>
+      </div>
+      <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs) : ''}</div>
+      <div class="row tiny" style="justify-content:space-between;margin-top:6px">
+        <span>${c ? `<span class="green">${this.esc(E.charName(c))}</span> · 精通 <b class="mono" data-live="masterylvl" data-i="${i}">${mastery}</b>${bonus ? ' · +' + bonus + '%' : ''}` : '<span class="dim">空置 · 拖入角色</span>'}</span>
+        <span class="mono">${dur.toFixed(1)}s</span>
+      </div>
+      <div class="bar sm" style="margin-top:6px" data-live="rec" data-job="${job.id}" data-i="${i}"><i style="width:${(prog * 100).toFixed(1)}%"></i></div>
+      ${c ? `<div class="row" style="margin-top:5px;gap:6px"><span class="tiny muted" style="width:52px">精通经验</span><div class="bar xp" style="flex:1" data-live="mastery" data-job="${job.id}" data-i="${i}"><i style="width:${(mnext * 100).toFixed(1)}%"></i></div></div>` : ''}
+      ${blocked ? '<div class="tiny red" style="margin-top:4px">材料不足</div>' : ''}
+    </div>`;
   },
   ioList(obj) {
     const ent = Object.entries(obj || {});
@@ -293,8 +333,10 @@ const UI = {
   },
 
   /* ---------------- 狩猎 / 恩赐工作 ---------------- */
-  pageHunt(job, js, c) {
-    const S = E.S;
+  pageHunt(job) {
+    const S = E.S, js = S.jobs[job.id];
+    E.ensureSlots(js, 1);
+    const c = E.slotChar(js, 0);
     const cs = E.combatState(job.id);
     const region = (job.regions || E.REGIONS)[cs.region || 0] || { name: '—', enemies: [] };
     let h = `<div class="wrap">
@@ -308,7 +350,7 @@ const UI = {
           }).join('')}</div>
           <div class="hr"></div>
           <h3>入驻角色</h3>
-          <div class="row" data-act="jobslot" data-id="${job.id}" style="cursor:pointer">
+          <div class="row" data-act="recslot" data-job="${job.id}" data-i="0" style="cursor:pointer">
             ${c ? this.avatar(c) : '<div class="av">＋</div>'}
             <div>${c ? `<b>${this.esc(E.charName(c))}</b><div class="tiny muted">DPS ≈ ${E.fmt(E.charDps(c, cs.enemy || { def: 5 }), 1)} · 精通 ${E.masteryLvl(c, job.id)}</div>` : '<span class="dim">点击选择角色</span>'}</div>
           </div>
@@ -336,7 +378,10 @@ const UI = {
     </div>`;
     return h;
   },
-  pageGiftJob(job, js, c) {
+  pageGiftJob(job) {
+    const js = E.S.jobs[job.id];
+    E.ensureSlots(js, 1);
+    const c = E.slotChar(js, 0);
     const cs = E.combatState(job.id);
     const owner = job.staffOnly || job.owner || (job.special === 'blackSoul' ? '星见由岐' : '大少');
     const lv = c ? E.masteryLvl(c, job.id) : 1;
@@ -347,7 +392,7 @@ const UI = {
       <div class="split">
         <div class="card">
           <h3>入驻</h3>
-          <div class="row" data-act="jobslot" data-id="${job.id}" style="cursor:pointer">
+          <div class="row" data-act="recslot" data-job="${job.id}" data-i="0" style="cursor:pointer">
             ${c ? this.avatar(c) : '<div class="av">＋</div>'}
             ${c ? `<b>${this.esc(E.charName(c))}</b>` : `<span class="dim">点击选择 ${owner}</span>`}
           </div>
@@ -370,8 +415,10 @@ const UI = {
       </div>
     </div>`;
   },
-  pagePower(job, js, c) {
-    const S = E.S;
+  pagePower(job) {
+    const S = E.S, js = S.jobs[job.id];
+    E.ensureSlots(js, 1);
+    const c = E.slotChar(js, 0);
     const gens = window.JOB_POWER_GENERATORS || {};
     const list = [];
     for (const era in gens) (gens[era] || []).forEach(g => list.push(Object.assign({ era }, g)));
@@ -398,20 +445,21 @@ const UI = {
       </div>
       <div class="card" style="margin-top:12px"><h3>电力工作</h3><div class="sub">煤炭发电：指派角色到「电力」工作，基础 +10 瓦（需先建造煤炭发电）。</div></div>
       <div class="card" style="margin-top:12px"><h3>入驻</h3>
-        <div class="row" data-act="jobslot" data-id="power" style="cursor:pointer">${c ? this.avatar(c) + '<b>' + this.esc(E.charName(c)) + '</b>' : '<div class="av">＋</div><span class="dim">点击选择角色</span>'}</div>
+        <div class="row" data-act="recslot" data-job="power" data-i="0" style="cursor:pointer">${c ? this.avatar(c) + '<b>' + this.esc(E.charName(c)) + '</b>' : '<div class="av">＋</div><span class="dim">点击选择角色</span>'}</div>
         <div style="margin-top:10px">${this.chips()}</div>
       </div>
     </div>`;
   },
 
   /* ---------------- 科技树 ---------------- */
-  pageTech() {
+  pageTech() { return `<div class="wrap">${this.techTreeHtml()}</div>`; },
+  techTreeHtml() {
     const S = E.S;
-    let h = `<div class="wrap"><div class="pagehead"><h2>科技树</h2>
+    let h = `<div class="pagehead"><h2>科技树</h2>
       <span class="badge">已研究 ${E.techsDone()}/${E.TECHS.length}</span>
-      <span class="badge blue">科研点 ${E.fmt(S.research)}</span>
+      <span class="badge blue">科研点 <b class="mono" data-live="researchval">${E.fmt(S.research)}</b></span>
       <span class="badge">${E.eraName()}</span></div>
-      <div class="hint">未解锁的内容完全不可见——这是刻意的。研究消耗科研点，由「科研」工作产出。</div>`;
+      <div class="hint">未解锁的内容完全不可见——这是刻意的。研究消耗科研点，由上层「科研」产出。</div>`;
     E.ERA_LIST.forEach(era => {
       const list = E.TECHS.filter(t => t.era === era.id);
       if (!list.length) return;
@@ -428,7 +476,6 @@ const UI = {
           </div>`;
         }).join('') + `</div></div>`;
     });
-    h += `</div>`;
     return h;
   },
 
@@ -652,7 +699,7 @@ const UI = {
           ${S.order.map((cid, i) => {
             const ch = S.chars[cid]; if (!ch) return '';
             const dim = i >= E.onFieldCap();
-            const jobId = Object.keys(S.jobs).find(j => S.jobs[j].char === cid);
+            const jobId = Object.keys(S.jobs).find(j => S.jobs[j].slots && S.jobs[j].slots.includes(cid));
             return `${i === E.onFieldCap() ? '<div class="sep"></div>' : ''}
               <div class="chip ${dim ? 'dim' : ''} ${cid === sel ? 'sel' : ''}" draggable="true" data-drag="order" data-id="${cid}" data-act="selectChar">
                 ${this.avatar(ch)}<div class="cn">${this.esc(E.charName(ch))}</div>
@@ -840,25 +887,45 @@ const UI = {
     const S = E.S;
     this.renderHud();
     const page = S.ui.page;
-    if (page.startsWith('job:')) {
+    if (page && page.startsWith('job:')) {
       const jobId = page.slice(4), job = E.JOB_BY_ID[jobId], js = S.jobs[jobId];
-      if (job && js && job.special !== 'hunting' && job.special !== 'blackSoul' && job.special !== 'eraSim' && job.special !== 'power') {
-        const bar = document.querySelector('[data-live="jobprog"]');
-        if (bar) { bar.querySelector('i').style.width = ((js.prog || 0) * 100).toFixed(1) + '%'; const sp = bar.querySelector('span'); if (sp) sp.textContent = ((js.prog || 0) * 100).toFixed(1) + '%'; }
-        const durEl = document.querySelector('[data-live="jobdur"]');
-        if (durEl) durEl.textContent = Math.max(0.4, (job.duration || 2) / E.jobSpeed(jobId)).toFixed(2) + 's';
-        const mulEl = document.querySelector('[data-live="jobmul"]');
-        if (mulEl) mulEl.textContent = '×' + E.jobSpeed(jobId).toFixed(2);
-      }
-      if (job && (job.special === 'hunting' || job.special === 'blackSoul' || job.special === 'eraSim')) {
-        // 简单重绘战斗血条
+      if (!job || !js) return;
+      if (job.special !== 'hunting' && job.special !== 'blackSoul' && job.special !== 'eraSim') {
+        document.querySelectorAll('[data-live="rec"]').forEach(bar => {
+          const i = +bar.dataset.i;
+          const p = (js.prog && js.prog[i]) || 0;
+          const fill = bar.querySelector('i');
+          if (fill) fill.style.width = (p * 100).toFixed(1) + '%';
+        });
+        document.querySelectorAll('[data-live="mastery"]').forEach(bar => {
+          const i = +bar.dataset.i;
+          const c = js.slots && js.slots[i] ? S.chars[js.slots[i]] : null;
+          if (!c) return;
+          const fill = bar.querySelector('i');
+          if (fill) fill.style.width = (E.masteryNext(c, jobId) * 100).toFixed(1) + '%';
+          const lv = document.querySelector('[data-live="masterylvl"][data-i="' + i + '"]');
+          if (lv) lv.textContent = E.masteryLvl(c, jobId);
+        });
+      } else {
         const cs = E.combatState(jobId);
         const bar = document.querySelector('.bar.enemy');
-        if (bar && cs.enemy) { bar.querySelector('i').style.width = Math.max(0, cs.ehp / cs.enemy.hp * 100).toFixed(1) + '%'; bar.querySelector('span').textContent = Math.ceil(cs.ehp) + ' / ' + cs.enemy.hp; }
+        if (bar && cs.enemy) {
+          bar.querySelector('i').style.width = Math.max(0, cs.ehp / cs.enemy.hp * 100).toFixed(1) + '%';
+          const sp = bar.querySelector('span');
+          if (sp) sp.textContent = Math.ceil(cs.ehp) + ' / ' + cs.enemy.hp;
+        }
+        if (!this._lastHunt || Date.now() - this._lastHunt > 1200) { this._lastHunt = Date.now(); this.render(); }
+      }
+      if (job.special === 'research') {
+        document.querySelectorAll('[data-live="researchval"]').forEach(el => { el.textContent = E.fmt(S.research); });
+        document.querySelectorAll('[data-act="tech"]').forEach(btn => {
+          const t = E.TECHS.find(x => x.id === btn.dataset.id);
+          if (t) btn.disabled = !E.techAvailable(t) || S.research < t.cost;
+        });
       }
     }
-    if (page === 'warehouse' || page === 'shop' || page === 'tech' || page === 'characters' || page === 'housing' || page === 'defense') {
-      // 这些页面每 1.5 秒整页重绘一次，保证金币/折扣等数字变化
+    if (page === 'warehouse' || page === 'shop' || page === 'tech' || page === 'characters' || page === 'housing' || page === 'defense' || page === 'recruit' || page === 'codex') {
+      // 这些页面每 1.5 秒整页重绘一次，保证金币/科研点等数字变化
       if (!this._lastFull || Date.now() - this._lastFull > 1500) { this._lastFull = Date.now(); this.render(); }
     }
   },
