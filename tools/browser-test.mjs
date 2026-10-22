@@ -221,14 +221,37 @@ try {
     return JSON.stringify({
       pools: btns.map(b=>b.dataset.id),
       btn: btns.map(b=>b.textContent.trim()),
-      has10x: txt.includes('10 倍'),
-      normal: txt.includes('普通角色')
+      hasRatio: txt.includes('10 : 1'),
+      normal: txt.includes('随机普通角色'),
+      infinite: txt.includes('无限')
     });
   })()`);
   const rc = JSON.parse(recruit);
   ok(rc.pools.join(',') === 'limited,standard', '招募页只有限定 / 常驻两个池：' + rc.pools.join(','));
   ok(rc.btn.length === 2 && rc.btn.every(t => t.includes('10 碎片')), '每池按钮都是 10 碎片：' + rc.btn.join(' | '));
-  ok(rc.has10x && rc.normal, '招募页写明 10 倍与随机普通角色');
+  ok(rc.hasRatio && rc.normal && rc.infinite, '招募页写明 10:1、随机普通角色无限生成');
+
+  console.log('== 开除随机普通角色 ==');
+  const dismiss = await js(`(function(){
+    const S=Engine.S;
+    S.gacha.noNew.standard=30;
+    Engine.addItem('英雄碎片', 20);
+    const r=Engine.pull('standard');
+    if(!r.ok||!r.gen) return JSON.stringify({bad:'抽卡没出普通角色：'+r.type});
+    const cid=r.hero.id;
+    S.ui.page='characters'; S.ui.charSel=cid;
+    UI.render();
+    const del=document.querySelector('[data-act="dismissChar"]');
+    if(!del) return JSON.stringify({bad:'角色页没有开除按钮'});
+    del.click();
+    const okBtn=document.getElementById('okDismiss');
+    if(!okBtn) return JSON.stringify({bad:'没有确认框'});
+    okBtn.click();
+    return JSON.stringify({gone: !Engine.S.chars[cid], inList: Engine.S.order.indexOf(cid)>=0, btn: true});
+  })()`);
+  const dm = JSON.parse(dismiss);
+  ok(!dm.bad, '开除流程可用：' + (dm.bad || '有按钮 → 有确认框'));
+  ok(dm.gone && !dm.inList, '确认后角色永久移出存档与角色列表');
 
   console.log('== 图鉴领取 ==');
   const codex = await js(`(function(){

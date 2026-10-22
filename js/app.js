@@ -247,6 +247,7 @@
         U.render(); break;
       }
       case 'sendgift': openGift(id); break;
+      case 'dismissChar': confirmDismiss(id); break;
       case 'pull': doPull(id); break;
       case 'claimCodex': {
         const r = E.codexClaim(k, id);
@@ -453,6 +454,20 @@
     if (btn) btn.onclick = () => {
       const r = E.buyShopSlot(i);
       U.toast(r.ok ? '购买成功' : (r.why || '购买失败'), r.ok ? 'good' : 'bad');
+      U.closeModal(); U.render();
+    };
+  }
+  function confirmDismiss(cid) {
+    const c = E.S.chars[cid]; if (!c) return;
+    const eqN = Object.keys(c.eq).filter(s => c.eq[s]).length;
+    U.modal(`<h3>开除随机普通角色</h3>
+      <div class="card"><b>${U.esc(E.charName(c))}</b>
+        <div class="tiny dim" style="margin-top:6px">开除后这名角色<b class="red">永久消失</b>（从角色列表与所有岗位上移除，之后也不会再抽到同一个人）；${eqN ? '身上的 ' + eqN + ' 件装备会退回仓库。' : '他身上没有装备。'}</div></div>
+      <div class="acts"><button data-act="closeModal">取消</button><button class="red" id="okDismiss">确认开除</button></div>`);
+    const btn = document.getElementById('okDismiss');
+    if (btn) btn.onclick = () => {
+      const r = E.dismissChar(cid);
+      U.toast(r.ok ? '已开除 ' + r.name + (r.n ? '，归还装备 ' + r.n + ' 件' : '') : (r.why || '无法开除'), r.ok ? 'good' : 'bad');
       U.closeModal(); U.render();
     };
   }

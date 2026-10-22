@@ -677,8 +677,10 @@ const UI = {
               <span class="small">升星 <b class="gold">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</b></span>
               <button class="gold" data-act="starup" data-id="${c.cid}" ${c.stars >= 5 ? 'disabled' : ''}>升星（${c.stars} 瓶药水）</button>
             </div>
-            <div class="tiny dim" style="margin-top:4px">自带工作加成：${(() => { const h = E.HEROES.find(x => x.id === c.cid); return h ? h.job + ' +' + Math.round(E.charBonusFor(c, { name: h.job }) * 100) + '%' : ''; })()}</div>
-            <div class="row" style="margin-top:8px"><button data-act="sendgift" data-id="${c.cid}">🎁 送礼物</button></div>` : `<div class="tiny dim" style="margin-top:8px">玩家角色：无自带加成、不能升星、不参与好感度。</div>`}
+            <div class="tiny dim" style="margin-top:4px">${c.gen ? '随机普通角色：无社交恩赐、不进图鉴' : '自带工作加成'}：${(() => { const h = E.heroDef(c.cid); return (h && h.job) ? this.esc(h.job) + ' +' + Math.round(E.charBonusFor(c, { name: h.job }) * 100) + '%' : '无'; })()}</div>
+            <div class="row" style="margin-top:8px">
+              ${c.gen ? `<button class="red" data-act="dismissChar" data-id="${c.cid}">开除</button>` : `<button data-act="sendgift" data-id="${c.cid}">🎁 送礼物</button>`}
+            </div>` : `<div class="tiny dim" style="margin-top:8px">玩家角色：无自带加成、不能升星、不参与好感度。</div>`}
         </div>
 
         <div class="card">
@@ -798,22 +800,22 @@ const UI = {
     const S = E.S;
     const shards = E.shardCount();
     const cost = E.PULL_COST;
+    const genOwned = S.order.filter(id => S.chars[id] && S.chars[id].gen).length;
     let h = `<div class="wrap"><div class="pagehead"><h2>招募</h2>
       <span class="badge">英雄碎片 <b class="gold">${shards}</b></span>
-      <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span></div>
-      <div class="hint">${cost} 个英雄碎片抽一次（商店第 6 格 2,000 金/个；图鉴首次收录也能领碎片）。30% 出角色，70% 出好感度礼物。连续 30 次抽到重复角色，下一抽必出新角色。<br>
-        限定池：出角色时，大少 / Laremehpe 的单角色概率 = 随机普通角色的 <b>10 倍</b>。常驻池只出随机普通角色。</div>
+      <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span>
+      <span class="badge">随机普通角色 ${genOwned}</span></div>
+      <div class="hint">${cost} 个英雄碎片抽一次（商店第 6 格 2,000 金/个；图鉴首次收录也能领碎片）。30% 出角色，70% 出好感度礼物；连续 30 抽没出新角色，下一抽必出。<br>
+        出角色时：<b>限定池</b> 有名英雄 : 全新随机普通角色 = <b>10 : 1</b>（大少 / Laremehpe 各 45.5%，随机普通角色 9.1%）；<b>常驻池</b> 100% 是全新的随机普通角色。
+        随机普通角色<b>无限生成</b>（随机名字 / 属性 / 工作加成，无社交恩赐、不进图鉴），在角色页可以开除，装备会退回仓库。</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
     E.POOLS.forEach(p => {
-      const members = E.poolMembers(p.id);
-      const owned = members.filter(m => E.ownsHero(m.id)).length;
-      const complete = owned === members.length;
-      const pity = E.gachaPity(p.id);
-      const gens = members.filter(m => m.gen);
-      const genOwned = gens.filter(m => E.ownsHero(m.id)).length;
       const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
+      const namedOwned = named.filter(hero => E.ownsHero(hero.id)).length;
+      const complete = named.length > 0 && namedOwned === named.length;
+      const pity = E.gachaPity(p.id);
       h += `<div class="card">
-        <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${owned}/${members.length}</span></div>
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${named.length ? '英雄 ' + namedOwned + '/' + named.length : '随机角色 ∞'}</span></div>
         <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
           ${named.map(hero => {
             const own = E.ownsHero(hero.id);
@@ -821,9 +823,9 @@ const UI = {
               ${own ? this.avatar(S.chars[hero.id], 'sm') : '<div class="av sm empty">？</div>'}
               <div class="cn tiny">${own ? this.esc(hero.name) : '？？？'}</div></div>`;
           }).join('')}
-          <div class="chip" style="min-width:56px" title="随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐">
-            <div class="av sm empty">？</div><div class="cn tiny">普通角色</div>
-            <div class="tiny gold">${genOwned}/${gens.length}</div>
+          <div class="chip" style="min-width:56px" title="无限生成：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐 / 不进图鉴">
+            <div class="av sm empty">？</div><div class="cn tiny">随机普通角色</div>
+            <div class="tiny gold">∞ 每次都是新的</div>
           </div>
         </div>
         <div class="row" style="margin-top:10px;justify-content:space-between">
@@ -836,7 +838,7 @@ const UI = {
       <div class="card" style="margin-top:14px">
         <h3>已拥有角色</h3>
         <div class="chips" style="margin-top:8px">
-          ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip"><div class="cn">${this.esc(E.charName(c))}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
+          ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip"><div class="cn">${this.esc(E.charName(c))}${c.gen ? ' <span class="tiny dim">随机</span>' : ''}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
         </div>
         <div class="tiny dim" style="margin-top:8px">好感 25 解锁头像使用权；50 解锁一级社交恩赐；100 解锁二级（随机普通角色没有社交恩赐，只有头像与属性）。</div>
       </div>

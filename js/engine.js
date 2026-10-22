@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.11';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.12';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -36,10 +36,11 @@ const HEROES = [
   { id:'space',  name:'空白TheSpace',   pool:null, retired:true, hp:12, atk:7,  str:8,  def:9,  job:'切石机',   e1:'搬石',               e2:'搬石+' },
 ];
 /* 只有 2 个池：限定（有名英雄 + 随机普通角色）/ 常驻（只有随机普通角色）。
-   namedW / normalW = 出角色时单个角色的权重：限定池里有名英雄 → 随机普通角色 = 10 : 1。 */
+   namedW = 池内全部有名英雄的权重之和；normalW = 「抽到一个随机普通角色」的权重。
+   限定池 10 : 1 → 出角色时 ~90.9% 是有名英雄（每人 45.5%），~9.1% 是全新随机普通角色。 */
 const POOLS = [
   { id:'limited',  name:'限定', heroes:['dashao','lare'], normal:true, namedW:10, normalW:1 },
-  { id:'standard', name:'常驻', heroes:[],                normal:true, namedW:10, normalW:1 },
+  { id:'standard', name:'常驻', heroes:[],                normal:true, namedW:0,  normalW:1 },
 ];
 const GIFTS = [
   { id:'gift1', name:'便利贴', favor:2,  w:50, price:400  },
@@ -104,54 +105,55 @@ const PULL_COST = 10;      // 一次抽卡消耗的英雄碎片
 const PITY_LIMIT = 30;     // 连续 N 抽没新角色 → 下一抽必新（每池独立）
 const CODEX_REWARD = { items: 1, enemies: 3, chars: 5 };   // 图鉴首次收录可领的碎片
 
-/* 随机普通角色：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐。
-   每个存档首次进入招募页时生成 【6】 个（固定下来，不是每次抽卡现造），
-   这样限定池与常驻池才有稳定的「已拥有 / 集齐」与保底口径。 */
+/* 随机普通角色：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐 / 不进图鉴。
+   v0.0.12 起改为【完全无限】：不预生成、不设上限，每次「抽到随机普通角色」时现造一个，
+   开除后永久消失，下次抽到的又是新面孔。 */
 const NORMAL = {
-  n: 6,
   sur: ['林','陈','周','许','沈','顾','苏','何','罗','唐','宋','韩','叶','程','陆','温','夏','江','白','严'],
   given: ['子墨','清和','南星','知秋','砚青','小满','听雨','若川','行舟','望舒','星野','一鸣','怀瑾','停云','衔月','拾光','长庚','临川'],
   hp: [6, 12], atk: [5, 11], str: [5, 12], def: [5, 12],
 };
 function rndInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
-function ensureNormals() {
-  if (!S) return [];
-  if (!S.gacha) S.gacha = { pity:{}, pulls:0, noNew:{}, normals:[] };
-  if (!Array.isArray(S.gacha.normals)) S.gacha.normals = [];
-  if (S.gacha.normals.length) return S.gacha.normals;
-  const jobs = JOBS.filter(j => !j.special);
-  const used = {}, list = [];
-  for (let i = 0; i < NORMAL.n; i++) {
-    let name, guard = 0;
-    do {
-      name = NORMAL.sur[rndInt(0, NORMAL.sur.length - 1)] + NORMAL.given[rndInt(0, NORMAL.given.length - 1)];
-      guard++;
-    } while (used[name] && guard < 200);
-    used[name] = 1;
-    const j = jobs.length ? jobs[rndInt(0, jobs.length - 1)] : null;
-    list.push({
-      id: 'gen' + (i + 1), gen: true, name,
-      hp: rndInt(NORMAL.hp[0], NORMAL.hp[1]), atk: rndInt(NORMAL.atk[0], NORMAL.atk[1]),
-      str: rndInt(NORMAL.str[0], NORMAL.str[1]), def: rndInt(NORMAL.def[0], NORMAL.def[1]),
-      job: j ? j.name : null, e1: null, e2: null,
-    });
+function normalName() {
+  const used = {};
+  Object.keys(S.chars).forEach(id => { used[S.chars[id].name] = 1; });
+  for (let guard = 0; guard < 400; guard++) {
+    const name = NORMAL.sur[rndInt(0, NORMAL.sur.length - 1)] + NORMAL.given[rndInt(0, NORMAL.given.length - 1)];
+    if (!used[name]) return name;
   }
-  S.gacha.normals = list;
-  return list;
+  return '无名' + (S.gacha.genSeq || 0);
 }
-function genDef(id) { return ensureNormals().find(d => d.id === id) || null; }
-function heroDef(id) { return HERO_BY_ID[id] || genDef(id); }
+/* 现造一个随机普通角色（不入档，由 pull 决定是否收下） */
+function makeNormal() {
+  if (!S.gacha) S.gacha = { pity:{}, pulls:0, noNew:{}, genSeq:0 };
+  if (!S.gacha.genSeq) S.gacha.genSeq = 0;
+  const jobs = JOBS.filter(j => !j.special);
+  let id, guard = 0;
+  do { S.gacha.genSeq++; id = 'gen' + S.gacha.genSeq; guard++; } while (S.chars[id] && guard < 500);
+  return {
+    id, gen: true, name: normalName(),
+    hp: rndInt(NORMAL.hp[0], NORMAL.hp[1]), atk: rndInt(NORMAL.atk[0], NORMAL.atk[1]),
+    str: rndInt(NORMAL.str[0], NORMAL.str[1]), def: rndInt(NORMAL.def[0], NORMAL.def[1]),
+    job: jobs.length ? jobs[rndInt(0, jobs.length - 1)].name : null,
+    e1: null, e2: null,
+  };
+}
+/* 已拥有的随机普通角色 → 还原成定义（图鉴 / 详情页照着显示） */
+function genDef(id) {
+  const c = S && S.chars[id];
+  if (!c || !c.gen) return null;
+  return { id, gen:true, name:c.name, hp:c.lv.hp, atk:c.lv.atk, str:c.lv.str, def:c.lv.def,
+    job:c.job, e1:null, e2:null };
+}
+function heroDef(id) { return HERO_BY_ID[id] || genDef(id) || null; }
 function poolMembers(poolId) {
   const p = POOL_BY_ID[poolId]; if (!p) return [];
-  const out = (p.heroes || []).map(id => ({ id, def: HERO_BY_ID[id], gen: false }));
-  if (p.normal) ensureNormals().forEach(d => out.push({ id: d.id, def: d, gen: true }));
-  return out;
+  return (p.heroes || []).map(id => ({ id, def: HERO_BY_ID[id], gen: false }));
 }
-/* 图鉴「角色」页用：所有可获得的角色（有名英雄 + 普通角色），退役的不算 */
+/* 图鉴「角色」页用：只统计有名英雄（随机普通角色不进图鉴），退役的不算 */
 function poolHeroList() {
-  const out = [], seen = {};
-  HEROES.forEach(h => { if (h.retired) return; out.push({ id:h.id, def:h, gen:false }); seen[h.id] = 1; });
-  ensureNormals().forEach(d => { if (!seen[d.id]) { out.push({ id:d.id, def:d, gen:true }); seen[d.id] = 1; } });
+  const out = [];
+  HEROES.forEach(h => { if (!h.retired) out.push({ id:h.id, def:h, gen:false }); });
   return out;
 }
 
@@ -197,7 +199,7 @@ function newState(name) {
     jobs: {}, techs: {}, recipes: {},
     housing: 0, comfort: [], forts: [], whUpg: 0, granary: 0,
     shop: { slots: [], next: 0 },
-    gacha: { pity: {}, pulls: 0, noNew: {}, normals: [] },
+    gacha: { pity: {}, pulls: 0, noNew: {}, genSeq: 0 },
     codex: { items: {}, enemies: {}, chars: {} },
     combat: {},
     raid: { next: GAME.raidPeriod, last: null, count: 0 },
@@ -904,7 +906,8 @@ function gachaPity(poolId) {
 }
 function shardCount() { const id = N2I('英雄碎片'); return id ? (S.items[id]||0) : 0; }
 function ownsHero(hid) { return !!S.chars[hid]; }
-function poolComplete(poolId) { return poolMembers(poolId).every(m => ownsHero(m.id)); }
+/* 「池子集齐」只对有名英雄有意义（随机普通角色是无限池，永远集不齐） */
+function poolComplete(poolId) { return (POOL_BY_ID[poolId].heroes || []).every(ownsHero); }
 function pull(poolId) {
   const pool = POOL_BY_ID[poolId]; if (!pool) return { ok:false, why:'没有这个卡池' };
   const shardId = N2I('英雄碎片'); if (!shardId) return { ok:false };
@@ -922,41 +925,70 @@ function pull(poolId) {
     S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出新角色」
     return { ok:true, type:'gift', gift: tier };
   }
-  // 抽角色
-  const members = poolMembers(poolId);
-  const missing = members.filter(m => !ownsHero(m.id));
-  let pick;
+  // 抽角色：先掷「有名英雄 or 全新随机普通角色」
+  const named = (pool.heroes || []).map(id => HERO_BY_ID[id]).filter(Boolean);
+  const missing = named.filter(h => !ownsHero(h.id));
+  let hero = null;
   if (needPity) {
-    if (!missing.length) {
-      addItem(N2I('星尘') || ensureItemByName('星尘'), 30);
-      S.gacha.noNew[poolId] = 0;
-      return { ok:true, type:'stardust', n:30, pity:true };
+    // 保底：优先补该池还没拥有的有名英雄；没有的话就现造一个全新随机普通角色
+    if (missing.length) hero = missing[rndInt(0, missing.length - 1)];
+  } else if (named.length) {
+    const wNamed = pool.namedW || 0;
+    const wNormal = pool.normal === false ? 0 : (pool.normalW || 1);
+    if (wNamed > 0 && Math.random() * (wNamed + wNormal) <= wNamed) {
+      // 有名英雄内部等权（每人 namedW / 人数）
+      hero = named[rndInt(0, named.length - 1)];
     }
-    pick = missing[Math.floor(Math.random()*missing.length)];
-  } else {
-    // 限定池：有名英雄单角色权重 10，随机普通角色单角色权重 1
-    const wp = members.map(m => ({ m, weight: m.gen ? (pool.normalW || 1) : (pool.namedW || 1) }));
-    const hit = weightedPick(wp);
-    pick = hit ? hit.m : members[members.length - 1];
   }
-  const hid = pick.id;
-  if (ownsHero(hid)) {
-    addItem(N2I('星尘') || ensureItemByName('星尘'), 10);
-    S.gacha.noNew[poolId] = needPity ? 0 : noNew + 1;
-    return { ok:true, type:'dup', hero: pick.def, gen: pick.gen, n:10 };
+  if (hero) {
+    const hid = hero.id;
+    if (ownsHero(hid)) {
+      addItem(N2I('星尘') || ensureItemByName('星尘'), 10);
+      S.gacha.noNew[poolId] = needPity ? 0 : noNew + 1;
+      return { ok:true, type:'dup', hero, gen:false, n:10 };
+    }
+    const c = newChar(hid, { name: hero.name, kind:'hero', pool: poolId, gen:false, job: hero.job,
+      hp: hero.hp, atk: hero.atk, str: hero.str, def: hero.def, stars: 1 });
+    c.hpNow = charStats(c).maxHp;
+    S.chars[hid] = c; S.order.push(hid);
+    S.seen.chars[hid] = true;
+    S.gacha.noNew[poolId] = 0;
+    S.discoveredShard = true;
+    log('抽到新角色 <b class="gold">' + hero.name + '</b>！');
+    return { ok:true, type:'new', hero, gen:false };
   }
-  // 新角色
-  const h = pick.def;
-  const c = newChar(hid, { name: h.name, kind:'hero', pool: poolId, gen: !!pick.gen, job: h.job,
+  // 全新随机普通角色：每次现造一个（不预生成、不进图鉴、可开除）
+  const h = makeNormal();
+  const c = newChar(h.id, { name: h.name, kind:'hero', pool: poolId, gen:true, job: h.job,
     hp: h.hp, atk: h.atk, str: h.str, def: h.def, stars: 1 });
   c.hpNow = charStats(c).maxHp;
-  S.chars[hid] = c;
-  S.order.push(hid);
-  S.seen.chars[hid] = true;
+  S.chars[h.id] = c; S.order.push(h.id);
   S.gacha.noNew[poolId] = 0;
   S.discoveredShard = true;
-  log('抽到新角色 <b class="gold">' + h.name + '</b>！');
-  return { ok:true, type:'new', hero: h, gen: !!pick.gen };
+  log('一名随机普通角色加入了：<b class="gold">' + h.name + '</b>');
+  return { ok:true, type:'new', hero: h, gen:true };
+}
+/* 开除随机普通角色：永久移除，装备全部退回仓库，并从所有岗位上撤下 */
+function dismissChar(cid) {
+  const c = S.chars[cid];
+  if (!c) return { ok:false, why:'角色不存在' };
+  if (!c.gen) return { ok:false, why:'只有随机普通角色可以开除' };
+  let eqN = 0;
+  for (const slot in c.eq) {
+    const id = c.eq[slot];
+    if (id) { addItem(id, 1); c.eq[slot] = null; eqN++; }
+  }
+  for (const id in S.jobs) {
+    const js = S.jobs[id];
+    if (js.slots) js.slots = js.slots.map(x => (x === cid ? null : x));
+  }
+  const nm = charName(c);
+  delete S.chars[cid];
+  S.order = S.order.filter(x => x !== cid);
+  if (S.seen.chars) delete S.seen.chars[cid];
+  if (S.ui && S.ui.charSel === cid) S.ui.charSel = S.order[0] || null;
+  log('开除了 <b class="gold">' + nm + '</b>，归还装备 ' + eqN + ' 件');
+  return { ok:true, n: eqN, name: nm };
 }
 
 /* ---------- 图鉴收集奖励（英雄碎片） ---------- */
@@ -997,6 +1029,7 @@ function giftTo(cid, giftId) {
   const c = S.chars[cid], g = GIFTS.find(x => x.id === giftId);
   if (!c || !g) return false;
   if (c.kind === 'player') return { ok:false, why:'玩家角色不参与好感度' };
+  if (c.gen) return { ok:false, why:'随机普通角色没有社交恩赐，不收礼物' };
   if ((S.items[giftId]||0) < 1) return false;
   removeItem(giftId, 1);
   c.favor = Math.min(100, c.favor + g.favor);
@@ -1135,11 +1168,12 @@ function offlineEnemies(job, c) {
   if (pool.length) return [pool[pool.length - 1]];
   return list.length ? [list[0]] : [];
 }
-/* 单场对决的期望：击杀时长 / 被打进重伤的时长 / 获胜概率 */
+/* 单场对决的期望：击杀时长 / 被打进重伤的时长 / 获胜概率 / 单杀挨的伤害 */
 function offlineFight(c, e) {
   const st = charStats(c);
   const dps = Math.max(0.001, charDps(c, e));
-  const tKill = e.hp / dps;
+  // 一次攻击间隔内最多打掉一只：再弱的怪也要等下一次挥击（同在线 combatTick）
+  const tKill = Math.max(st.interval || 2.4, e.hp / dps);
   const eAtk = Math.floor((e.atk + 9) * 64);
   const pDef = Math.floor((c.lv.def + 9) * 64);
   const eHit = eAtk < pDef ? eAtk / (2 * pDef) : 1 - pDef / (2 * eAtk);
@@ -1149,7 +1183,9 @@ function offlineFight(c, e) {
   const tInjure = Math.max(0.01, ((c.hpNow || st.maxHp) - floor) / Math.max(0.001, eDps));
   // 胜率：能在被打进重伤前击杀掉这一只的比例；1 = 稳赢（design §九「× 胜率」）
   const pWin = tKill <= tInjure ? 1 : Math.max(0, tInjure / tKill);
-  return { e, dps, tKill, tInjure, pWin, win: pWin >= 1 };
+  // 单杀挨的伤害 = 敌人 DPS × 战斗时长（3 秒刷新期间回血另算）
+  const dmg = eDps * Math.min(tKill, tInjure);
+  return { e, dps, tKill, tInjure, pWin, dmg, win: pWin >= 1 };
 }
 function offlineLoot(e) {
   const out = {};
@@ -1187,12 +1223,28 @@ function offlineCombat(jobId, sec, rep) {
   const enemies = offlineEnemies(job, c);
   if (!enemies.length) return;
   const fights = enemies.map(e => offlineFight(c, e));
-  const share = time / fights.length;
+  const n = fights.length;
   const bonus = huntingBonus(c, job);
-  let lost = false, kills = 0, dealt = 0;
+  const regenRate = st.maxHp * regen;
+  // 各敌人均分离线时间：平均每秒的击杀数与挨打伤害（= 在线随机遭遇的期望）
+  let killRate = 0, dmgRate = 0, unwinnable = false;
   fights.forEach(f => {
-    if (f.pWin < 1) lost = true;
-    const k = share / (f.tKill + 3) * f.pWin;   // 3 秒刷下一只（同在线），胜率<1 部分只算打赢的场次
+    const r = f.pWin / (f.tKill + 3);
+    killRate += r / n;
+    dmgRate += r * f.dmg / n;
+    if (f.pWin < 1) unwinnable = true;
+  });
+  // 连续作战会掉血：挨打速度超过自然恢复时，算能撑多久（同在线受伤逻辑）
+  let lost = unwinnable, battleTime = time;
+  if (dmgRate > regenRate) {
+    const budget = Math.max(0, (c.hpNow || st.maxHp) - st.maxHp * 0.2);
+    const survive = budget / (dmgRate - regenRate);
+    if (survive < battleTime) { battleTime = survive; lost = true; }
+  }
+  const scale = time > 0 ? Math.max(0, battleTime / time) : 0;
+  let kills = 0, dealt = 0;
+  fights.forEach(f => {
+    const k = (time / n) * (f.pWin / (f.tKill + 3)) * scale;   // 3 秒刷下一只（同在线）
     if (k <= 0) return;
     kills += k; dealt += k * f.e.hp;
     S.seen.enemies[f.e.id] = true;
@@ -1201,8 +1253,8 @@ function offlineCombat(jobId, sec, rep) {
     c.know[f.e.name] = Math.min(100, (c.know[f.e.name] || 0) + per * k);
     const loot = offlineLoot(f.e);
     for (const id in loot) {
-      const n = offlineRound(loot[id] * k);
-      if (n > 0) addItem(id, n);
+      const n2 = offlineRound(loot[id] * k);
+      if (n2 > 0) addItem(id, n2);
     }
   });
   if (job.special === 'eraSim' && kills > 0) {
@@ -1223,13 +1275,14 @@ function offlineCombat(jobId, sec, rep) {
     xpGain(c, 'str', dealt * 0.2);
   }
   if (lost) {
-    // 打不过 → 重伤（design/战斗系统.md §八）；产出只保留打赢的部分
+    // 打不过 / 被持续消耗打穿 → 重伤（design/战斗系统.md §八）；产出只保留打赢的部分
     c.injured = true;
     c.hpNow = 1;
     c.jobPaused = job.id;
   } else {
-    // 全程打赢：按自然恢复继续回血，不会凭空受伤
-    c.hpNow = Math.min(st.maxHp, (c.hpNow || st.maxHp) + st.maxHp * regen * time);
+    // 全程撑住：血量按「自然恢复 − 挨打」的净速率走，不会凭空受伤
+    const net = regenRate - dmgRate;
+    c.hpNow = Math.max(1, Math.min(st.maxHp, (c.hpNow || st.maxHp) + net * time));
   }
   rep.kills += kills;
   rep.stats.battles++;
@@ -1451,8 +1504,10 @@ function migrate(st) {
   });
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
-  merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, normals:[] }, st.gacha || {});
-  if (!Array.isArray(merged.gacha.normals)) merged.gacha.normals = [];
+  merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, genSeq:0 }, st.gacha || {});
+  if (!merged.gacha.genSeq) merged.gacha.genSeq = 0;
+  // 旧存档（v0.0.10/0.0.11）的预生成普通角色：已抽到手的人还在 S.chars 里，只是不再有新批次
+  delete merged.gacha.normals;
   merged.codex = Object.assign({ items:{}, enemies:{}, chars:{} }, st.codex || {});
   merged.combat = st.combat || {};
   merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
@@ -1490,8 +1545,8 @@ window.Engine = {
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
   recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   refreshShop, buyShopSlot, sellItem, shopPool,
-  gachaPity, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, ensureNormals, genDef, heroDef,
-  pull, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,
+  gachaPity, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
+  pull, dismissChar, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,
   codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
   wealth, basePower, raidStrength, doRaid, tick, log, toast,

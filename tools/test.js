@@ -127,35 +127,43 @@ ok(S.chars.player.xp.atk > 0 || S.chars.player.lv.atk > 1, '战斗经验累积 '
 ok(Object.keys(S.seen.enemies).length > 0, '图鉴记录了遇敌');
 
 console.log('== 抽卡 ==');
-E.addItem(E.N2I('英雄碎片'), 40);
+E.addItem(E.N2I('英雄碎片'), 4000);
 S.gold = 100000;
 ok(E.POOLS.length === 2 && E.POOLS[0].id === 'limited' && E.POOLS[1].id === 'standard', '卡池只有 限定 / 常驻：' + E.POOLS.map(p => p.name).join(' / '));
 ok(E.pull('shenren').ok === false, '旧卡池（神人俱乐部）已移除');
-ok(E.poolMembers('limited').length === 8, '限定池 8 人 = 2 名英雄 + 6 随机普通角色：' + E.poolMembers('limited').length);
-ok(E.poolMembers('standard').length === 6, '常驻池 6 人，全是随机普通角色：' + E.poolMembers('standard').length);
-ok(E.poolMembers('limited').filter(m => !m.gen).map(m => m.def.name).join('/') === '大少/Laremehpe', '限定池有名角色 = 大少 / Laremehpe');
-const normals = E.ensureNormals();
-ok(normals.length === 6 && normals.every(n => n.name && n.hp >= 6 && n.atk >= 5 && n.job && n.e1 === null), '普通角色：随机名字/属性/工作加成，无社交恩赐');
+ok(E.poolMembers('limited').length === 2, '限定池只预置 2 名有名英雄：' + E.poolMembers('limited').length);
+ok(E.poolMembers('standard').length === 0, '常驻池不预置角色，随机普通角色全部现造');
+ok(E.poolMembers('limited').map(m => m.def.name).join('/') === '大少/Laremehpe', '限定池有名角色 = 大少 / Laremehpe');
+
+const n1 = E.makeNormal(), n2 = E.makeNormal();
+ok(n1.id !== n2.id, '随机普通角色每次现造、id 不重复：' + n1.id + ' / ' + n2.id);
+ok(!!n1.name && n1.hp >= 6 && n1.atk >= 5 && !!n1.job && n1.e1 === null, '随机名字/属性/工作加成，无社交恩赐');
+ok(E.poolHeroList().length === 2, '图鉴角色只统计 2 名有名英雄（随机普通角色不进图鉴）');
+
 const before = E.shardCount();
 const p1 = E.pull('limited');
 ok(p1.ok, '抽卡一次：' + p1.type);
 ok(E.shardCount() === before - E.PULL_COST, '单抽消耗 ' + E.PULL_COST + ' 碎片：' + (before - E.shardCount()));
+
+// 常驻池：出角色时 100% 是全新随机普通角色
+S.gacha.noNew.standard = 30;
 const p2 = E.pull('standard');
-ok(p2.ok, '抽卡两次：' + p2.type);
-if (p2.type === 'new') ok(p2.gen && S.chars[p2.hero.id].gen, '常驻池只出随机普通角色');
-ok(S.gacha.pulls === 2, '抽卡计数 2');
+ok(p2.ok && p2.type === 'new' && p2.gen, '常驻池保底必出全新随机普通角色');
+ok(!S.chars[p2.hero.id].e1, '随机普通角色没有社交恩赐');
 S.gacha.noNew.standard = 30;
 const p2b = E.pull('standard');
-ok(p2b.ok && p2b.type === 'new' && p2b.gen, '常驻池保底必出随机普通角色');
-ok(!S.chars[p2b.hero.id].e1, '普通角色没有社交恩赐');
+ok(p2b.ok && p2b.type === 'new' && p2b.gen && p2b.hero.id !== p2.hero.id, '随机普通角色无限：再保底又是一张新面孔');
 S.gacha.noNew.standard = 0;
+
+// 限定池：保底优先补齐两名有名英雄
+for (let i = 0; i < 4 && !['dashao', 'lare'].every(id => S.chars[id]); i++) { S.gacha.noNew.limited = 30; E.pull('limited'); }
+ok(['dashao', 'lare'].every(id => S.chars[id]), '限定池保底补齐两名英雄');
 S.gacha.noNew.limited = 30;
-const p3 = E.pull('limited');
-ok(p3.ok && p3.type !== 'gift', '保底：30 抽后必出角色（' + p3.type + '）');
+const p5 = E.pull('limited');
+ok(p5.ok && p5.type === 'new' && p5.gen, '英雄集齐后，限定池保底 = 全新随机普通角色（' + p5.type + '）');
 S.gacha.noNew.limited = 0;
 
 // 礼物也算「这一抽没出新角色」：连抽 30 次礼物 → 第 31 抽保底必出角色
-E.addItem(E.N2I('英雄碎片'), 400);
 S.gacha.noNew.standard = 0;
 const rnd = Math.random;
 Math.random = () => 0.99;            // 30% 判定必失败 → 全部出礼物
@@ -164,7 +172,22 @@ const pityCnt = S.gacha.noNew.standard;
 const p4 = E.pull('standard');
 Math.random = rnd;
 ok(pityCnt === 30, '礼物抽也累计保底计数：' + pityCnt);
-ok(p4.type === 'new' || p4.type === 'stardust', '第 31 抽保底必出角色（非礼物）：' + p4.type);
+ok(p4.type === 'new' && p4.gen, '第 31 抽保底必出全新角色：' + p4.type);
+
+console.log('== 开除随机普通角色 ==');
+const gcId = Object.keys(S.chars).find(id => S.chars[id].gen);
+ok(!!gcId, '存在随机普通角色：' + gcId);
+const wid = Object.keys(E.ITEMS).find(id => E.ITEMS[id].cat === 'weapon');
+S.chars[gcId].eq.mainhand = wid;
+E.assignSlot('woodcutting', 0, gcId);
+const widBefore = S.items[wid] || 0;
+const dis = E.dismissChar(gcId);
+ok(dis.ok && dis.n === 1, '开除成功，归还 1 件装备：' + dis.n);
+ok(!S.chars[gcId] && S.order.indexOf(gcId) < 0, '角色永久移除（存档 + 列表）');
+ok((S.items[wid] || 0) === widBefore + 1, '装备退回仓库');
+ok(!(S.jobs.woodcutting.slots || []).some(x => x === gcId), '岗位已空出');
+ok(E.dismissChar('player').ok === false, '玩家角色不能开除');
+ok(!E.S.chars[gcId], '开除后不能再送回抽卡结果');
 
 console.log('== 图鉴领取 ==');
 ok(E.codexClaimable('items', E.N2I('木材')), '已收录物品可领取');
@@ -217,18 +240,30 @@ ok(Math.abs(E.S.playtime - beforePlay - 3600) < 1, '游戏时长推进 3600 秒'
 const woodGain = rep.gained.find(g => g.id === E.N2I('木材'));
 ok(!!woodGain && woodGain.n > 50, '离线伐木产出木材：' + (woodGain ? woodGain.n : 0));
 ok(rep.food.after < rep.food.before, '离线期间粮仓腐坏：' + rep.food.before.toFixed(1) + ' → ' + rep.food.after.toFixed(1));
+const offMLvl = E.masteryLvl(E.S.chars.player, 'woodcutting');
+const offMXp = E.masteryOf(E.S.chars.player, 'woodcutting').xp;
 ok(E.settleOffline(30) === null, '不足 60 秒不结算（交给正常 tick）');
 rep = E.settleOffline(20 * 3600);
 ok(rep && rep.used === E.GAME.offlineCapSec && rep.capped, '超过 8 小时按上限结算');
 ok(Object.values(E.S.items).every(v => v >= 0 && !isNaN(v)), '离线后物品无负数/NaN');
+
+// 精通：离线按 15 秒块推进，1 小时后的等级 / 经验应与在线一致
+E.S = E.newState('在线对照');
+E.assignSlot('woodcutting', 0, 'player');
+for (let i = 0; i < 18000; i++) E.tick(0.2);
+const onMLvl = E.masteryLvl(E.S.chars.player, 'woodcutting');
+const onMXp = E.masteryOf(E.S.chars.player, 'woodcutting').xp;
+ok(offMLvl > 0 && offMLvl === onMLvl, '离线精通等级 = 在线：' + offMLvl);
+ok(Math.abs(offMXp - onMXp) <= Math.max(1, onMXp * 0.05), '离线精通经验 ≈ 在线：' + Math.round(offMXp) + ' vs ' + Math.round(onMXp));
 
 E.S = E.newState('离线袭击');
 rep = E.settleOffline(8 * 3600);
 ok(rep.raids.length === 4, '8 小时补算 4 次袭击判定：' + rep.raids.length);
 
 E.S = E.newState('离线战斗');
-Object.assign(E.S.chars.player.lv, { hp: 20, atk: 20, str: 20, def: 20 });
-E.S.chars.player.hpNow = 999;
+// 高防高攻：能稳定打穿森林，且挨打速度低于自愈，1 小时下来不会重伤
+Object.assign(E.S.chars.player.lv, { hp: 50, atk: 100, str: 100, def: 200 });
+E.S.chars.player.hpNow = 500;
 E.S.techs['bow'] = true;
 E.assignSlot('hunting', 0, 'player');
 E.combatState('hunting').region = 0;
@@ -236,6 +271,7 @@ rep = E.settleOffline(3600);
 ok(rep.kills > 0, '离线狩猎按期望值击杀：' + rep.kills);
 ok(E.S.stats.kills > 0 && rep.gained.length > 0, '离线战斗掉落 ' + rep.gained.length + ' 种');
 ok(!E.S.chars.player.injured, '打得过就不会重伤');
+ok(E.masteryOf(E.S.chars.player, 'hunting').xp > 0, '离线战斗也涨精通');
 
 E.S = E.newState('离线重伤');
 E.S.techs['bow'] = true;
