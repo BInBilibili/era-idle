@@ -30,7 +30,7 @@
   function askName() {
     U.modal(`<h3>🏛️ 欢迎来到纪元放置</h3>
       <div class="sub" style="margin-bottom:12px">从石器时代开始，把一个殖民地一路推到太空时代。<br>先给自己起个名字吧（之后随时可改）。</div>
-      <input id="nameInput" style="width:100%;padding:10px 12px;border-radius:9px;border:1px solid #33465c;background:#0c1219;color:#e2e8f2;font-size:15px" maxlength="12" placeholder="你的名字" value="无名者">
+      <input id="nameInput" class="inp" maxlength="12" placeholder="你的名字" value="无名者">
       <div class="acts"><button class="primary" id="startBtn">开始游戏</button></div>`);
     const input = document.getElementById('nameInput');
     const go = () => {
@@ -374,7 +374,7 @@
   }
   function openRename() {
     const S = E.S;
-    U.modal(`<h3>改名</h3><input id="renameInput" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid #33465c;background:#0c1219;color:#e2e8f2" maxlength="12" value="${U.esc(S.name)}">
+    U.modal(`<h3>改名</h3><input id="renameInput" class="inp" maxlength="12" value="${U.esc(S.name)}">
       <div class="acts"><button data-act="closeModal">取消</button><button class="primary" id="okRename">保存</button></div>`);
     document.getElementById('okRename').onclick = () => {
       const n = (document.getElementById('renameInput').value || '').trim().slice(0, 12) || S.name;
@@ -422,7 +422,7 @@
   function doExport() {
     const code = E.exportSave();
     U.modal(`<h3>导出存档</h3><div class="sub" style="margin-bottom:8px">下面这段 base64 就是你的全部进度，复制保存到记事本即可备份。</div>
-      <textarea readonly style="width:100%;height:150px;background:#0c1219;color:#b8c6d6;border:1px solid #33465c;border-radius:9px;padding:8px;font-family:monospace;font-size:11px">${code}</textarea>
+      <textarea readonly class="ta">${code}</textarea>
       <div class="acts"><button class="primary" id="copyBtn">复制到剪贴板</button><button data-act="closeModal">关闭</button></div>`);
     document.getElementById('copyBtn').onclick = () => {
       navigator.clipboard.writeText(code).then(() => U.toast('已复制到剪贴板', 'good')).catch(() => U.toast('复制失败，请手动全选复制', 'bad'));
@@ -430,7 +430,7 @@
   }
   function doImport() {
     U.modal(`<h3>导入存档</h3><div class="sub" style="margin-bottom:8px">粘贴导出的 base64 存档，会覆盖当前进度。</div>
-      <textarea id="importArea" style="width:100%;height:150px;background:#0c1219;color:#b8c6d6;border:1px solid #33465c;border-radius:9px;padding:8px;font-family:monospace;font-size:11px" placeholder="粘贴存档..."></textarea>
+      <textarea id="importArea" class="ta" placeholder="粘贴存档..."></textarea>
       <div class="acts"><button data-act="closeModal">取消</button><button class="primary" id="okImport">导入并刷新</button></div>`);
     document.getElementById('okImport').onclick = () => {
       const v = document.getElementById('importArea').value;

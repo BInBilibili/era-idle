@@ -135,6 +135,27 @@ try {
     return document.documentElement.dataset.theme + '|' + (Engine.S.settings||{}).theme;
   })()`);
   ok(theme === 'light|light', '切到浅色主题：' + theme);
+  await sleep(250);
+  const lightAudit = await js(`(function(){
+    const bad=[];
+    document.querySelectorAll('body *').forEach(el=>{
+      const r=el.getBoundingClientRect();
+      if(r.width*r.height<250) return;
+      const bg=getComputedStyle(el).backgroundColor;
+      const m=bg.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/);
+      if(!m) return;
+      const a=m[4]===undefined?1:parseFloat(m[4]);
+      if(a<0.5) return;
+      const L=(+m[1]*0.2126 + +m[2]*0.7152 + +m[3]*0.0722)/255;
+      if(L>=0.45) return;
+      const cls=el.getAttribute('class')||'';
+      if(el.tagName.toLowerCase()==='i') return;
+      if(cls.includes('av') || cls.includes('primary')) return;
+      bad.push(el.tagName.toLowerCase()+'.'+cls.split(/\\s+/).join('.')+' '+bg);
+    });
+    return [...new Set(bad)].join(' | ') || 'NONE';
+  })()`);
+  ok(lightAudit === 'NONE', '浅色主题无深色底残留：' + lightAudit);
   const back = await js(`(function(){
     document.getElementById('btnSettings').click();
     [...document.querySelectorAll('#modalBox [data-theme]')].find(b=>b.dataset.theme==='dark').click();
@@ -166,6 +187,27 @@ try {
     return (document.body.textContent.indexOf('科技树')>=0) + '|' + document.querySelectorAll('[data-act="tech"]').length;
   })()`);
   ok(/^true\|/.test(tech), '科研页含科技树：' + tech);
+
+  console.log('== 导航：无战斗分组 / 被动名称无 # ==');
+  const navGroups = await js(`(function(){
+    const groups=[...document.querySelectorAll('#side .grp')].map(g=>g.textContent.trim());
+    const names=[...document.querySelectorAll('#side .nav .nm')].map(n=>n.textContent.trim());
+    return JSON.stringify({groups,names});
+  })()`);
+  const ng = JSON.parse(navGroups);
+  ok(!ng.groups.includes('战斗'), '导航不再有「战斗」分组：' + ng.groups.join('/'));
+  ok(!ng.names.some(n => n.startsWith('#')), '导航名称不含 #');
+  ok(['住所与娱乐','防御','商店','角色','图鉴','仓库'].every(n => ng.names.includes(n)), '被动六项使用无 # 名称');
+
+  console.log('== 科技卡显示作用 ==');
+  const techEffect = await js(`(function(){
+    const card=document.querySelector('.tech');
+    if(!card) return 'NO_CARD';
+    const k=card.querySelector('.tu .tk');
+    const li=card.querySelector('.tu li');
+    return (k?k.textContent:'') + '|' + (li?li.textContent:'') + '|' + document.querySelectorAll('.tech .tu').length;
+  })()`);
+  ok(/^作用\|解锁工作「烹饪」\|[1-9]/.test(techEffect), '科技卡列出具体作用：' + techEffect);
 } catch (e) {
   console.error('测试异常：', e.message);
   fails++;

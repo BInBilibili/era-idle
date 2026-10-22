@@ -114,28 +114,21 @@ const UI = {
          <span class="ic">${icon}</span><span class="nm">${name}</span>${sub ? `<span class="sub ${String(sub).indexOf('人在工作') >= 0 ? 'green' : ''}">${sub}</span>` : ''}
        </div>`;
     let h = '';
-    // 战斗
-    const hunt = E.JOB_BY_ID.hunting;
+    // 角色特技（狩猎归入「工作」，不再单列「战斗」分组）
     const gifts = E.JOBS.filter(j => (j.special === 'blackSoul' || j.special === 'eraSim') && E.jobVisible(j));
-    if ((hunt && E.jobVisible(hunt)) || gifts.length) {
-      h += `<div class="grp">战斗</div>`;
-      if (hunt && E.jobVisible(hunt)) h += nav('job:' + hunt.id, '🏹', '狩猎', this.jobSub(hunt));
-      gifts.forEach(j => h += nav('job:' + j.id, j.special === 'blackSoul' ? '💀' : '🧟', j.name, this.jobSub(j)));
-    }
-    // 角色特技
     if (gifts.length) {
       h += `<div class="grp">角色特技</div>`;
       gifts.forEach(j => h += nav('job:' + j.id, j.special === 'blackSoul' ? '💀' : '🧟', j.name + '（' + (j.staffOnly || (j.special === 'blackSoul' ? '星见由岐' : '大少')) + '）', ''));
     }
     // 被动
     h += `<div class="grp">被动</div>`;
-    h += nav('housing', '🏠', '#住所与娱乐', E.onFieldChars().length + '/' + E.onFieldCap());
-    h += nav('defense', '🛡️', '#防御', E.fmt(E.basePower()));
-    h += nav('shop', '🏪', '#商店', E.fmt(S.gold) + ' 金');
-    h += nav('characters', '👥', '#角色', Object.keys(S.chars).length + ' 人');
-    h += nav('codex', '📚', '#图鉴', this.codexPct() + '%');
-    if (S.discoveredShard || E.shardCount() > 0) h += nav('recruit', '💎', '#招募', E.fmt(E.shardCount()) + ' 碎片');
-    h += nav('warehouse', '📦', '#仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
+    h += nav('housing', '🏠', '住所与娱乐', E.onFieldChars().length + '/' + E.onFieldCap());
+    h += nav('defense', '🛡️', '防御', E.fmt(E.basePower()));
+    h += nav('shop', '🏪', '商店', E.fmt(S.gold) + ' 金');
+    h += nav('characters', '👥', '角色', Object.keys(S.chars).length + ' 人');
+    h += nav('codex', '📚', '图鉴', this.codexPct() + '%');
+    if (S.discoveredShard || E.shardCount() > 0) h += nav('recruit', '💎', '招募', E.fmt(E.shardCount()) + ' 碎片');
+    h += nav('warehouse', '📦', '仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
     // 工作
     h += `<div class="grp">工作</div>`;
     E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim') && E.jobVisible(j)).forEach(j => {
@@ -293,8 +286,7 @@ const UI = {
       <div class="row" style="justify-content:space-between">
         <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.recipeIcon(job, r)}</span><b class="small">${this.esc(r.name || job.name)}</b></div>
         <div class="slot mini ${c ? 'filled' : ''}" data-act="recslot" data-job="${job.id}" data-i="${i}" title="${c ? this.esc(E.charName(c)) : '点击选择入驻角色'}">
-          ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
-        </div>
+          ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}        </div>
       </div>
       <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs) : ''}</div>
       <div class="row tiny" style="justify-content:space-between;margin-top:6px">
@@ -350,7 +342,7 @@ const UI = {
           <div class="hr"></div>
           <h3>入驻角色</h3>
           <div class="row" data-act="recslot" data-job="${job.id}" data-i="0" style="cursor:pointer">
-            ${c ? this.avatar(c) : '<div class="av">＋</div>'}
+            ${c ? this.avatar(c) : '<div class="av empty">＋</div>'}
             <div>${c ? `<b>${this.esc(E.charName(c))}</b><div class="tiny muted">DPS ≈ ${E.fmt(E.charDps(c, cs.enemy || { def: 5 }), 1)} · 精通 ${E.masteryLvl(c, job.id)}</div>` : '<span class="dim">点击选择角色</span>'}</div>
           </div>
           <div class="hr"></div>
@@ -392,7 +384,7 @@ const UI = {
         <div class="card">
           <h3>入驻</h3>
           <div class="row" data-act="recslot" data-job="${job.id}" data-i="0" style="cursor:pointer">
-            ${c ? this.avatar(c) : '<div class="av">＋</div>'}
+            ${c ? this.avatar(c) : '<div class="av empty">＋</div>'}
             ${c ? `<b>${this.esc(E.charName(c))}</b>` : `<span class="dim">点击选择 ${owner}</span>`}
           </div>
           <div class="hr"></div>
@@ -444,7 +436,7 @@ const UI = {
       </div>
       <div class="card" style="margin-top:12px"><h3>电力工作</h3><div class="sub">煤炭发电：指派角色到「电力」工作，基础 +10 瓦（需先建造煤炭发电）。</div></div>
       <div class="card" style="margin-top:12px"><h3>入驻</h3>
-        <div class="row" data-act="recslot" data-job="power" data-i="0" style="cursor:pointer">${c ? this.avatar(c) + '<b>' + this.esc(E.charName(c)) + '</b>' : '<div class="av">＋</div><span class="dim">点击选择角色</span>'}</div>
+        <div class="row" data-act="recslot" data-job="power" data-i="0" style="cursor:pointer">${c ? this.avatar(c) + '<b>' + this.esc(E.charName(c)) + '</b>' : '<div class="av empty">＋</div><span class="dim">点击选择角色</span>'}</div>
         <div style="margin-top:10px">${this.chips()}</div>
       </div>
     </div>`;
@@ -452,6 +444,29 @@ const UI = {
 
   /* ---------------- 科技树 ---------------- */
   pageTech() { return `<div class="wrap">${this.techTreeHtml()}</div>`; },
+  techUnlockText(u) {
+    u = String(u);
+    let m = u.match(/^(.*?)工作(（.*）)?$/);
+    if (m) return '解锁工作「' + m[1] + '」' + (m[2] || '');
+    m = u.match(/^(.*?)资源$/);
+    if (m) return '解锁资源「' + m[1] + '」';
+    m = u.match(/^(.*?)区域$/);
+    if (m) return '解锁区域「' + m[1] + '」';
+    m = u.match(/^(.*?)能源$/);
+    if (m) return '解锁能源「' + m[1] + '」';
+    m = u.match(/^(.*?)矿(（.*）)?$/);
+    if (m && m[1].length <= 2) return '解锁矿种「' + m[1] + '矿」' + (m[2] || '');
+    m = u.match(/^(.*?发电机)(（.*）)?$/);
+    if (m) return '解锁发电设备「' + m[1] + '」' + (m[2] || '');
+    m = u.match(/^(.*?)材料$/);
+    if (m) return '解锁材料「' + m[1] + '」';
+    m = u.match(/^(.*?)升级项(（.*）)?$/);
+    if (m) return '解锁升级项「' + m[1].replace(/^\[|\]$/g, '') + '」' + (m[2] || '');
+    m = u.match(/^\[([^\]]+)\]$/);
+    if (m) return E.N2I(m[1]) ? '解锁物品「' + m[1] + '」' : '解锁升级项「' + m[1] + '」';
+    if (E.N2I(u)) return '解锁物品「' + u + '」';
+    return u;
+  },
   techTreeHtml() {
     const S = E.S;
     let h = `<div class="pagehead"><h2>科技树</h2>
@@ -470,6 +485,7 @@ const UI = {
           return `<div class="tech ${done ? 'done' : avail ? 'avail' : 'locked'}">
             <div class="tn"><span>${this.esc(t.name)}</span><span class="tiny mono ${S.research >= t.cost ? 'blue' : 'dim'}">${E.fmt(t.cost)}</span></div>
             <div class="td">${this.esc(t.desc || '')}</div>
+            <div class="tu"><span class="tk">作用</span><ul>${(t.unlocks || []).map(u => `<li>${this.esc(this.techUnlockText(u))}</li>`).join('')}</ul></div>
             <div class="tc">${done ? '✓ 已完成' : avail ? '可研究' : '前置：' + (t.requires || []).filter(r => !E.researched(r)).join('、')}</div>
             ${done ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="tech" data-id="${t.id}" ${(!avail || S.research < t.cost) ? 'disabled' : ''}>研究</button>`}
           </div>`;
@@ -482,7 +498,7 @@ const UI = {
   pageWarehouse() {
     const S = E.S;
     const tab = S.ui.tab.wh || 'warehouse';
-    let h = `<div class="wrap"><div class="pagehead"><h2>#仓库</h2>
+    let h = `<div class="wrap"><div class="pagehead"><h2>仓库</h2>
       <span class="badge">${tab === 'warehouse' ? E.warehouseUsed() + ' / ' + E.warehouseCap() + ' 格' : E.fmt(E.granaryTotal(), 0) + ' / ' + E.granaryCap() + ' 份'}</span>
       <span class="badge gold">金币 ${E.fmt(S.gold)}</span></div>
       <div class="tabs">
@@ -506,7 +522,7 @@ const UI = {
       <div class="row">排序：<button class="${sort === 'order' ? 'primary' : ''}" data-act="sort" data-v="order">默认</button>
       <button class="${sort === 'name' ? 'primary' : ''}" data-act="sort" data-v="name">名称</button>
       <button class="${sort === 'value' ? 'primary' : ''}" data-act="sort" data-v="value">总价值</button></div>
-      <span class="tiny dim">仓库只查看与卖出；买入在 #商店</span></div>
+      <span class="tiny dim">仓库只查看与卖出；买入在商店</span></div>
       ${!ids.length ? '<div class="empty">仓库空空如也。去「工作」派角色采集吧。</div>' : `
       <table class="t" style="margin-top:10px"><thead><tr><th>物品</th><th class="r">数量</th><th class="r">单价</th><th class="r">总价值</th><th class="r">操作</th></tr></thead><tbody>
       ${ids.map(id => {
@@ -564,10 +580,10 @@ const UI = {
   pageShop() {
     const S = E.S;
     if (!E.researched('文字')) {
-      return `<div class="wrap"><div class="pagehead"><h2>#商店</h2></div>
+      return `<div class="wrap"><div class="pagehead"><h2>商店</h2></div>
       <div class="card empty">商店尚未开张。研究 <b class="blue">文字</b>（中世纪，60 科研点）后开启。</div></div>`;
     }
-    let h = `<div class="wrap"><div class="pagehead"><h2>#商店</h2><span class="badge gold">金币 ${E.fmt(S.gold)}</span>
+    let h = `<div class="wrap"><div class="pagehead"><h2>商店</h2><span class="badge gold">金币 ${E.fmt(S.gold)}</span>
       <span class="badge">货架刷新 ${Math.max(0, S.shop.next - S.playtime).toFixed(0)}s</span></div>
       <div class="hint">买入价 = 卖出价 × 3。第 6 格固定卖英雄碎片（20 个抽一次卡）。点商品确认后扣金币。</div>
       <div class="shopgrid" style="margin-top:12px">`;
@@ -625,7 +641,7 @@ const UI = {
     const equipItems = Object.keys(S.items).filter(id => (S.items[id] || 0) > 0 && E.ITEMS[id] && (E.ITEMS[id].cat === 'equip' || E.ITEMS[id].cat === 'weapon'));
     const masteryJobs = E.JOBS.filter(j => E.jobVisible(j));
     return `<div class="wrap">
-      <div class="pagehead"><h2>#角色</h2>
+      <div class="pagehead"><h2>角色</h2>
         <span class="badge">上场 ${Math.min(S.order.length, E.onFieldCap())} / ${E.onFieldCap()}</span>
         <span class="badge">角色总数 ${S.order.length}</span>
         <button data-act="rename">改名</button>
@@ -719,7 +735,7 @@ const UI = {
     const seenItems = itemIds.filter(id => S.seen.items[id]);
     const seenEnemies = E.ENEMIES.filter(e => S.seen.enemies[e.id]);
     const seenChars = E.HEROES.filter(h => S.chars[h.id]);
-    let h = `<div class="wrap"><div class="pagehead"><h2>#图鉴</h2>
+    let h = `<div class="wrap"><div class="pagehead"><h2>图鉴</h2>
       <span class="badge">物品 ${seenItems.length}/${itemIds.length}</span>
       <span class="badge">敌人 ${seenEnemies.length}/${E.ENEMIES.length}</span>
       <span class="badge">角色 ${seenChars.length}/${E.HEROES.length}</span></div>
@@ -748,11 +764,11 @@ const UI = {
         E.HEROES.map(hero => {
           const owned = S.chars[hero.id];
           return `<div class="card" style="${owned ? '' : 'opacity:.5'}">
-            <div class="row">${owned ? this.avatar(owned) : '<div class="av">？</div>'}
+            <div class="row">${owned ? this.avatar(owned) : '<div class="av empty">？</div>'}
               <div><b>${owned ? this.esc(hero.name) : '？？？'}</b><div class="tiny muted">${this.esc(hero.pool)}</div></div></div>
             ${owned ? `<div class="tiny muted" style="margin-top:6px">生命 ${hero.hp} · 命中 ${hero.atk} · 力量 ${hero.str} · 防御 ${hero.def}</div>
               <div class="tiny dim">自带加成：${this.esc(hero.job)} +20%</div>
-              <div class="tiny ${owned.favor >= 50 ? 'gold' : 'dim'}" style="margin-top:4px">${this.esc(hero.e1)}${owned.favor >= 100 ? ' / ' + this.esc(hero.e2) : ''}</div>` : `<div class="tiny dim" style="margin-top:6px">尚未在 #招募 中抽到</div>`}
+              <div class="tiny ${owned.favor >= 50 ? 'gold' : 'dim'}" style="margin-top:4px">${this.esc(hero.e1)}${owned.favor >= 100 ? ' / ' + this.esc(hero.e2) : ''}</div>` : `<div class="tiny dim" style="margin-top:6px">尚未在招募中抽到</div>`}
           </div>`;
         }).join('') + `</div>`;
     }
@@ -764,7 +780,7 @@ const UI = {
   pageRecruit() {
     const S = E.S;
     const shards = E.shardCount();
-    let h = `<div class="wrap"><div class="pagehead"><h2>#招募</h2>
+    let h = `<div class="wrap"><div class="pagehead"><h2>招募</h2>
       <span class="badge">英雄碎片 <b class="gold">${shards}</b></span>
       <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span></div>
       <div class="hint">20 个英雄碎片抽一次（商店第 6 格 2,000 金/个）。30% 出角色，70% 出好感度礼物。连续 30 抽无新角色，第 31 抽必出。</div>
@@ -774,7 +790,7 @@ const UI = {
       const pity = E.gachaPity(p.id);
       h += `<div class="card">
         <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${p.heroes.filter(x => E.ownsHero(x)).length}/${p.heroes.length}${p.heroes.length > 1 ? '' : ' 人池'}</span></div>
-        <div class="row" style="margin-top:8px;gap:6px">${p.heroes.map(hid => { const hero = E.HEROES.find(x => x.id === hid); const owned = E.ownsHero(hid); return `<div class="chip" style="min-width:56px;${owned ? '' : 'opacity:.42'}">${owned ? this.avatar(S.chars[hid], 'sm') : '<div class="av sm">？</div>'}<div class="cn tiny">${owned ? this.esc(hero.name) : '？？？'}</div>${p.heroes.filter(x => x === hid).length > 1 ? '' : ''}</div>`; }).join('')}</div>
+        <div class="row" style="margin-top:8px;gap:6px">${p.heroes.map(hid => { const hero = E.HEROES.find(x => x.id === hid); const owned = E.ownsHero(hid); return `<div class="chip" style="min-width:56px;${owned ? '' : 'opacity:.42'}">${owned ? this.avatar(S.chars[hid], 'sm') : '<div class="av sm empty">？</div>'}<div class="cn tiny">${owned ? this.esc(hero.name) : '？？？'}</div>${p.heroes.filter(x => x === hid).length > 1 ? '' : ''}</div>`; }).join('')}</div>
         <div class="row" style="margin-top:10px;justify-content:space-between">
           <span class="tiny ${pity >= 25 ? 'gold' : 'muted'}">保底 ${pity}/30</span>
           <button class="gold" data-act="pull" data-id="${p.id}" ${shards < 20 ? 'disabled' : ''}>抽一次（20 碎片）</button>
@@ -797,7 +813,7 @@ const UI = {
   pageHousing() {
     const S = E.S;
     const next = E.HOUSING[S.housing];
-    let h = `<div class="wrap"><div class="pagehead"><h2>#住所与娱乐</h2>
+    let h = `<div class="wrap"><div class="pagehead"><h2>住所与娱乐</h2>
       <span class="badge">角色上限 ${E.onFieldCap()}</span>
       <span class="badge">舒适度 ${E.comfortValue()}/100</span>
       <span class="badge">全局效率 +${(E.comfortValue() * 0.35).toFixed(1)}%</span></div>
@@ -842,7 +858,7 @@ const UI = {
   pageDefense() {
     const S = E.S;
     const last = S.raid.last;
-    let h = `<div class="wrap"><div class="pagehead"><h2>#防御</h2>
+    let h = `<div class="wrap"><div class="pagehead"><h2>防御</h2>
       <span class="badge">基地战力 <b class="gold">${E.fmt(E.basePower())}</b></span>
       <span class="badge">下次袭击 ${S.raid.next - S.playtime > 0 ? E.fmtTime(S.raid.next - S.playtime) : '判定中'}</span>
       <span class="badge">袭击强度 -${Math.round(E.fortReduce() * 100)}%</span></div>
