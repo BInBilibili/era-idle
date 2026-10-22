@@ -71,7 +71,11 @@
     if (saveTimer) clearInterval(saveTimer);
     saveTimer = setInterval(() => E.save(true), 15000);
     window.addEventListener('beforeunload', () => E.save(true));
-    document.addEventListener('visibilitychange', () => { if (document.hidden) E.save(true); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { E.save(true); return; }
+      // 回到前台：立刻按真实离开时长补结算，不等被节流的下一跳
+      gameTick();
+    });
   }
 
   function applyTheme(theme) {
@@ -114,6 +118,9 @@
   }
 
   function gameTick() {
+    // 后台标签页不做任何处理：浏览器会把定时器节流到 1 次/分钟，
+    // 边走边结算会让每次只有 60 秒、永远够不到弹窗阈值；回来一次算总账。
+    if (document.hidden) return;
     const now = performance.now();
     let dt = (now - lastTick) / 1000;
     lastTick = now;
