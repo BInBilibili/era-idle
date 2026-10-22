@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.13';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.14';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -321,6 +321,7 @@ function jobUnlocked(job) {
   return researched(job.tech);
 }
 function jobVisible(j) {
+  if (j.hidden) return false;   // v0.0.13：随黑暗之魂线整体隐藏的工作
   if (j.unlockBy) {
     const c = S.chars[j.unlockBy.hero] || Object.values(S.chars).find(x => x.name === j.unlockBy.hero);
     return !!(c && c.favor >= (j.unlockBy.affection || 50));
@@ -845,7 +846,8 @@ function shopPool() {
   const maxEra = eraIndex(era);
   for (const id in ITEMS) {
     const it = ITEMS[id];
-    if (!it || it.storage !== 'warehouse') continue;
+    if (!it || it.hidden) continue;
+    if (it.storage !== 'warehouse') continue;
     if (it.cat === 'equip' || it.cat === 'weapon' || it.cat === 'book') continue;
     if (it.kind === 'shard' || it.kind === 'stardust' || it.kind === 'starPotion') continue;
     if (it.kind === 'soul' || it.kind === 'ember') continue;
@@ -1010,8 +1012,8 @@ function codexClaim(kind, id) {
 }
 function codexUnclaimed() {
   let items = 0, enemies = 0, chars = 0;
-  for (const id in ITEMS) if (codexClaimable('items', id)) items++;
-  ENEMIES.forEach(e => { if (codexClaimable('enemies', e.id)) enemies++; });
+  for (const id in ITEMS) if (!ITEMS[id].hidden && codexClaimable('items', id)) items++;
+  ENEMIES.forEach(e => { if (!e.hidden && codexClaimable('enemies', e.id)) enemies++; });
   poolHeroList().forEach(x => { if (codexClaimable('chars', x.id)) chars++; });
   return {
     items, enemies, chars, total: items + enemies + chars,
@@ -1020,8 +1022,8 @@ function codexUnclaimed() {
 }
 function codexClaimAll() {
   let count = 0, n = 0;
-  for (const id in ITEMS) { const r = codexClaim('items', id); if (r.ok) { count++; n += r.n; } }
-  ENEMIES.forEach(e => { const r = codexClaim('enemies', e.id); if (r.ok) { count++; n += r.n; } });
+  for (const id in ITEMS) { if (ITEMS[id].hidden) continue; const r = codexClaim('items', id); if (r.ok) { count++; n += r.n; } }
+  ENEMIES.forEach(e => { if (e.hidden) return; const r = codexClaim('enemies', e.id); if (r.ok) { count++; n += r.n; } });
   poolHeroList().forEach(x => { const r = codexClaim('chars', x.id); if (r.ok) { count++; n += r.n; } });
   return { ok: count > 0, count, n };
 }

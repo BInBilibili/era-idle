@@ -258,14 +258,14 @@ window.ITEMS = {
   heirloom:    { name: '好感度礼物·传家宝', era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 6000, buy: 18000, kind: 'gift', gift: 30, src: '抽卡 3.5%' },
   stardust:    { name: '星尘',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 600,  kind: 'stardust',   src: '抽到重复角色（×10）/ 池集齐后的保底（×30）', note: '不能用金币买' },
   star_potion: { name: '升星药水',       era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 1800, kind: 'starPotion', src: '商店界面用 3 星尘买', note: '给角色升 1 星（★1~★5）' },
-  soul:        { name: '灵魂',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 80,   kind: 'soul',       src: '#黑暗之魂 掉落', use: '黑魂装备套的唯一材料来源' },
-  ember:       { name: '余火',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 200,  kind: 'ember',      src: '#黑暗之魂 掉落', use: '黑魂装备套的造价材料（不强化）' },
+  soul:        { name: '灵魂',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 80,   kind: 'soul',       hidden: true, src: '#黑暗之魂 掉落', use: '黑魂装备套的唯一材料来源' },
+  ember:       { name: '余火',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 200,  kind: 'ember',      hidden: true, src: '#黑暗之魂 掉落', use: '黑魂装备套的造价材料（不强化）' },
 
-  /* --- §12.1 黑魂装备套（4 件，1 档固定属性、不强化） --- */
-  undead_chainmail: { name: '不死院锁子甲', era: 'info', cat: 'equip',  storage: 'warehouse', price: 4710,   slot: 'body',     dr: 32, str: 14, cost: { soul: 20, ember: 5, steel: 20 } },
-  ashen_legs:       { name: '灰烬护腿',     era: 'info', cat: 'equip',  storage: 'warehouse', price: 3607.5, slot: 'legs',     dr: 28, str: 9,  cost: { soul: 15, ember: 4, steel: 15 } },
-  abyss_helmet:     { name: '深渊头盔',     era: 'info', cat: 'equip',  storage: 'warehouse', price: 2745,   slot: 'head',     dr: 22, str: 8,  cost: { soul: 12, ember: 3, steel: 10 } },
-  abyss_greatsword: { name: '深渊大剑',     era: 'info', cat: 'weapon', storage: 'warehouse', price: 7215,   slot: 'mainhand', str: 72, atk: 30, interval: 2.2, armorPen: 25, cost: { soul: 30, ember: 8, steel: 30 }, note: '间隔 2.2 秒 / 破甲 25%' },
+  /* --- §12.1 黑魂装备套（4 件，1 档固定属性、不强化）—— v0.0.13 随黑暗之魂线隐藏 --- */
+  undead_chainmail: { name: '不死院锁子甲', era: 'info', cat: 'equip',  storage: 'warehouse', price: 4710,   slot: 'body',     dr: 32, str: 14, hidden: true, cost: { soul: 20, ember: 5, steel: 20 } },
+  ashen_legs:       { name: '灰烬护腿',     era: 'info', cat: 'equip',  storage: 'warehouse', price: 3607.5, slot: 'legs',     dr: 28, str: 9,  hidden: true, cost: { soul: 15, ember: 4, steel: 15 } },
+  abyss_helmet:     { name: '深渊头盔',     era: 'info', cat: 'equip',  storage: 'warehouse', price: 2745,   slot: 'head',     dr: 22, str: 8,  hidden: true, cost: { soul: 12, ember: 3, steel: 10 } },
+  abyss_greatsword: { name: '深渊大剑',     era: 'info', cat: 'weapon', storage: 'warehouse', price: 7215,   slot: 'mainhand', str: 72, atk: 30, interval: 2.2, armorPen: 25, hidden: true, cost: { soul: 30, ember: 8, steel: 30 }, note: '间隔 2.2 秒 / 破甲 25%' },
 
   /* ============================================================
    * 粮仓（18 种，会腐坏）—— §三 15 种食材 / 种子 + §八 3 种熟食

@@ -142,7 +142,12 @@
       if (e.target.closest('#slotMenu') || e.target.closest('[data-act="recslot"]')) return;
       closeSlotMenu();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlotMenu(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlotMenu(); U.hideTip(); } });
+    // 物品悬浮面板：mouseover 决定显示谁，mousemove 只记坐标（整页重绘后 syncTip 靠坐标找回锚点）
+    document.addEventListener('mouseover', e => U.onHover(e));
+    document.addEventListener('mousemove', e => U.onHoverMove(e), { passive: true });
+    document.documentElement.addEventListener('mouseleave', () => U.hideTip());
+    window.addEventListener('scroll', () => U.hideTip(), true);
     document.addEventListener('dragover', e => {
       const card = e.target.closest('[data-drop-job]');
       if (card && dragData && dragData.kind === 'char') {

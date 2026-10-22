@@ -41,6 +41,21 @@ const JOB_BRIEF = {
   era_sim: '与僵尸对决，随机补给资源。',
 };
 
+/* 物品悬浮面板用到的中文名。数据源只有 items.js + enemies.js 的 WEAPON_COMBAT 两处 */
+const ITEM_CAT_NAME = {
+  ore: '矿石', material: '材料', animal: '动物产物', equip: '装备', weapon: '武器',
+  misc: '杂项', book: '技能书', gacha: '抽卡', food: '食材', seed: '种子', cooked: '熟食',
+};
+const ITEM_SLOT_NAME = {
+  mainhand: '主手', offhand: '副手', head: '头盔', headInner: '内衬头盔', body: '胸甲',
+  bodyInner: '内衬', legs: '护腿', legsInner: '内衬护腿', feet: '靴子', socks: '袜子',
+  neck: '项链', belt: '腰带',
+};
+const ITEM_KIND_NAME = {
+  shard: '抽卡碎片', gift: '好感度礼物', stardust: '升星货币', starPotion: '升星道具',
+  soul: '黑魂材料', ember: '黑魂材料',
+};
+
 const UI = {
   /* ---------------- 基础 ---------------- */
   toast(msg, kind) {
@@ -84,6 +99,145 @@ const UI = {
     return map[it.cat] || '📦';
   },
   jobIcon(j) { return j.icon || (j.special === 'hunting' ? '🏹' : j.special === 'mining' ? '⛏️' : j.special === 'power' ? '⚡' : j.special === 'research' ? '🔬' : j.special === 'blackSoul' ? '💀' : j.special === 'eraSim' ? '🧟' : '🔨'); },
+
+  /* ---------------- 物品面板（悬浮提示） ----------------
+     数据来自两处：items.js 的静态字段 + enemies.js 的 WEAPON_COMBAT（按武器中文名索引）。
+     武器数值一律以 WEAPON_COMBAT 为准，和 engine.charStats 的取数顺序保持一致。 */
+  itemIdOf(name) {
+    if (!name) return null;
+    const direct = E.N2I(name);
+    if (direct) return direct;
+    const key = String(name).replace(/\s+/g, '');
+    return Object.keys(E.ITEMS).find(x => E.ITEMS[x].name.replace(/\s+/g, '') === key) || null;
+  },
+  itemInfo(id) {
+    const it = E.ITEMS[id];
+    if (!it) return null;
+    const wc = (it.cat === 'weapon' && E.WEAPON_COMBAT[it.name]) || {};
+    const pick = (a, b, d) => (a !== undefined ? a : (b !== undefined ? b : d));
+    const info = {
+      it, wc,
+      str: pick(wc.str, it.str, 0),
+      atk: pick(wc.atk, it.atk, 0),
+      interval: pick(wc.interval, it.interval, null),
+      range: pick(wc.range, it.range, null),
+      armorPen: pick(wc.armorPen, it.armorPen, 0),
+      ignoreDR: wc.ignoreDR || 0,
+      crit: wc.crit || 0,
+      special: wc.special || '',
+    };
+    info.gear = it.cat === 'equip' || it.cat === 'weapon';
+    info.power = it.cat === 'weapon' ? info.str * 2 + info.atk : (it.dr || 0) * 5 + info.str * 2;   // 与 engine.gearPower 同权重
+    return info;
+  },
+  itemTipHtml(id) {
+    const info = this.itemInfo(id);
+    if (!info) return '';
+    const it = info.it, S = E.S;
+    const esc = s => this.esc(s);
+    const q = (S.items && S.items[id]) || 0;
+    const seen = !!(S.seen && S.seen.items && S.seen.items[id]);
+    const row = (k, v, cls) => `<div class="ttRow"><span class="k">${k}</span><span class="v mono ${cls || ''}">${v}</span></div>`;
+    const tag = (txt, cls) => `<span class="badge ${cls || ''}">${esc(txt)}</span>`;
+
+    let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
+      <b>${esc(it.name)}</b>
+      <div class="ttTags">${tag(E.ERA_NAME[it.era] || '未标时代')}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
+      ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}</div></div></div>`;
+
+    if (info.gear) {
+      const rows = [];
+      if (it.dr) rows.push(row('伤害减免', '+' + it.dr + '%', 'green'));
+      if (info.str) rows.push(row('力量', '+' + info.str));
+      if (info.atk) rows.push(row('命中', '+' + info.atk));
+      if (info.interval !== null) rows.push(row('攻击间隔', (+info.interval).toFixed(1) + ' 秒'));
+      if (info.range) rows.push(row('射程', info.range));
+      if (it.temp) rows.push(row('保暖', '+' + it.temp));
+      if (it.shield) rows.push(row('护盾', it.shield));
+      if (info.armorPen) rows.push(row('破甲', info.armorPen + '%', 'gold'));
+      if (info.ignoreDR) rows.push(row('无视减免', info.ignoreDR + '%', 'gold'));
+      if (info.crit) rows.push(row('暴击', info.crit + '%', 'gold'));
+      if (rows.length) h += `<div class="ttSec">战斗数值</div>${rows.join('')}`;
+      if (info.special) h += `<div class="ttDesc">特性：${esc(info.special)}</div>`;
+      h += row('战力贡献', '+' + E.fmt(info.power), 'gold');
+    }
+
+    h += `<div class="ttSec">经济</div>`
+      + row('卖出价', E.fmt(E.sellPrice(id)) + ' 金', 'gold')
+      + row('买入价', E.fmt(E.buyPrice(id)) + ' 金')
+      + row('持有', q ? E.fmt(q) + ' 件' : '<span class="dim">没有</span>')
+      + row('总价值', E.fmt(q * (it.price || 0)) + ' 金');
+
+    if (it.cat === 'book' && it.book) h += row('用途', '《' + esc(it.book) + '》精通 +10 级');
+    if (it.kind) h += row('类别', esc(ITEM_KIND_NAME[it.kind] || it.kind));
+    if (it.gift) h += row('送礼好感', '+' + it.gift, 'gold');
+    if (it.storage === 'granary') h += row('腐坏', '每 2400 秒减半', 'red');
+
+    if (it.src) h += `<div class="ttSec">获取</div><div class="ttDesc">${esc(it.src)}</div>`;
+    if (it.use) h += `<div class="ttDesc">用途：${esc(it.use)}</div>`;
+    if (it.note) h += `<div class="ttDesc">备注：${esc(it.note)}</div>`;
+
+    if (it.cost) {
+      const parts = Object.keys(it.cost).map(cid => {
+        const m = E.ITEMS[cid];
+        if (!m) return '';
+        const ok = ((S.items && S.items[cid]) || 0) >= it.cost[cid];
+        return `<span class="ttCost ${ok ? '' : 'lack'}">${this.itemIcon(m)} ${esc(m.name)} ×${E.fmt(it.cost[cid])}</span>`;
+      }).filter(Boolean);
+      if (parts.length) h += `<div class="ttSec">造价</div><div class="ttCosts">${parts.join('')}</div>`;
+    }
+
+    h += `<div class="ttFoot">${seen ? '已收录图鉴' : '尚未收录图鉴'}</div>`;
+    return h;
+  },
+  showTip(id, x, y) {
+    const tip = document.getElementById('itemTip');
+    if (!tip) return;
+    const html = this.itemTipHtml(id);
+    if (!html) return this.hideTip();
+    if (this._tipHtml !== html) { tip.innerHTML = html; this._tipHtml = html; }
+    this._tipId = id;
+    tip.classList.add('show');
+    this._placeTip(x, y);
+  },
+  _placeTip(x, y) {
+    const tip = document.getElementById('itemTip');
+    if (!tip) return;
+    const r = tip.getBoundingClientRect();
+    const pad = 10, gap = 16;
+    let left = x + gap, top = y + gap;
+    if (left + r.width > window.innerWidth - pad) left = Math.max(pad, x - r.width - gap);
+    if (top + r.height > window.innerHeight - pad) top = Math.max(pad, y - r.height - gap);
+    tip.style.left = Math.round(left) + 'px';
+    tip.style.top = Math.round(top) + 'px';
+  },
+  hideTip() {
+    const tip = document.getElementById('itemTip');
+    if (tip) tip.classList.remove('show');
+    this._tipId = null; this._tipEl = null; this._tipHtml = '';
+  },
+  onHoverMove(e) { this._tipX = e.clientX; this._tipY = e.clientY; },
+  onHover(e) {
+    this._tipX = e.clientX; this._tipY = e.clientY;
+    if (!e.target || !e.target.closest) return;
+    if (e.target.closest('[data-act="recslot"]')) return this.hideTip();   // 入驻槽不抢物品面板
+    const el = e.target.closest('[data-tip-item]');
+    if (!el) return this.hideTip();
+    const id = el.dataset.tipItem;
+    if (this._tipEl === el && this._tipId === id) return;
+    this._tipEl = el;
+    this.showTip(id, e.clientX, e.clientY);
+  },
+  /* 页面每 1.5 秒整页重绘一次，锚点元素会被换掉：用指针坐标重新找回锚点 */
+  syncTip() {
+    if (!this._tipId) return;
+    if (typeof this._tipX !== 'number') return this.hideTip();
+    const under = document.elementFromPoint(this._tipX, this._tipY);
+    const el = under && under.closest ? under.closest('[data-tip-item]') : null;
+    if (!el || el.dataset.tipItem !== this._tipId) return this.hideTip();
+    this._tipEl = el;
+    this.showTip(this._tipId, this._tipX, this._tipY);
+  },
 
   /* ---------------- 顶栏 ---------------- */
   renderHud() {
@@ -142,11 +296,11 @@ const UI = {
   },
   codexPct() {
     const S = E.S;
-    const ic = Object.keys(E.ITEMS).filter(id => S.seen.items[id]).length;
-    const ec = E.ENEMIES.filter(e => S.seen.enemies[e.id]).length;
+    const ic = Object.keys(E.ITEMS).filter(id => !E.ITEMS[id].hidden && S.seen.items[id]).length;
+    const ec = E.ENEMIES.filter(e => !e.hidden && S.seen.enemies[e.id]).length;
     const heroes = E.poolHeroList();
     const cc = heroes.filter(x => S.chars[x.id]).length;
-    const total = Object.keys(E.ITEMS).length + E.ENEMIES.length + heroes.length;
+    const total = Object.keys(E.ITEMS).filter(id => !E.ITEMS[id].hidden).length + E.ENEMIES.filter(e => !e.hidden).length + heroes.length;
     return Math.round((ic + ec + cc) / total * 100);
   },
 
@@ -167,9 +321,45 @@ const UI = {
     else if (page === 'defense') html = this.pageDefense();
     else if (page.startsWith('job:')) html = this.pageJob(page.slice(4));
     else html = this.pageWarehouse();
+    const prevPage = wrap.dataset.page;
+    const scrolls = this._saveScroll();
     wrap.innerHTML = html;
     wrap.dataset.page = page;
     document.getElementById('page').scrollTop = S.ui.scroll || 0;
+    if (prevPage === page) this._restoreScroll(scrolls);
+    this.syncTip();
+  },
+
+  /* 记住页面里所有滚动容器的位置：整页重绘（每 1.5 秒一次）时不跳回顶部 */
+  _saveScroll() {
+    const wrap = document.getElementById('mainWrap');
+    if (!wrap) return [];
+    const out = [];
+    wrap.querySelectorAll('*').forEach(el => {
+      if (el.scrollTop > 0 || el.scrollLeft > 0) out.push({ path: this._domPath(el, wrap), top: el.scrollTop, left: el.scrollLeft });
+    });
+    return out;
+  },
+  _domPath(el, root) {
+    const parts = [];
+    while (el && el !== root) {
+      let i = 0, s = el;
+      while ((s = s.previousElementSibling)) i++;
+      parts.unshift(i);
+      el = el.parentElement;
+    }
+    return parts;
+  },
+  _restoreScroll(list) {
+    if (!list || !list.length) return;
+    const wrap = document.getElementById('mainWrap');
+    if (!wrap) return;
+    list.forEach(item => {
+      let el = wrap;
+      for (const i of item.path) { el = el && el.children[i]; if (!el) return; }
+      el.scrollTop = item.top;
+      el.scrollLeft = item.left;
+    });
   },
 
   /* ---------------- 通用组件 ---------------- */
@@ -267,7 +457,7 @@ const UI = {
   recipeIcon(job, r) {
     const outs = Object.keys((r && r.outputs) || {});
     for (const n of outs) {
-      const id = E.N2I(n);
+      const id = this.itemIdOf(n);
       if (id) return this.itemIcon(E.ITEMS[id]);
     }
     return this.jobIcon(job);
@@ -283,7 +473,8 @@ const UI = {
     const mastery = c ? E.masteryLvl(c, job.id) : 0;
     const mnext = c ? E.masteryNext(c, job.id) : 0;
     const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
-    return `<div class="card recipe ${c ? 'run' : ''}" data-drop-job="${job.id}" data-drop-i="${i}" title="拖入角色到整张卡即可入驻">
+    const outItem = Object.keys(r.outputs || {}).map(n => this.itemIdOf(n)).filter(Boolean)[0] || null;
+    return `<div class="card recipe ${c ? 'run' : ''}" data-drop-job="${job.id}" data-drop-i="${i}"${outItem ? ` data-tip-item="${outItem}"` : ''}>
       <div class="row" style="justify-content:space-between">
         <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.recipeIcon(job, r)}</span><b class="small">${this.esc(r.name || job.name)}</b></div>
         <div class="slot mini ${c ? 'filled' : ''}" data-act="recslot" data-job="${job.id}" data-i="${i}" title="${c ? this.esc(E.charName(c)) : '点击选择入驻角色'}">
@@ -303,7 +494,11 @@ const UI = {
   ioList(obj) {
     const ent = Object.entries(obj || {});
     if (!ent.length) return '<span class="dim">无</span>';
-    return ent.map(([n, q]) => `<span class="badge">${this.esc(n)} ×${E.fmt(q)}</span>`).join(' ');
+    return ent.map(([n, q]) => {
+      const id = this.itemIdOf(n);
+      const it = id ? E.ITEMS[id] : null;
+      return `<span class="badge io"${id ? ` data-tip-item="${id}"` : ''}>${it ? this.itemIcon(it) + ' ' : ''}${this.esc(n)} ×${E.fmt(q)}</span>`;
+    }).join(' ');
   },
   miningPanel(job) {
     const pool = (job.ores || []);
@@ -529,7 +724,7 @@ const UI = {
       <table class="t" style="margin-top:10px"><thead><tr><th>物品</th><th class="r">数量</th><th class="r">单价</th><th class="r">总价值</th><th class="r">操作</th></tr></thead><tbody>
       ${ids.map(id => {
         const it = E.ITEMS[id], q = S.items[id];
-        return `<tr><td>${this.itemIcon(it)} ${this.esc(it.name)}${it.cat === 'book' ? ' <span class="tiny dim">技能书</span>' : ''}</td>
+        return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}${it.cat === 'book' ? ' <span class="tiny dim">技能书</span>' : ''}</td>
           <td class="r mono">${E.fmt(q)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono gold">${E.fmt(q * it.price)}</td>
           <td class="r"><button class="sm" data-act="sell" data-id="${id}">卖 1</button> <button data-act="sellall" data-id="${id}">全卖</button></td></tr>`;
       }).join('')}</tbody></table>`}
@@ -561,7 +756,7 @@ const UI = {
       <div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, E.granaryTotal() / E.granaryCap() * 100).toFixed(1)}%"></i></div>
       ${!ids.length ? '<div class="empty">粮仓是空的。派角色去采集 / 种植 / 烹饪。</div>' : `
       <table class="t" style="margin-top:10px"><thead><tr><th>食物</th><th class="r">数量</th><th class="r">单价</th><th class="r">腐坏速率</th><th class="r">操作</th></tr></thead><tbody>
-      ${ids.map(id => { const it = E.ITEMS[id]; return `<tr><td>${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono red">${(100 - Math.pow(0.5, 1 / 2400) * 100).toFixed(2)}%/s</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`; }).join('')}
+      ${ids.map(id => { const it = E.ITEMS[id]; return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono red">${(100 - Math.pow(0.5, 1 / 2400) * 100).toFixed(2)}%/s</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`; }).join('')}
       </tbody></table>`}
     </div>
     <div style="margin-top:14px"><h3 style="font-size:15px">粮仓升级</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:8px">`;
@@ -735,16 +930,17 @@ const UI = {
   pageCodex() {
     const S = E.S;
     const tab = S.ui.tab.codex || 'items';
-    const itemIds = Object.keys(E.ITEMS);
+    const itemIds = Object.keys(E.ITEMS).filter(id => !E.ITEMS[id].hidden);
+    const enemyList = E.ENEMIES.filter(e => !e.hidden);
     const charDefs = E.poolHeroList();
     const pending = E.codexUnclaimed();
     const seenItems = itemIds.filter(id => S.seen.items[id]);
-    const seenEnemies = E.ENEMIES.filter(e => S.seen.enemies[e.id]);
+    const seenEnemies = enemyList.filter(e => S.seen.enemies[e.id]);
     const ownedChars = charDefs.filter(x => S.chars[x.id]);
     const claimBtn = (k, id, n) => `<button class="claimbtn" data-act="claimCodex" data-k="${k}" data-id="${id}">领取 +${n}</button>`;
     let h = `<div class="wrap"><div class="pagehead"><h2>图鉴</h2>
       <span class="badge">物品 ${seenItems.length}/${itemIds.length}</span>
-      <span class="badge">敌人 ${seenEnemies.length}/${E.ENEMIES.length}</span>
+      <span class="badge">敌人 ${seenEnemies.length}/${enemyList.length}</span>
       <span class="badge">角色 ${ownedChars.length}/${charDefs.length}</span>
       ${pending.total ? `<button class="gold" data-act="claimAllCodex">全部领取 · ${pending.total} 项（+${pending.shards} 碎片）</button>` : ''}</div>
       <div class="hint">首次收录后条目会亮金边 + 出现「领取」：物品 ${E.CODEX_REWARD.items} 个 / 敌人 ${E.CODEX_REWARD.enemies} 个 / 角色 ${E.CODEX_REWARD.chars} 个英雄碎片。每个条目只能领一次。</div>
@@ -758,7 +954,7 @@ const UI = {
         itemIds.slice().sort((a, b) => E.ITEM_ORDER.indexOf(a) - E.ITEM_ORDER.indexOf(b)).map(id => {
           const it = E.ITEMS[id], seen = S.seen.items[id];
           const claimable = E.codexClaimable('items', id);
-          return `<div class="card ${claimable ? 'claim' : ''}" style="padding:9px 10px;${seen ? '' : 'opacity:.45'}">
+          return `<div class="card ${claimable ? 'claim' : ''}" style="padding:9px 10px;${seen ? '' : 'opacity:.45'}"${seen ? ` data-tip-item="${id}"` : ''}>
             ${claimable ? claimBtn('items', id, E.CODEX_REWARD.items) : ''}
             <div class="row" style="gap:8px">${seen ? this.itemIcon(it) : '❔'}<b class="small">${seen ? this.esc(it.name) : '？？？'}</b></div>
             ${seen ? `<div class="tiny muted" style="margin-top:4px">${this.esc(it.era ? (E.ERA_NAME[it.era] || '') : '')}${it.price ? ' · ' + E.fmt(it.price) + ' 金' : ''}</div>` : ''}
@@ -766,7 +962,7 @@ const UI = {
         }).join('') + `</div>`;
     } else if (tab === 'enemies') {
       h += `<table class="t"><thead><tr><th>敌人</th><th>区域/类型</th><th class="r">生命</th><th class="r">命中</th><th class="r">力量</th><th class="r">防御</th><th class="r">减免</th><th>掉落</th><th>奖励</th></tr></thead><tbody>` +
-        E.ENEMIES.map(e => {
+        enemyList.map(e => {
           const seen = S.seen.enemies[e.id];
           const claimable = E.codexClaimable('enemies', e.id);
           const claimed = E.codexClaimed('enemies', e.id);

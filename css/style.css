@@ -209,6 +209,28 @@ table.t td.c,table.t th.c{text-align:center}
 #toast .t{background:#1c2836ee;border:1px solid #3a4d63;border-radius:9px;padding:8px 14px;font-size:13px;box-shadow:0 8px 24px #0008;animation:tin .18s ease-out}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}}
 
+/* 物品悬浮面板 */
+#itemTip{position:fixed;z-index:90;display:none;width:284px;max-height:min(72vh,520px);overflow:auto;
+ background:linear-gradient(180deg,#1a2331,#101821);border:1px solid var(--line2);border-radius:10px;
+ padding:10px 12px;box-shadow:0 14px 38px #000b;font-size:12px;line-height:1.45;color:var(--text);
+ pointer-events:none;animation:tin .12s ease-out}
+#itemTip.show{display:block}
+#itemTip .ttHead{display:flex;gap:9px;align-items:flex-start}
+#itemTip .ttIcon{width:34px;height:34px;border-radius:8px;background:#0e151e;border:1px solid var(--line2);
+ display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+#itemTip .ttTitle{min-width:0}
+#itemTip .ttTitle b{font-size:14px}
+#itemTip .ttTags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+#itemTip .ttSec{margin-top:9px;padding-top:6px;border-top:1px dashed var(--line);font-size:11px;color:var(--gold)}
+#itemTip .ttRow{display:flex;justify-content:space-between;gap:10px;margin-top:3px;color:var(--muted)}
+#itemTip .ttRow .v{color:var(--text);white-space:nowrap}
+#itemTip .ttDesc{margin-top:4px;font-size:11.5px;color:var(--muted)}
+#itemTip .ttCosts{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:5px}
+#itemTip .ttCost{font-size:11.5px;color:var(--muted);white-space:nowrap}
+#itemTip .ttCost.lack{color:var(--red)}
+#itemTip .ttFoot{margin-top:9px;padding-top:6px;border-top:1px solid var(--line);font-size:11px;color:var(--dim)}
+.badge.io{white-space:nowrap}
+
 /* 入驻下拉菜单 */
 .slotmenu{position:fixed;z-index:150;width:270px;max-width:calc(100vw - 16px);max-height:min(60vh,430px);overflow-y:auto;background:linear-gradient(180deg,var(--panel),#121a24);border:1px solid var(--line2);border-radius:10px;padding:8px;box-shadow:0 14px 38px #000b}
 .slotmenu .pmh{font-size:13px;font-weight:600;margin:2px 4px}

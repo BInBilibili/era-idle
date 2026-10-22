@@ -401,6 +401,7 @@ window.ENEMIES = [
     id: "asylum_demon",
     name: "不死院恶魔",
     type: "blackSoul",
+    hidden: true, // v0.0.13：黑暗之魂整条线隐藏（星见由岐退役后不可达）
     region: null,
     hp: 220,
     atk: 28,
@@ -421,6 +422,7 @@ window.ENEMIES = [
     id: "ashen_judicator",
     name: "灰烬审判者",
     type: "blackSoul",
+    hidden: true, // v0.0.13：黑暗之魂整条线隐藏（星见由岐退役后不可达）
     region: null,
     hp: 560,
     atk: 52,
@@ -441,6 +443,7 @@ window.ENEMIES = [
     id: "abyss_watcher",
     name: "深渊监视者",
     type: "blackSoul",
+    hidden: true, // v0.0.13：黑暗之魂整条线隐藏（星见由岐退役后不可达）
     region: null,
     hp: 1150,
     atk: 74,
@@ -461,6 +464,7 @@ window.ENEMIES = [
     id: "nameless_king",
     name: "无名王者",
     type: "blackSoul",
+    hidden: true, // v0.0.13：黑暗之魂整条线隐藏（星见由岐退役后不可达）
     region: null,
     hp: 2050,
     atk: 94,

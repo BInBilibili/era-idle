@@ -788,6 +788,7 @@ window.JOBS = [
     name: "黑暗之魂",
     era: "gift",
     order: 32,
+    hidden: true,             // v0.0.13：整条线隐藏（星见由岐退役后不可达；模拟纪元不受影响）
     alwaysVisible: false,
     tech: null,
     category: "gift",

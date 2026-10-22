@@ -253,6 +253,24 @@ try {
   ok(!dm.bad, '开除流程可用：' + (dm.bad || '有按钮 → 有确认框'));
   ok(dm.gone && !dm.inList, '确认后角色永久移出存档与角色列表');
 
+  console.log('== 角色页滚动不跳回顶部 ==');
+  const sc1 = await js(`(function(){
+    const S=Engine.S; S.ui.page='characters';
+    Engine.TECHS.forEach(t => { S.techs[t.id] = true; });   // 解锁全部工作，让精通窗口够长、能滚动
+    S.ui.charSel = Object.keys(S.chars)[0];
+    UI.render();
+    const box=document.querySelector('.mastery');
+    if(!box) return JSON.stringify({miss:true});
+    box.scrollTop = 80;
+    return JSON.stringify({overflow: box.scrollHeight > box.clientHeight + 20, top: box.scrollTop, sh: box.scrollHeight, ch: box.clientHeight});
+  })()`);
+  const s1 = JSON.parse(sc1);
+  ok(!s1.miss && s1.overflow && s1.top > 0, '精通窗口可滚动且已下拉：top=' + s1.top + ' overflow=' + s1.overflow + ' h=' + s1.sh + '/' + s1.ch);
+  await sleep(2000);
+  const sc2 = await js(`JSON.stringify({top: document.querySelector('.mastery') ? document.querySelector('.mastery').scrollTop : -1})`);
+  const s2 = JSON.parse(sc2);
+  ok(s2.top === s1.top, '1.5 秒整页重绘后滚动位置保持：' + s2.top);
+
   console.log('== 图鉴领取 ==');
   const codex = await js(`(function(){
     Engine.S.ui.page='codex';
@@ -271,6 +289,55 @@ try {
   ok(cx.gold > 0 && cx.claims > 0, '收录条目有金边 + 领取按钮：金边 ' + cx.gold + ' / 按钮 ' + cx.claims);
   ok(cx.all, '有未领奖励时显示「全部领取」');
   ok(cx.after === cx.before + 1, '点领取到账 1 碎片：' + cx.before + ' → ' + cx.after);
+
+  console.log('== 物品悬浮面板 ==');
+  const tipCodex = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='codex'; S.ui.tab.codex='items';
+    Engine.addItem('石斧',1); S.seen.items['stone_axe']=true;
+    UI.render();
+    const card=document.querySelector('#mainWrap [data-tip-item="stone_axe"]');
+    if(!card) return JSON.stringify({miss:'图鉴卡片没有 data-tip-item'});
+    card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:300,clientY:300}));
+    const tip=document.getElementById('itemTip');
+    const txt=tip.textContent;
+    return JSON.stringify({show:tip.classList.contains('show'), name:txt.includes('石斧'), str:txt.includes('+18'),
+      pen:txt.includes('破甲'), price:txt.includes('90'), power:txt.includes('+36'), rows:tip.querySelectorAll('.ttRow').length});
+  })()`);
+  const tc = JSON.parse(tipCodex);
+  ok(!tc.miss, '图鉴物品卡挂上悬浮锚点：' + (tc.miss || '有 data-tip-item'));
+  ok(tc.show && tc.name && tc.str, '面板显示名称与力量：show=' + tc.show + ' 力量+' + tc.str + ' 行数=' + tc.rows);
+  ok(tc.pen && tc.power && tc.price, '武器专属行出现：破甲=' + tc.pen + ' 战力=' + tc.power + ' 卖价=' + tc.price);
+
+  const tipJob = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='job:crafting'; UI.render();
+    const card=document.querySelector('#mainWrap .card.recipe[data-tip-item]');
+    if(!card) return JSON.stringify({miss:'加工页没有物品卡片'});
+    card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:300,clientY:300}));
+    const tip=document.getElementById('itemTip');
+    const badges=[...document.querySelectorAll('#mainWrap .badge.io')];
+    const noIcon=badges.filter(b=>b.textContent.codePointAt(0)<=0x2000).map(b=>b.textContent.trim());
+    return JSON.stringify({show:tip.classList.contains('show'), badges:badges.length,
+      noIcon:noIcon.slice(0,3), title:document.body.innerHTML.indexOf('拖入角色到整张卡即可入驻')});
+  })()`);
+  const tj = JSON.parse(tipJob);
+  ok(!tj.miss && tj.show, '工作页物品卡片可悬浮出面板：' + (tj.miss || 'show=' + tj.show));
+  ok(tj.badges > 0 && tj.noIcon.length === 0, '产出/消耗徽章都带物品图标：' + tj.badges + ' 个，缺图标 [' + tj.noIcon.join('、') + ']');
+  ok(tj.title === -1, '不再显示「拖入角色到整张卡即可入驻」');
+
+  const tipAnchor = await js(`(function(){
+    const card=document.querySelector('#mainWrap [data-tip-item]');
+    if(!card) return JSON.stringify({miss:true});
+    const r=card.getBoundingClientRect();
+    const x=Math.round(r.left+r.width/2), y=Math.round(r.top+r.height/2);
+    card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:x,clientY:y}));
+    return JSON.stringify({x,y,before:document.getElementById('itemTip').classList.contains('show')});
+  })()`);
+  const ta = JSON.parse(tipAnchor);
+  await sleep(1900);
+  const tipAfter = JSON.parse(await js(`JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), id:UI._tipId})`));
+  ok(ta.before && tipAfter.show && tipAfter.id, '1.5 秒整页重绘后面板仍然跟随：' + JSON.stringify({before:ta.before,after:tipAfter.show,id:tipAfter.id}));
 } catch (e) {
   console.error('测试异常：', e.message);
   fails++;

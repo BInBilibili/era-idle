@@ -28,6 +28,13 @@ ok(E.granaryTotal() > 0, '开局有食物：' + E.granaryTotal().toFixed(1));
 ok(E.warehouseCap() === 20, '初始仓库 20 格');
 ok(S.settings && S.settings.theme === 'dark', '默认深色主题');
 
+console.log('== 黑暗之魂线隐藏 ==');
+ok(E.JOB_BY_ID.black_soul && E.JOB_BY_ID.black_soul.hidden, '#黑暗之魂 标记隐藏');
+ok(E.jobVisible(E.JOB_BY_ID.black_soul) === false, '#黑暗之魂 不可见（不出现在导航/工作页）');
+ok(E.JOB_BY_ID.era_sim && !E.JOB_BY_ID.era_sim.hidden, '#模拟纪元 不受影响');
+ok(E.ENEMIES.filter(e => e.type === 'blackSoul').length === 4 && E.ENEMIES.filter(e => e.type === 'blackSoul').every(e => e.hidden), '4 只黑魂怪隐藏（图鉴不显示）');
+ok(['soul', 'ember', 'undead_chainmail', 'ashen_legs', 'abyss_helmet', 'abyss_greatsword'].every(id => E.ITEMS[id] && E.ITEMS[id].hidden), '灵魂/余火/黑魂套 6 件隐藏');
+
 console.log('== 伐木 600 秒 ==');
 E.assignSlot('woodcutting', 0, 'player');
 for (let i = 0; i < 3000; i++) E.tick(0.2);
