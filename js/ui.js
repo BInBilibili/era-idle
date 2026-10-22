@@ -862,7 +862,7 @@ const UI = {
     ];
     const slotBox = (key, label) => {
       const id = c.eq[key]; const it = id ? E.ITEMS[id] : null;
-      return `<div class="slot ${it ? 'filled' : ''}" data-act="eqslot" data-slot="${key}" title="${it ? this.esc(it.name) : label + '（空）'}">
+      return `<div class="slot ${it ? 'filled' : ''}" data-act="eqslot" data-slot="${key}" ${it ? `data-tip-item="${id}"` : `title="${label}（空）"`}>
         <div class="ph">${it ? this.itemIcon(it) : '＋'}</div><div class="nm">${it ? this.esc(it.name) : label}</div></div>`;
     };
     const equipItems = Object.keys(S.items).filter(id => (S.items[id] || 0) > 0 && E.ITEMS[id] && (E.ITEMS[id].cat === 'equip' || E.ITEMS[id].cat === 'weapon'));
@@ -911,7 +911,7 @@ const UI = {
         <div class="card">
           <div class="row" style="justify-content:space-between"><h3>仓库装备</h3><span class="tiny dim">拖到左侧装备栏</span></div>
           ${!equipItems.length ? '<div class="empty">仓库里没有装备</div>' : `<div class="wgrid" style="margin-top:8px">
-            ${equipItems.map(id => { const it = E.ITEMS[id]; return `<div class="slot sm ${'filled'}" draggable="true" data-drag="item" data-id="${id}" data-act="eqfrom" title="${this.esc(it.name)}">
+            ${equipItems.map(id => { const it = E.ITEMS[id]; return `<div class="slot sm ${'filled'}" draggable="true" data-drag="item" data-id="${id}" data-act="eqfrom" data-tip-item="${id}">
               <div class="ph">${this.itemIcon(it)}</div><div class="nm">${this.esc(it.name)}</div><div class="tiny dim">×${E.fmt(S.items[id])}</div></div>`; }).join('')}
           </div>`}
         </div>

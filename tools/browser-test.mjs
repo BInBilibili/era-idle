@@ -367,6 +367,27 @@ try {
   const hh = JSON.parse(house);
   ok(!hh.hasMin && !hh.comfortGate, '住房页不再有 min() 公式 / 舒适度门槛：min=' + hh.hasMin + ' 门槛=' + hh.comfortGate);
   ok(hh.caps.length > 0 && hh.caps[0] === '可上场 7 人', '当前档显示「可上场 N 人」：' + hh.caps.join(' / '));
+
+  console.log('== 角色页装备悬停看面板 ==');
+  const charTip = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='characters'; S.ui.charSel='player';
+    Engine.addItem('石斧',2);
+    S.chars.player.eq.mainhand='stone_axe';
+    UI.render();
+    const slot=document.querySelector('[data-act="eqslot"][data-slot="mainhand"]');
+    if(!slot) return JSON.stringify({miss:'没有主手装备槽'});
+    slot.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:400,clientY:400}));
+    const tip=document.getElementById('itemTip');
+    const txt=tip.textContent;
+    const grid=document.querySelector('#mainWrap .wgrid [data-tip-item="stone_axe"]');
+    return JSON.stringify({show:tip.classList.contains('show'), name:txt.includes('石斧'),
+      pen:txt.includes('破甲'), grid:!!grid, title:slot.hasAttribute('title')});
+  })()`);
+  const ct = JSON.parse(charTip);
+  ok(!ct.miss && ct.show && ct.name && ct.pen, '悬停已装备的物品弹出面板（含破甲）：' + (ct.miss || JSON.stringify({show:ct.show,name:ct.name,pen:ct.pen})));
+  ok(ct.grid, '仓库装备格也挂了面板锚点');
+  ok(ct.title === false, '装备槽不再用 title 原生提示（避免双份提示）');
 } catch (e) {
   console.error('测试异常：', e.message);
   fails++;
