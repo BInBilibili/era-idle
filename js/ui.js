@@ -692,7 +692,6 @@ const UI = {
             <h3>战斗属性</h3>
             <div class="statrow"><span class="k">生命</span><span class="mono">${c.hpNow === undefined ? st.maxHp : Math.ceil(c.hpNow)} / ${st.maxHp}</span></div>
             <div class="bar hp" style="margin:4px 0 8px"><i style="width:${Math.min(100, (c.hpNow || st.maxHp) / st.maxHp * 100).toFixed(1)}%"></i></div>
-            <div class="statrow"><span class="k">恢复</span><span class="mono">${E.healerPresent() ? (E.CC.healerRegenPctPerDay || 15) : (E.CC.naturalRegenPctPerDay || 5)}%/天 <span class="tiny dim">· 1 天 = 24 秒</span></span></div>
             <div class="statrow"><span class="k">命中</span><span class="mono">${st.atk} <span class="tiny dim">(Lv.${c.lv.atk})</span></span></div>
             <div class="statrow"><span class="k">力量</span><span class="mono">${st.str} <span class="tiny dim">(Lv.${c.lv.str})</span></span></div>
             <div class="statrow"><span class="k">防御</span><span class="mono">${c.lv.def}</span></div>
