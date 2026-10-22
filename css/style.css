@@ -190,7 +190,7 @@ table.t td.c,table.t th.c{text-align:center}
 /* modal */
 #modal{position:fixed;inset:0;background:#05080ccc;display:none;align-items:center;justify-content:center;z-index:100;padding:20px;backdrop-filter:blur(3px)}
 #modal.show{display:flex}
-#modal .box{background:linear-gradient(180deg,#1a2331,#121a24);border:1px solid #33465c;border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:18px 20px;box-shadow:0 20px 60px #000a}
+#modal .box{background:linear-gradient(180deg,#1a2331,#121a24);border:1px solid #33465c;border-radius:14px;max-width:min(560px,calc(100vw - 32px));width:100%;max-height:88vh;overflow:auto;padding:18px 20px;box-shadow:0 20px 60px #000a}
 #modal .box h3{font-size:16px;margin-bottom:10px}
 #modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:200;pointer-events:none;align-items:center}
@@ -211,7 +211,12 @@ table.t td.c,table.t th.c{text-align:center}
   #body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
   nav#side{display:flex;overflow-x:auto;gap:6px;padding:8px;border-right:0;border-bottom:1px solid var(--line);white-space:nowrap}
   nav#side .grp{display:none}
-  #hud{flex-wrap:wrap}
+  #hud{flex-wrap:wrap;gap:8px}
   #hud .brand .title{font-size:14px}
+  .resbar{max-width:100%;overflow-x:auto;flex-wrap:nowrap}
+  main#page{overflow-x:hidden;padding:12px 12px 50px}
+  .card{min-width:0}
   .charlayout{grid-template-columns:1fr}
+  .split{grid-template-columns:1fr}
+  .shopgrid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
 }
