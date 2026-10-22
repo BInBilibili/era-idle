@@ -89,6 +89,7 @@ const UI = {
   },
   itemIcon(it) {
     if (!it) return '❔';
+    if (window.ICONS) { const s = window.ICONS.item(it); if (s) return s; }
     const map = { ore: '⛏️', food: '🍎', seed: '🌱', cooked: '🍲', material: '📦', equip: '🛡️', weapon: '⚔️', book: '📖', gacha: '🎁', misc: '📦' };
     if (it.slot === 'mainhand') return '⚔️';
     if (it.slot === 'offhand') return '🛡️';
@@ -97,6 +98,12 @@ const UI = {
     if (it.slot === 'legs' || it.slot === 'legsInner') return '👖';
     if (it.slot === 'feet' || it.slot === 'socks') return '🥾';
     return map[it.cat] || '📦';
+  },
+  /* 敌人立绘（程序化 SVG）：cs.enemy 是 enemies.js 的原对象，带 id */
+  enemyIcon(e, cls) {
+    if (!e || !window.ICONS) return '';
+    const svg = window.ICONS.enemy(e.id || e.name || e);
+    return svg ? `<span class="foeArt ${cls || ''}">${svg}</span>` : '';
   },
   jobIcon(j) { return j.icon || (j.special === 'hunting' ? '🏹' : j.special === 'mining' ? '⛏️' : j.special === 'power' ? '⚡' : j.special === 'research' ? '🔬' : j.special === 'blackSoul' ? '💀' : j.special === 'eraSim' ? '🧟' : '🔨'); },
 
@@ -579,9 +586,14 @@ const UI = {
         <div class="card">
           <h3>战场</h3>
           ${cs.enemy ? `
-            <div class="row" style="justify-content:space-between"><b>${this.esc(cs.enemy.name)}</b><span class="badge">Lv.${cs.enemy.tier || '·'}</span></div>
-            <div class="bar enemy tall" style="margin-top:8px"><i style="width:${Math.max(0, cs.ehp / cs.enemy.hp * 100).toFixed(1)}%"></i><span>${Math.ceil(cs.ehp)} / ${cs.enemy.hp}</span></div>
-            <div class="tiny muted" style="margin-top:6px">命中 ${cs.enemy.atk || 0} · 力量 ${cs.enemy.str || 0} · 防御 ${cs.enemy.def || 0} · 减免 ${cs.enemy.dr || 0}% · 间隔 ${cs.enemy.interval || 2.4}s</div>
+            <div class="row foeRow" style="align-items:flex-start;gap:12px">
+              ${this.enemyIcon(cs.enemy)}
+              <div style="flex:1;min-width:0">
+                <div class="row" style="justify-content:space-between"><b>${this.esc(cs.enemy.name)}</b><span class="badge">Lv.${cs.enemy.tier || '·'}</span></div>
+                <div class="bar enemy tall" style="margin-top:8px"><i style="width:${Math.max(0, cs.ehp / cs.enemy.hp * 100).toFixed(1)}%"></i><span>${Math.ceil(cs.ehp)} / ${cs.enemy.hp}</span></div>
+                <div class="tiny muted" style="margin-top:6px">命中 ${cs.enemy.atk || 0} · 力量 ${cs.enemy.str || 0} · 防御 ${cs.enemy.def || 0} · 减免 ${cs.enemy.dr || 0}% · 间隔 ${cs.enemy.interval || 2.4}s</div>
+              </div>
+            </div>
           ` : `<div class="empty">${cs.respawn > 0 ? '敌人将在 ' + cs.respawn.toFixed(1) + 's 后出现' : '等待入驻角色…'}</div>`}
           <div class="hr"></div>
           <h3>战斗日志</h3>
@@ -590,7 +602,7 @@ const UI = {
       </div>
       <div class="card" style="margin-top:12px">
         <h3>本区域敌人物种</h3>
-        <div class="row">${(region.enemies || []).map(n => { const e = E.ENEMIES.find(x => x.name === n); return e ? `<span class="badge ${E.S.seen.enemies[e.id] ? 'on' : 'off'}">${E.S.seen.enemies[e.id] ? e.name + ' ' + e.hp + 'HP' : '？？？'}</span>` : ''; }).join('')}</div>
+        <div class="row">${(region.enemies || []).map(n => { const e = E.ENEMIES.find(x => x.name === n); if (!e) return ''; const seen = E.S.seen.enemies[e.id]; return `<span class="badge bdFoe ${seen ? 'on' : 'off'}">${seen ? this.enemyIcon(e, 'xs') : ''}${seen ? e.name + ' ' + e.hp + 'HP' : '？？？'}</span>`; }).join('')}</div>
         <div class="tiny dim" style="margin-top:8px">击杀 +1 图鉴认知度（每级 +2% 伤害）；满 100 级后可开展畜牧。</div>
       </div>
     </div>`;
@@ -1002,7 +1014,7 @@ const UI = {
           const claimable = E.codexClaimable('enemies', e.id);
           const claimed = E.codexClaimed('enemies', e.id);
           return `<tr class="${claimable ? 'claim' : ''}" style="${seen ? '' : 'opacity:.45'}">
-          <td>${seen ? this.esc(e.name) : '？？？'}</td><td class="small">${this.esc(e.region || (e.type === 'blackSoul' ? '黑暗之魂' : '模拟纪元'))}</td>
+          <td><div class="row" style="gap:8px;align-items:center">${seen ? this.enemyIcon(e, 'xs') : ''}<span>${seen ? this.esc(e.name) : '？？？'}</span></div></td><td class="small">${this.esc(e.region || (e.type === 'blackSoul' ? '黑暗之魂' : '模拟纪元'))}</td>
           <td class="r mono">${seen ? e.hp : '—'}</td><td class="r mono">${seen ? e.atk : '—'}</td><td class="r mono">${seen ? e.str : '—'}</td><td class="r mono">${seen ? e.def : '—'}</td><td class="r mono">${seen ? (e.dr || 0) + '%' : '—'}</td>
           <td class="tiny">${seen ? (e.loot || []).map(l => l.name).join('、') : '—'}</td>
           <td>${claimable ? `<button class="claimbtn inline" data-act="claimCodex" data-k="enemies" data-id="${e.id}">领取 +${E.CODEX_REWARD.enemies}</button>` : (claimed ? '<span class="tiny dim">已领</span>' : '—')}</td></tr>`;

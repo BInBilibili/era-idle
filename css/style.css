@@ -391,3 +391,24 @@ html[data-theme="light"] .log .l{border-bottom-color:#e3e9f2}
 tr.claim td{background:#e9c46a14}
 tr.claim td:first-child{box-shadow:inset 2px 0 0 #e9c46a}
 html[data-theme="light"] .card.claim{border-color:#c9a24a;box-shadow:0 0 0 1px #c9a24a55}
+
+/* ============================================================
+   程序化图标（js/icons.js 生成的内联 SVG，48×48 画布）
+   默认按行内字号缩放；放进 .icon / .ttIcon / .slot 时铺满容器
+   ============================================================ */
+.icSvg{width:1.6em;height:1.6em;display:inline-block;vertical-align:-.42em;flex:none;overflow:visible}
+.icon .icSvg{width:88%;height:88%;vertical-align:0}
+.icon.sm .icSvg{width:92%;height:92%}
+.ttIcon .icSvg{width:88%;height:88%;vertical-align:0}
+.slot .ph{display:flex;align-items:center;justify-content:center}
+.slot .ph .icSvg{width:30px;height:30px;vertical-align:0}
+.slot.sm .ph .icSvg{width:24px;height:24px}
+
+/* 敌人立绘 */
+.foeArt{width:72px;height:72px;flex:none;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 64%,#26364a 0%,#121a24 72%);border:1px solid #2c3d50;overflow:hidden}
+.foeArt .icSvg{width:66px;height:66px;vertical-align:0}
+.foeArt.xs{width:25px;height:25px;border-radius:6px;margin-right:6px;vertical-align:middle}
+.foeArt.xs .icSvg{width:23px;height:23px;vertical-align:0}
+.badge.bdFoe{display:inline-flex;align-items:center;padding-left:4px;padding-right:7px}
+html[data-theme="light"] .foeArt{background:radial-gradient(circle at 50% 64%,#e6eef8 0%,#f8fbfe 72%);border-color:#cfdbe8}

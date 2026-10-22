@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>图标总览 · 纪元放置</title>
+<style>
+  body{margin:0;background:#0f1620;color:#cfd8e3;font:12px/1.35 "Microsoft YaHei",system-ui,sans-serif}
+  .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;padding:10px}
+  .cell{background:#0b121a;border:1px solid #22303f;border-radius:8px;padding:5px 4px;text-align:center}
+  .prev{display:flex;align-items:center;justify-content:center;gap:6px;height:58px}
+  .icSvg{display:block}
+  .big .icSvg{width:52px;height:52px}
+  .tiny .icSvg{width:18px;height:18px}
+  .nm{margin-top:3px;font-size:10.5px;color:#a9bbcf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .id{font-size:8.5px;color:#5c6f85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .en{color:#6fd3c0}
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script src="../js/data/items.js"></script>
+<script src="../js/data/enemies.js"></script>
+<script src="../js/icons.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const from = +(q.get('from') || 0), to = +(q.get('to') || 9999);
+  const items = (window.ITEM_ORDER || []).filter(id => q.get('all') || !window.ITEMS[id].hidden);
+  const enemies = window.ENEMIES.filter(e => q.get('all') || !e.hidden);
+  let all = items.map(id => ({ id, name: window.ITEMS[id].name, svg: ICONS.item(id) }))
+    .concat(enemies.map(e => ({ id: 'E:' + e.id, name: e.name, svg: ICONS.enemy(e.id), en: 1 })));
+  if (q.get('ids')) {
+    const want = q.get('ids').split(',');
+    all = want.map(w => all.find(x => x.id === w || x.id === 'E:' + w) || { id: w, name: '?', svg: '' });
+  }
+  const list = q.get('ids') ? all : all.slice(from, to);
+  document.getElementById('out').innerHTML = '<div class="grid">' + list.map(x =>
+    `<div class="cell"><div class="prev"><span class="big">${x.svg}</span><span class="tiny">${x.svg}</span></div>` +
+    `<div class="nm">${x.name}</div><div class="id ${x.en ? 'en' : ''}">${x.id}</div></div>`).join('') + '</div>';
+</script>
+</body>
+</html>

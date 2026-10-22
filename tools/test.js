@@ -6,6 +6,7 @@ require('../js/data/techs.js');
 require('../js/data/passives.js');
 require('../js/data/enemies.js');
 require('../js/engine.js');
+require('../js/icons.js');
 
 const E = window.Engine;
 let fails = 0;
@@ -18,6 +19,32 @@ ok(E.TECHS.length === 42, '科技 42：' + E.TECHS.length);
 ok(E.ENEMIES.length === 26, '敌人 26：' + E.ENEMIES.length);
 ok(E.HOUSING.length === 6 && E.COMFORT.length === 16 && E.FORTS.length === 14, '被动档位 6/16/14');
 ok(E.COMFORT.reduce((a, b) => a + b.value, 0) === 100, '舒适度合计 100');
+
+console.log('== 图标 ==');
+const ICONS = window.ICONS;
+ok(!!ICONS, 'icons.js 已加载');
+if (ICONS) {
+  const miss = ICONS.missing();
+  ok(miss.length === 0, '没有缺形状的 id：' + (miss.join(',') || '无'));
+  const itemIds = Object.keys(E.ITEMS);
+  const badItem = itemIds.filter(id => {
+    const s = ICONS.item(id);
+    return !s.startsWith('<svg class="icSvg"') || s.length < 260;
+  });
+  ok(badItem.length === 0, '全部 ' + itemIds.length + ' 件物品能渲染：' + (badItem.join(',') || 'ok'));
+  const badEnemy = E.ENEMIES.filter(e => {
+    const s = ICONS.enemy(e.id);
+    return !s.startsWith('<svg class="icSvg"') || s.length < 260;
+  }).map(e => e.id);
+  ok(badEnemy.length === 0, '全部 ' + E.ENEMIES.length + ' 种敌人能渲染：' + (badEnemy.join(',') || 'ok'));
+  ok(ICONS.item('stone') !== ICONS.item('copper_ore'), '不同物品图标不同');
+  ok(ICONS.item(E.ITEMS.stone) === ICONS.item('stone'), '传物品对象与传 id 结果一致（中文名映射）');
+  ok(ICONS.nameToId('石头') === 'stone', '中文名 → id');
+  ok(Object.keys(ICONS.SPEC).every(id => E.ITEMS[id]), 'SPEC 里没有已删除的物品 id');
+  ok(Object.keys(ICONS.ENEMY_SPEC).every(id => E.ENEMIES.some(e => e.id === id)), 'ENEMY_SPEC 里没有已删除的敌人 id');
+  const noId = ['stone', 'wood', 'iron_sword', 'book_mining'].every(id => !/id="/.test(ICONS.item(id)) && !/<defs/.test(ICONS.item(id)));
+  ok(noId, '图标不含 id/defs（重复渲染不会串色）');
+}
 
 console.log('== 新档 ==');
 E.S = E.newState('测试者');
