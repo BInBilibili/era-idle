@@ -12,8 +12,6 @@ const GAME = {
   masteryXpMax: 14394,      // 文档：精通 1→100 级累计在岗秒数
   foodPerCharSec: 0.05,     // 每名上场角色每秒消耗的食物份数
   raidPeriod: 7200,         // 袭击间隔（秒）
-  raidGuardPower: 2500,
-  raidGuardMin: 0.02,
   shopRefresh: 60,
   weaponDefaultInterval: 2.4,
   mineBaseSec: 3,           // 采矿基础时长：权重 100 的矿石 = 3 秒，其余 = 3×100/权重
@@ -77,6 +75,8 @@ const PR = window.PASSIVE_RULES || {};
 /* 袭击数值以 PASSIVE_RULES.raidEra 为唯一数据源，避免引擎和被动表各写一份 */
 const ERA_BASE = {}, ERA_WEALTH = {};
 (PR.raidEra || []).forEach(r => { ERA_BASE[r.id] = r.base; ERA_WEALTH[r.id] = r.refWealth; });
+GAME.raidGuardPower = PR.raidEarlyGuardPower || 2500;
+GAME.raidGuardMin = PR.raidEarlyGuardMin || 0.02;
 
 /* 发电设备（工作表.md「电力系统」：煤炭 10 / 蒸汽 25 / 风力 15 / 太阳能 25 / 核电 120 瓦）
    造价为按 4 档阶梯推导的占位值 */
