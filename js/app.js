@@ -8,6 +8,8 @@
 
   /* ---------------- 启动 ---------------- */
   function boot() {
+    const hv = document.getElementById('hudVer');
+    if (hv) hv.textContent = E.APP_VERSION;
     const q = new URLSearchParams(location.search);
     const saved = E.load();
     if (saved) {
@@ -71,7 +73,7 @@
   function openSettings() {
     const S = E.S;
     const theme = (S.settings && S.settings.theme) || 'dark';
-    U.modal(`<h3>⚙ 设置</h3>
+    U.modal(`<h3>⚙ 设置 <span class="tiny dim" style="font-weight:400">纪元放置 ${E.APP_VERSION} · 测试版</span></h3>
       <div class="card"><div class="row" style="justify-content:space-between">
         <div><b>主题</b><div class="tiny muted">深色适合长时间挂机，浅色适合白天</div></div>
         <div class="row">

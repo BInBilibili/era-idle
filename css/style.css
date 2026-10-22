@@ -271,3 +271,6 @@ html[data-theme="light"] .log{background:#fff}
 
 .chip .star{top:2px;left:4px;right:auto}
 .chip .corner{top:2px;right:3px;bottom:auto;background:transparent;backdrop-filter:none}
+
+.ver{font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:20px;padding:1px 7px;letter-spacing:.3px;white-space:nowrap}
+html[data-theme="light"] .ver{color:#5c6b7d}

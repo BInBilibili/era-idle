@@ -52,6 +52,10 @@ try {
   await js('UI.closeModal()');
   await sleep(200);
 
+  console.log('== 版本号 ==');
+  const ver = await js(`document.getElementById('hudVer').textContent`);
+  ok(/^v0\.0\.\d+$/.test(ver), 'HUD 显示测试版版本号：' + ver);
+
   console.log('== 点击入驻槽 ==');
   const modalOpened = await js(`(function(){
     const slot=document.querySelector('[data-act="recslot"]');

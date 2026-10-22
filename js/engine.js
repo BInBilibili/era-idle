@@ -5,6 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
+const APP_VERSION = 'v0.0.3';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -1082,6 +1083,7 @@ function importSave(str) {
 }
 
 window.Engine = {
+  APP_VERSION,
   GAME, HEROES, POOLS, GIFTS, ERA_LIST, ERA_KEYS, ERA_NAME,
   ITEMS, ITEM_ORDER, JOBS, TECHS, ENEMIES, REGIONS, WEAPON_COMBAT, CC,
   HOUSING, COMFORT, FORTS, WH_UPG, GR_UPG, PR,
