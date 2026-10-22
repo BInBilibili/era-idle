@@ -758,7 +758,7 @@ window.COMBAT_CONST = {
 
   /* ---- 火器与近战分野（§10.6~§10.7） ---- */
   combat: {
-    twoHandedBlocksOffhand: false,           // 双手武器占主手栏，副手照样能装备
+    twoHandedBlocksOffhand: true,            // 双手武器占主手并占用副手（装备时自动卸下副手）
     shieldBeltPVPOnly: true,                 // 护盾腰带不提供「免疫远程」，留给 PVP
     weaponCount: 29,                         // 28 常规 + 深渊大剑
     normalWeaponCount: 28

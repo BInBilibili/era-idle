@@ -150,6 +150,8 @@ window.PASSIVE_RULES = {
   raidWealthSaturation: 1,    // 财富值只作饱和输入 min(财富 ÷ 参考财富, 1)
   raidProgressMin: 0,         // 时代进度 = 本代科技已解锁数 ÷ 本代科技总数（0 → 1）
   raidProgressMax: 1,
+  raidEarlyGuardPower: 2500,  // 早期保护：基地战力低于 2500 时，袭击强度按 战力 ÷ 2500 缩放
+  raidEarlyGuardMin: 0.02,    // 缩放下限 2%（1 人新手也不会被满编袭击打崩）
 
   /* --- §3.2.1 角色 / 装备战力 --- */
   charAttrPowerMul: 3,        // 单角色战力 = (生命+命中+力量+防御) × 3 + 装备战力
@@ -169,17 +171,17 @@ window.PASSIVE_RULES = {
   fieldedByEra: [9, 11, 13, 15, 18],             // 本代上场人数
   charPowerByEra: [257, 717, 1168, 1758, 2464],  // 单角色战力
   basePowerByEra: [2613, 9437, 21434, 47120, 92102], // 本代满装基地战力
-  surplusByEra: [2.2, 2.1, 2.2, 2.2, 2.0],       // 富余倍数
+  surplusByEra: [2.9, 2.86, 2.86, 2.86, 2.79],   // 富余倍数（v0.0.17 起从 2.2 放宽到 2.8~2.9）
 
   /* --- §3.2.3 / §3.2.4 袭击强度表 --- */
   raidEra: [
-    { id: "stone",      base: 800,   refWealth: 50000,     cap: 1200  },
-    { id: "medieval",   base: 3000,  refWealth: 250000,    cap: 4500  },
-    { id: "industrial", base: 6500,  refWealth: 1000000,   cap: 9750  },
-    { id: "info",       base: 14500, refWealth: 4000000,   cap: 21750 },
-    { id: "space",      base: 30000, refWealth: 16000000,  cap: 45000 }
+    { id: "stone",      base: 600,   refWealth: 50000,     cap: 900   },
+    { id: "medieval",   base: 2200,  refWealth: 250000,    cap: 3300  },
+    { id: "industrial", base: 5000,  refWealth: 1000000,   cap: 7500  },
+    { id: "info",       base: 11000, refWealth: 4000000,   cap: 16500 },
+    { id: "space",      base: 22000, refWealth: 16000000,  cap: 33000 }
   ],
-  raidBaseDivisor: 3,         // 时代基数 = 本代满装基地战力 ÷ 3（3 = 封顶 1.5 × 目标富余 2.0）
+  raidBaseDivisor: 4.3,       // 时代基数 = 本代满装基地战力 ÷ 4.3（4.3 = 封顶 1.5 × 目标富余 2.86）
 
   /* --- §4 商店 --- */
   shopSlots: 6,               // 货架固定 6 格

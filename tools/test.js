@@ -238,6 +238,11 @@ Object.values(old.jobs).forEach(j => { delete j.slots; delete j.prog; j.char = n
 old.jobs.woodcutting.char = 'player';
 const mig = E.migrate(old);
 ok(Array.isArray(mig.jobs.woodcutting.slots) && mig.jobs.woodcutting.slots[0] === 'player', '旧存档 char → 槽位迁移');
+const twoH = E.newState('双手迁移');
+twoH.chars.player.eq.mainhand = 'short_bow';
+twoH.chars.player.eq.offhand = 'wood_shield';
+const migTwo = E.migrate(twoH);
+ok(!migTwo.chars.player.eq.offhand && (migTwo.items.wood_shield || 0) === 1, '旧存档双手武器 + 副手 → 副手退回仓库');
 
 console.log('== 袭击 ==');
 S.forts[0] = true;
@@ -326,6 +331,17 @@ E.S.items = {};
 const card = U.recipeCard(inJob, E.S.jobs[inJob.id], E.jobRecipes(inJob)[0], 0);
 ok(card.includes('消耗：') && card.includes('<span class="red">'), '项目卡消耗行：缺料名称标红（' + inJob.name + '）');
 ok(!card.split('产出：')[1].split('<br>')[0].includes('class="red"'), '项目卡产出行不标红');
+
+console.log('== 袭击：早期保护 ==');
+E.S = E.newState('早期保护');
+E.S.techs.writing = true;    // 直接进入中世纪（1/8 进度）
+const earlyPower = E.basePower();
+const earlyMax = Math.max(...Array.from({ length: 80 }, () => E.raidStrength()));
+ok(E.raidGuard() <= 0.05, '新手基地战力 ' + earlyPower + ' → 早期保护系数 ' + E.raidGuard().toFixed(3));
+ok(earlyMax < 40, '新手袭击强度 ' + earlyMax + '（旧公式约 1400）');
+E.S.chars.player.lv = { hp: 10, atk: 10, str: 10, def: 10 };
+E.S.forts = E.FORTS.map(() => true);
+ok(E.raidGuard() === 1 && E.basePower() > 2500, '基地战力 ' + E.basePower() + ' → 早期保护解除');
 
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);

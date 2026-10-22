@@ -255,12 +255,12 @@
       }
       case 'eqslot': openEquipSlot(slot); break;
       case 'eqfrom': {
-        const cid = S.ui.charSel || S.order[0];
-        equipItem(cid, id, true); break;
+        const cid = selectedCharId();
+        if (cid) equipItem(cid, id, true); break;
       }
-      case 'autoEquip': autoEquip(S.ui.charSel); break;
+      case 'autoEquip': autoEquip(selectedCharId()); break;
       case 'unequipAll': {
-        const c = S.chars[S.ui.charSel]; if (c) { Object.keys(c.eq).forEach(s => { if (c.eq[s]) { E.addItem(c.eq[s], 1); c.eq[s] = null; } }); U.render(); }
+        const c = S.chars[selectedCharId()]; if (c) { Object.keys(c.eq).forEach(s => { if (c.eq[s]) { E.addItem(c.eq[s], 1); c.eq[s] = null; } }); U.render(); }
         break;
       }
       case 'selectChar': S.ui.charSel = id; U.render(); break;
@@ -298,8 +298,9 @@
       case 'buygr': { const r = E.buyGranary(); U.toast(r.ok ? '粮仓升级完成' : (r.why || '无法建造'), r.ok ? 'good' : 'bad'); U.render(); break; }
       case 'region': { E.combatState('hunting').region = +i; E.combatState('hunting').enemy = null; E.combatState('hunting').respawn = 0; U.render(); break; }
       case 'raidPreview': {
-        const st = E.raidStrength(), de = E.basePower();
+        const st = E.raidStrength(), de = E.basePower(), guard = E.raidGuard();
         U.modal(`<h3>袭击预演</h3><div class="small">袭击强度 <b class="${st > de ? 'red' : 'green'}">${E.fmt(st)}</b> vs 基地战力 <b class="gold">${E.fmt(de)}</b></div>
+          ${guard < 0.999 ? `<div class="tiny green" style="margin-top:6px">早期保护生效：强度 ×${(guard * 100).toFixed(1)}%（基地战力达到 ${E.fmt(E.GAME.raidGuardPower)} 后解除）</div>` : ''}
           <div class="sub" style="margin-top:8px">${st > de ? '按当前战力，这次会被攻破：约 10% 物品与金币会被抢走。' : '按当前战力可以击退。'}</div>
           <div class="acts"><button onclick="UI.closeModal()">知道了</button></div>`);
         break;
@@ -324,7 +325,7 @@
     e.preventDefault();
     const kind = dragData.kind, id = dragData.id;
     if (target.dataset.act === 'recslot' && kind === 'char') assignJob(target.dataset.job, +(target.dataset.i || 0), id);
-    if (target.dataset.act === 'eqslot' && kind === 'item') equipItem(E.S.ui.charSel || E.S.order[0], id, true);
+    if (target.dataset.act === 'eqslot' && kind === 'item') equipItem(selectedCharId(), id, true);
     if (target.dataset.act === 'selectChar' && kind === 'order') moveOrder(id, target.dataset.id);
     dragData = null;
   }
@@ -408,11 +409,18 @@
     if (un) un.onclick = () => { closeSlotMenu(); E.clearSlot(jobId, idx); U.render(); };
     menu.querySelector('[data-menu-close]').onclick = closeSlotMenu;
   }
+  function selectedCharId() {
+    const S = E.S;
+    if (S.chars[S.ui.charSel]) return S.ui.charSel;
+    return S.order[0];
+  }
   function openEquipSlot(slot) {
-    const S = E.S, cid = S.ui.charSel || S.order[0], c = S.chars[cid];
+    const S = E.S, cid = selectedCharId(), c = S.chars[cid];
     if (!c) return;
+    const mh = c.eq.mainhand ? E.ITEMS[c.eq.mainhand] : null;
     const items = Object.keys(S.items).filter(id => (S.items[id] || 0) > 0 && E.ITEMS[id] && E.ITEMS[id].slot === slot);
     U.modal(`<h3>${U.esc(slotName(slot))} · ${U.esc(E.charName(c))}</h3>
+      ${slot === 'offhand' && mh && mh.twoHanded ? `<div class="tiny dim" style="margin-bottom:8px">主手是双手武器「${U.esc(mh.name)}」，装备副手会自动把它退回仓库。</div>` : ''}
       ${c.eq[slot] ? `<div class="card" style="margin-bottom:10px"><div class="row" style="justify-content:space-between"><b>${U.esc(E.ITEMS[c.eq[slot]].name)}</b><button data-act="unequip" data-slot="${slot}">卸下</button></div></div>` : ''}
       ${!items.length ? '<div class="empty">仓库里没有该栏位装备</div>' : `<div class="wgrid">${items.map(id => {
         const it = E.ITEMS[id];
@@ -435,21 +443,83 @@
     E.removeItem(id, 1);
     if (c.eq[slot]) E.addItem(c.eq[slot], 1);
     c.eq[slot] = id;
+    let note = '';
+    // 双手武器：占用主手后，副手装备自动退回仓库
+    if (it.twoHanded && slot === 'mainhand' && c.eq.offhand) {
+      E.addItem(c.eq.offhand, 1);
+      c.eq.offhand = null;
+      note = '双手武器占用副手，已卸下副手装备';
+    }
+    // 反向：装备副手时，若主手是双手武器，主手自动退回仓库
+    if (slot === 'offhand' && c.eq.mainhand) {
+      const mh = E.ITEMS[c.eq.mainhand];
+      if (mh && mh.twoHanded) {
+        E.addItem(c.eq.mainhand, 1);
+        c.eq.mainhand = null;
+        note = '副手已装备，双手武器已退回仓库';
+      }
+    }
     if (fromWarehouse === false) U.closeModal();
     U.render();
+    if (note) U.toast(note);
   }
   function autoEquip(cid) {
-    const S = E.S, c = S.chars[cid || S.ui.charSel];
-    if (!c) return;
-    const slots = ['mainhand', 'offhand', 'body', 'legs', 'head', 'feet', 'belt', 'neck', 'bodyInner', 'legsInner', 'headInner', 'socks'];
-    slots.forEach(slot => {
-      const cands = Object.keys(S.items).filter(id => (S.items[id] || 0) > 0 && E.ITEMS[id].slot === slot);
-      if (!cands.length) return;
-      cands.sort((a, b) => score(E.ITEMS[b]) - score(E.ITEMS[a]));
-      equipItem(c.cid, cands[0], true);
+    const S = E.S;
+    cid = (cid && S.chars[cid]) ? cid : selectedCharId();
+    const c = S.chars[cid];
+    if (!c) { U.toast('没有可装备的角色', 'bad'); return; }
+    let changed = 0;
+    const cands = slot => Object.keys(S.items).filter(id =>
+      (S.items[id] || 0) > 0 && E.ITEMS[id] && E.ITEMS[id].slot === slot);
+
+    // 主手 + 副手一起算：双手武器只算主手，单手武器可以和副手相加
+    const curMain = (c.eq.mainhand && E.ITEMS[c.eq.mainhand]) ? c.eq.mainhand : null;
+    const curOff = (c.eq.offhand && E.ITEMS[c.eq.offhand]) ? c.eq.offhand : null;
+    const uniq = arr => arr.filter((v, i, a) => v && a.indexOf(v) === i);
+    const mains = uniq([curMain].concat(cands('mainhand')));
+    const offs = uniq([curOff].concat(cands('offhand')));
+    let best = { total: combinedScore(curMain, curOff), main: curMain, off: curOff };
+    for (const m of mains) {
+      const mi = E.ITEMS[m];
+      if (!mi) continue;
+      if (mi.cat === 'weapon' && mi.twoHanded) {
+        const total = score(mi);
+        if (total > best.total) best = { total, main: m, off: null };
+        continue;
+      }
+      for (const o of [null].concat(offs)) {
+        if (o === m) continue;
+        const total = score(mi) + (o ? score(E.ITEMS[o]) : 0);
+        if (total > best.total) best = { total, main: m, off: o };
+      }
+    }
+    if (best.main !== curMain && (S.items[best.main] || 0) > 0) {
+      equipItem(c.cid, best.main, true); changed++;
+    }
+    if ((best.off || null) !== (c.eq.offhand || null)) {
+      if (best.off) {
+        if ((S.items[best.off] || 0) > 0) { equipItem(c.cid, best.off, true); changed++; }
+      } else if (c.eq.offhand) {
+        E.addItem(c.eq.offhand, 1); c.eq.offhand = null; changed++;
+      }
+    }
+
+    // 其余 10 栏逐栏取最高分，只换更好的
+    ['head', 'headInner', 'body', 'bodyInner', 'legs', 'legsInner', 'feet', 'socks', 'neck', 'belt'].forEach(slot => {
+      const list = cands(slot).filter(id => id !== c.eq[slot]);
+      if (!list.length) return;
+      list.sort((a, b) => score(E.ITEMS[b]) - score(E.ITEMS[a]));
+      const curVal = (c.eq[slot] && E.ITEMS[c.eq[slot]]) ? score(E.ITEMS[c.eq[slot]]) : -1;
+      if (score(E.ITEMS[list[0]]) > curVal) { equipItem(c.cid, list[0], true); changed++; }
     });
-    U.toast('已装备仓库中最好的装备');
+
+    U.toast(changed ? '已换上仓库里最好的装备（' + changed + ' 件）' : '当前装备已经是最优', changed ? 'good' : '');
     U.render();
+  }
+  function combinedScore(mainId, offId) {
+    const m = mainId ? E.ITEMS[mainId] : null;
+    const o = offId ? E.ITEMS[offId] : null;
+    return (m ? score(m) : 0) + (o ? score(o) : 0);
   }
   function score(it) {
     if (!it) return 0;

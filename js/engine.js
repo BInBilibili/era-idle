@@ -5,13 +5,15 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.16';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.17';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
   masteryXpMax: 14394,      // 文档：精通 1→100 级累计在岗秒数
   foodPerCharSec: 0.05,     // 每名上场角色每秒消耗的食物份数
   raidPeriod: 7200,         // 袭击间隔（秒）
+  raidGuardPower: 2500,
+  raidGuardMin: 0.02,
   shopRefresh: 60,
   weaponDefaultInterval: 2.4,
   mineBaseSec: 3,           // 采矿基础时长：权重 100 的矿石 = 3 秒，其余 = 3×100/权重
@@ -54,8 +56,6 @@ const ERA_LIST = (window.ERAS || [
 ]);
 const ERA_KEYS = ERA_LIST.map(e => e.id);
 const ERA_NAME = {}; ERA_LIST.forEach(e => ERA_NAME[e.id] = e.name);
-const ERA_BASE = { stone:800, medieval:3000, industrial:6500, info:14500, space:30000 };
-const ERA_WEALTH = { stone:50000, medieval:250000, industrial:1000000, info:4000000, space:16000000 };
 const ERA_MAT = { stone:'木材', medieval:'铁锭', industrial:'钢铁', info:'钛合金', space:'外星合金' };
 
 /* ---------- 数据索引 ---------- */
@@ -73,6 +73,10 @@ const FORTS = window.FORTS || [];
 const WH_UPG = window.WAREHOUSE_UPG || [];
 const GR_UPG = window.GRANARY_UPG || [];
 const PR = window.PASSIVE_RULES || {};
+
+/* 袭击数值以 PASSIVE_RULES.raidEra 为唯一数据源，避免引擎和被动表各写一份 */
+const ERA_BASE = {}, ERA_WEALTH = {};
+(PR.raidEra || []).forEach(r => { ERA_BASE[r.id] = r.base; ERA_WEALTH[r.id] = r.refWealth; });
 
 /* 发电设备（工作表.md「电力系统」：煤炭 10 / 蒸汽 25 / 风力 15 / 太阳能 25 / 核电 120 瓦）
    造价为按 4 档阶梯推导的占位值 */
@@ -1109,13 +1113,24 @@ function basePower() {
   onFieldChars().forEach(c => p += charPower(c));
   return Math.round(p);
 }
+function raidGuard() {
+  // 早期保护：基地战力没到 2500 时，袭击强度按 basePower / 2500 缩放（最低 2%）。
+  // 单人新手 42 战力 → 约 2%，避免「1 人 42 战力 vs 中世纪 1000+ 强度」；
+  // 战力 2500 以上不再缩放，后期仍需靠工事 / 人数 / 装备维持。
+  const line = GAME.raidGuardPower || 2500;
+  const min = GAME.raidGuardMin || 0.02;
+  return Math.max(min, Math.min(1, basePower() / line));
+}
 function raidStrength() {
   const era = currentEra(), ei = eraIndex(era);
-  const base = ERA_BASE[era] || 800, ref = ERA_WEALTH[era] || 50000;
-  const cap = base * 1.5;
-  const raw = base * (1 + 0.5 * Math.min(wealth() / ref, 1));
-  const prevCap = ei > 0 ? (ERA_BASE[ERA_KEYS[ei-1]] || 0) * 1.5 : 0;
-  return Math.round((prevCap + (raw - prevCap) * eraProgress()) * (0.95 + Math.random()*0.1) * (1 - fortReduce()));
+  const base = ERA_BASE[era] || 600, ref = ERA_WEALTH[era] || 50000;
+  const capMul = PR.raidCapMul || 1.5;
+  const wealthScale = PR.raidWealthScale || 0.5;
+  const raw = base * (1 + wealthScale * Math.min(wealth() / ref, 1));
+  const prevCap = ei > 0 ? (ERA_BASE[ERA_KEYS[ei-1]] || 0) * capMul : 0;
+  const interp = prevCap + (raw - prevCap) * eraProgress();
+  const rMin = PR.raidRandomMin || 0.95, rMax = PR.raidRandomMax || 1.05;
+  return Math.round(interp * raidGuard() * (rMin + Math.random() * (rMax - rMin)) * (1 - fortReduce()));
 }
 function doRaid() {
   const strength = raidStrength(), def = basePower();
@@ -1524,6 +1539,16 @@ function migrate(st) {
   merged.items = st.items || {};
   merged.chars = st.chars || {};
   merged.order = st.order || [];
+  // 双手武器规则（v0.0.17）：旧存档若同时戴着双手主手与副手，副手退回仓库
+  Object.keys(merged.chars).forEach(cid => {
+    const c = merged.chars[cid];
+    if (!c || !c.eq || !c.eq.mainhand || !c.eq.offhand) return;
+    const mh = ITEMS[c.eq.mainhand];
+    if (mh && mh.twoHanded) {
+      merged.items[c.eq.offhand] = (merged.items[c.eq.offhand] || 0) + 1;
+      c.eq.offhand = null;
+    }
+  });
   merged.jobs = merged.jobs || {};
   JOBS.forEach(j => {
     let js = merged.jobs[j.id];
@@ -1588,7 +1613,7 @@ window.Engine = {
   pull, dismissChar, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,
   codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
-  wealth, basePower, raidStrength, doRaid, tick, log, toast,
+  wealth, basePower, raidGuard, raidStrength, doRaid, tick, log, toast,
   settleOffline, offlineCombatChars,
   gold: () => S.gold, research: () => S.research,
 };
