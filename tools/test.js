@@ -240,6 +240,8 @@ ok(Math.abs(E.S.playtime - beforePlay - 3600) < 1, '游戏时长推进 3600 秒'
 const woodGain = rep.gained.find(g => g.id === E.N2I('木材'));
 ok(!!woodGain && woodGain.n > 50, '离线伐木产出木材：' + (woodGain ? woodGain.n : 0));
 ok(rep.food.after < rep.food.before, '离线期间粮仓腐坏：' + rep.food.before.toFixed(1) + ' → ' + rep.food.after.toFixed(1));
+ok(rep.mastery && rep.mastery.length > 0 && rep.mastery[0].to > rep.mastery[0].from,
+  '离线精通升级写进结算单：' + (rep.mastery[0] ? rep.mastery[0].job + ' Lv' + rep.mastery[0].from + '→' + rep.mastery[0].to : '无'));
 const offMLvl = E.masteryLvl(E.S.chars.player, 'woodcutting');
 const offMXp = E.masteryOf(E.S.chars.player, 'woodcutting').xp;
 ok(E.settleOffline(30) === null, '不足 60 秒不结算（交给正常 tick）');
@@ -272,6 +274,7 @@ ok(rep.kills > 0, '离线狩猎按期望值击杀：' + rep.kills);
 ok(E.S.stats.kills > 0 && rep.gained.length > 0, '离线战斗掉落 ' + rep.gained.length + ' 种');
 ok(!E.S.chars.player.injured, '打得过就不会重伤');
 ok(E.masteryOf(E.S.chars.player, 'hunting').xp > 0, '离线战斗也涨精通');
+ok(rep.mastery.length > 0, '结算单含战斗精通升级：' + rep.mastery.map(m => m.job + ' Lv' + m.from + '→' + m.to).join('、'));
 
 E.S = E.newState('离线重伤');
 E.S.techs['bow'] = true;

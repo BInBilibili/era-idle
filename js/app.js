@@ -538,6 +538,12 @@
     let html = `<h3>🌙 离线结算</h3>
       <div class="sub" style="margin-bottom:10px">离开了 <b>${E.fmtTime(rep.away)}</b>，按 <b>${E.fmtTime(rep.used)}</b> 结算${rep.capped ? '（离线收益上限 8 小时）' : ''}。</div>
       <div class="card">${rows.join('')}</div>`;
+    if (rep.mastery && rep.mastery.length) {
+      const mRows = rep.mastery.slice(0, 6).map(m =>
+        `<div class="row" style="justify-content:space-between;padding:2px 0"><span>📘 ${U.esc(m.char)} · ${U.esc(m.job)}</span><b class="green mono">Lv${m.from} → ${m.to}</b></div>`);
+      if (rep.mastery.length > 6) mRows.push(`<div class="tiny dim" style="margin-top:4px">另有 ${rep.mastery.length - 6} 项精通升级</div>`);
+      html += `<div class="card" style="margin-top:8px">${mRows.join('')}</div>`;
+    }
 
     const loss = [];
     if (rep.food.after < rep.food.before - 0.5) {

@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.12';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.13';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -1337,10 +1337,19 @@ function settleOffline(awaySec) {
   const rep = {
     away: awaySec, used, capped: awaySec > used + 1,
     gained: [], spent: [], gold: 0, research: 0, kills: 0,
-    injured: [], raids: [],
+    injured: [], raids: [], mastery: [],
     food: { before: before.food, after: before.food },
     stats: { battles: 0, injuredTime: 0 },
   };
+  // 精通快照：结算后对比出「谁在哪项工作上从几级升到几级」
+  const mBefore = {};
+  Object.keys(S.jobs).forEach(jobId => {
+    (S.jobs[jobId].slots || []).forEach(cid => {
+      if (!cid || !S.chars[cid]) return;
+      mBefore[cid + '|' + jobId] = masteryLvl(S.chars[cid], jobId);
+    });
+  });
+  if (S.chars.muyi && S.chars.muyi.favor >= 50) mBefore['muyi|woodcutting'] = masteryLvl(S.chars.muyi, 'woodcutting');
   const combatChars = offlineCombatChars();
   // 1) 生产 / 食物 / 腐坏 / 回血
   let left = used;
@@ -1382,8 +1391,24 @@ function settleOffline(awaySec) {
   Object.keys(S.chars).forEach(id => {
     if (S.chars[id].injured && before.injured.indexOf(id) < 0) rep.injured.push(charName(S.chars[id]));
   });
+  // 精通升级：只列真的升了级的（没有巧合，等级由 XP 决定）
+  Object.keys(mBefore).forEach(key => {
+    const at = key.indexOf('|');
+    const cid = key.slice(0, at), jobId = key.slice(at + 1);
+    const c = S.chars[cid];
+    if (!c) return;
+    const to = masteryLvl(c, jobId);
+    if (to > mBefore[key]) rep.mastery.push({
+      char: charName(c),
+      job: (JOB_BY_ID[jobId] || {}).name || jobId,
+      from: mBefore[key], to,
+    });
+  });
+  rep.mastery.sort((a, b) => (b.to - b.from) - (a.to - a.from));
   log('离线 <b>' + fmtTime(used) + '</b> 结算：' + rep.gained.length + ' 种物品 · ' +
-      (rep.kills > 0 ? '击杀 ' + fmt(rep.kills) + ' · ' : '') + '袭击 ' + rep.raids.length + ' 次');
+      (rep.kills > 0 ? '击杀 ' + fmt(rep.kills) + ' · ' : '') +
+      (rep.mastery.length ? '精通 ' + rep.mastery.length + ' 项 · ' : '') +
+      '袭击 ' + rep.raids.length + ' 次');
   return rep;
 }
 
