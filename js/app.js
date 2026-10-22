@@ -421,7 +421,7 @@
     const items = Object.keys(S.items).filter(id => (S.items[id] || 0) > 0 && E.ITEMS[id] && E.ITEMS[id].slot === slot);
     U.modal(`<h3>${U.esc(slotName(slot))} · ${U.esc(E.charName(c))}</h3>
       ${slot === 'offhand' && mh && mh.twoHanded ? `<div class="tiny dim" style="margin-bottom:8px">主手是双手武器「${U.esc(mh.name)}」，装备副手会自动把它退回仓库。</div>` : ''}
-      ${c.eq[slot] ? `<div class="card" style="margin-bottom:10px"><div class="row" style="justify-content:space-between"><b>${U.esc(E.ITEMS[c.eq[slot]].name)}</b><button data-act="unequip" data-slot="${slot}">卸下</button></div></div>` : ''}
+      ${(c.eq[slot] && E.ITEMS[c.eq[slot]]) ? `<div class="card" style="margin-bottom:10px"><div class="row" style="justify-content:space-between"><b>${U.esc(E.ITEMS[c.eq[slot]].name)}</b><button data-act="unequip" data-slot="${slot}">卸下</button></div></div>` : ''}
       ${!items.length ? '<div class="empty">仓库里没有该栏位装备</div>' : `<div class="wgrid">${items.map(id => {
         const it = E.ITEMS[id];
         return `<div class="slot sm filled" data-pick="${id}" style="cursor:pointer" title="${U.esc(it.name)}">
