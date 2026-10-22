@@ -96,9 +96,9 @@
 
   function showTips() {
     U.modal(`<h3>🏛️ 三步开始</h3>
-      <div class="card" style="margin-bottom:8px"><b>1 · 派人干活</b><div class="sub">左侧「工作」→ 点「伐木」右上角的入驻槽，选你的角色。他会每 2 秒产 1 木材。</div></div>
-      <div class="card" style="margin-bottom:8px"><b>2 · 研究科技</b><div class="sub">把角色派去「科研」攒科研点 →「科技树」研究「火 / 语言 / 石器工艺」，新工作会逐个出现。</div></div>
-      <div class="card" style="margin-bottom:8px"><b>3 · 滚起来</b><div class="sub">仓库里卖东西换金币 → 造升级项 → 提升产出；粮食会腐坏，记得保持粮仓有吃的。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>1 · 派人干活</b><div class="sub">左侧「工作」→ 打开「伐木」→ 点配方卡右上角的 ＋ 入驻槽，选你的角色。每张配方都有独立槽位。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>2 · 研究科技</b><div class="sub">把角色派去「科研」攒科研点 → 科研页下方就是科技树，研究「火 / 语言 / 石器工艺」，新工作会逐个出现。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>3 · 滚起来</b><div class="sub">仓库里卖东西换金币 → 造升级项 → 提升产出；粮食会腐坏，记得保持粮仓有吃的。右上角 ⚙ 设置里可以切换浅色主题。</div></div>
       <div class="acts"><button class="primary" data-act="closeModal">开始</button></div>`);
   }
 
