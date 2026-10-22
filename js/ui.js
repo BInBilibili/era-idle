@@ -157,16 +157,16 @@ const UI = {
       if (info.armorPen) rows.push(row('破甲', info.armorPen + '%', 'gold'));
       if (info.ignoreDR) rows.push(row('无视减免', info.ignoreDR + '%', 'gold'));
       if (info.crit) rows.push(row('暴击', info.crit + '%', 'gold'));
-      if (rows.length) h += `<div class="ttSec">战斗数值</div>${rows.join('')}`;
+      rows.push(row('战力贡献', '+' + E.fmt(info.power), 'gold'));
+      h += `<div class="ttSec">战斗数值</div><div class="ttRows">${rows.join('')}</div>`;
       if (info.special) h += `<div class="ttDesc">特性：${esc(info.special)}</div>`;
-      h += row('战力贡献', '+' + E.fmt(info.power), 'gold');
     }
 
-    h += `<div class="ttSec">经济</div>`
+    h += `<div class="ttSec">经济</div><div class="ttRows">`
       + row('卖出价', E.fmt(E.sellPrice(id)) + ' 金', 'gold')
       + row('买入价', E.fmt(E.buyPrice(id)) + ' 金')
       + row('持有', q ? E.fmt(q) + ' 件' : '<span class="dim">没有</span>')
-      + row('总价值', E.fmt(q * (it.price || 0)) + ' 金');
+      + row('总价值', E.fmt(q * (it.price || 0)) + ' 金') + '</div>';
 
     if (it.cat === 'book' && it.book) h += row('用途', '《' + esc(it.book) + '》精通 +10 级');
     if (it.kind) h += row('类别', esc(ITEM_KIND_NAME[it.kind] || it.kind));
@@ -190,7 +190,7 @@ const UI = {
     h += `<div class="ttFoot">${seen ? '已收录图鉴' : '尚未收录图鉴'}</div>`;
     return h;
   },
-  showTip(id, x, y) {
+  showTip(id, el) {
     const tip = document.getElementById('itemTip');
     if (!tip) return;
     const html = this.itemTipHtml(id);
@@ -198,16 +198,28 @@ const UI = {
     if (this._tipHtml !== html) { tip.innerHTML = html; this._tipHtml = html; }
     this._tipId = id;
     tip.classList.add('show');
-    this._placeTip(x, y);
+    this._placeTip(el);
   },
-  _placeTip(x, y) {
+  /* 固定方向：默认贴在元素正下方居中；下方放不下就翻到正上方；横向越界夹进视口 */
+  _placeTip(el) {
     const tip = document.getElementById('itemTip');
     if (!tip) return;
     const r = tip.getBoundingClientRect();
-    const pad = 10, gap = 16;
-    let left = x + gap, top = y + gap;
-    if (left + r.width > window.innerWidth - pad) left = Math.max(pad, x - r.width - gap);
-    if (top + r.height > window.innerHeight - pad) top = Math.max(pad, y - r.height - gap);
+    const a = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    const pad = 8, gap = 8, vw = window.innerWidth, vh = window.innerHeight;
+    let left, top;
+    if (a) {
+      left = a.left + a.width / 2 - r.width / 2;
+      top = a.bottom + gap;                                    // 优先下方
+      if (top + r.height > vh - pad) {
+        const above = a.top - r.height - gap;                  // 下方不够 → 上方
+        top = above >= pad ? above : Math.max(pad, vh - r.height - pad);
+      }
+    } else {
+      left = (vw - r.width) / 2;
+      top = vh - r.height - pad;
+    }
+    left = Math.min(Math.max(pad, left), Math.max(pad, vw - r.width - pad));
     tip.style.left = Math.round(left) + 'px';
     tip.style.top = Math.round(top) + 'px';
   },
@@ -226,7 +238,7 @@ const UI = {
     const id = el.dataset.tipItem;
     if (this._tipEl === el && this._tipId === id) return;
     this._tipEl = el;
-    this.showTip(id, e.clientX, e.clientY);
+    this.showTip(id, el);
   },
   /* 页面每 1.5 秒整页重绘一次，锚点元素会被换掉：用指针坐标重新找回锚点 */
   syncTip() {
@@ -236,7 +248,7 @@ const UI = {
     const el = under && under.closest ? under.closest('[data-tip-item]') : null;
     if (!el || el.dataset.tipItem !== this._tipId) return this.hideTip();
     this._tipEl = el;
-    this.showTip(this._tipId, this._tipX, this._tipY);
+    this.showTip(this._tipId, el);
   },
 
   /* ---------------- 顶栏 ---------------- */

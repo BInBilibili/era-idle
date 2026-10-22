@@ -326,6 +326,23 @@ try {
   ok(tj.badges > 0 && tj.noIcon.length === 0, '产出/消耗徽章都带物品图标：' + tj.badges + ' 个，缺图标 [' + tj.noIcon.join('、') + ']');
   ok(tj.title === -1, '不再显示「拖入角色到整张卡即可入驻」');
 
+  const tipPos = await js(`(function(){
+    const card=document.querySelector('#mainWrap [data-tip-item]');
+    if(!card) return JSON.stringify({miss:true});
+    const r=card.getBoundingClientRect();
+    card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:r.left+6,clientY:r.top+6}));
+    const t=document.getElementById('itemTip').getBoundingClientRect();
+    const anchor=UI._tipEl ? UI._tipEl.getBoundingClientRect() : null;
+    return JSON.stringify({cb:Math.round(r.bottom),ct:Math.round(r.top),tt:Math.round(t.top),tb:Math.round(t.bottom),
+      cm:Math.round(r.left+r.width/2),tm:Math.round(t.left+t.width/2),
+      ab: anchor?Math.round(anchor.bottom):-1, at: anchor?Math.round(anchor.top):-1,
+      style: document.getElementById('itemTip').style.top, tag: UI._tipEl ? UI._tipEl.className : 'none'});
+  })()`);
+  const tp = JSON.parse(tipPos);
+  const below = tp.tt >= tp.cb - 1, above = tp.tb <= tp.ct + 1;
+  ok(!tp.miss && (below || above), '面板固定在卡片上/下一侧，不跟鼠标：' + JSON.stringify(tp));
+  ok(!tp.miss && Math.abs(tp.tm - tp.cm) <= 26, '面板水平居中对齐卡片：卡片 ' + tp.cm + ' / 面板 ' + tp.tm);
+
   const tipAnchor = await js(`(function(){
     const card=document.querySelector('#mainWrap [data-tip-item]');
     if(!card) return JSON.stringify({miss:true});
