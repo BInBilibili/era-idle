@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.19';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.20';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -75,8 +75,6 @@ const PR = window.PASSIVE_RULES || {};
 /* 袭击数值以 PASSIVE_RULES.raidEra 为唯一数据源，避免引擎和被动表各写一份 */
 const ERA_BASE = {}, ERA_WEALTH = {};
 (PR.raidEra || []).forEach(r => { ERA_BASE[r.id] = r.base; ERA_WEALTH[r.id] = r.refWealth; });
-GAME.raidGuardPower = PR.raidEarlyGuardPower || 2500;
-GAME.raidGuardMin = PR.raidEarlyGuardMin || 0.02;
 
 /* 发电设备（工作表.md「电力系统」：煤炭 10 / 蒸汽 25 / 风力 15 / 太阳能 25 / 核电 120 瓦）
    造价为按 4 档阶梯推导的占位值 */
@@ -1113,24 +1111,16 @@ function basePower() {
   onFieldChars().forEach(c => p += charPower(c));
   return Math.round(p);
 }
-function raidGuard() {
-  // 早期保护：基地战力没到 2500 时，袭击强度按 basePower / 2500 缩放（最低 2%）。
-  // 单人新手 42 战力 → 约 2%，避免「1 人 42 战力 vs 中世纪 1000+ 强度」；
-  // 战力 2500 以上不再缩放，后期仍需靠工事 / 人数 / 装备维持。
-  const line = GAME.raidGuardPower || 2500;
-  const min = GAME.raidGuardMin || 0.02;
-  return Math.max(min, Math.min(1, basePower() / line));
-}
 function raidStrength() {
   const era = currentEra(), ei = eraIndex(era);
-  const base = ERA_BASE[era] || 600, ref = ERA_WEALTH[era] || 50000;
+  const base = ERA_BASE[era] || 80, ref = ERA_WEALTH[era] || 50000;
   const capMul = PR.raidCapMul || 1.5;
   const wealthScale = PR.raidWealthScale || 0.5;
   const raw = base * (1 + wealthScale * Math.min(wealth() / ref, 1));
   const prevCap = ei > 0 ? (ERA_BASE[ERA_KEYS[ei-1]] || 0) * capMul : 0;
   const interp = prevCap + (raw - prevCap) * eraProgress();
   const rMin = PR.raidRandomMin || 0.95, rMax = PR.raidRandomMax || 1.05;
-  return Math.round(interp * raidGuard() * (rMin + Math.random() * (rMax - rMin)) * (1 - fortReduce()));
+  return Math.round(interp * (rMin + Math.random() * (rMax - rMin)) * (1 - fortReduce()));
 }
 function doRaid() {
   const strength = raidStrength(), def = basePower();
@@ -1613,7 +1603,7 @@ window.Engine = {
   pull, dismissChar, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,
   codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
-  wealth, basePower, raidGuard, raidStrength, doRaid, tick, log, toast,
+  wealth, basePower, raidStrength, doRaid, tick, log, toast,
   settleOffline, offlineCombatChars,
   gold: () => S.gold, research: () => S.research,
 };

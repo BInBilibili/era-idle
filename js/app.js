@@ -298,9 +298,8 @@
       case 'buygr': { const r = E.buyGranary(); U.toast(r.ok ? '粮仓升级完成' : (r.why || '无法建造'), r.ok ? 'good' : 'bad'); U.render(); break; }
       case 'region': { E.combatState('hunting').region = +i; E.combatState('hunting').enemy = null; E.combatState('hunting').respawn = 0; U.render(); break; }
       case 'raidPreview': {
-        const st = E.raidStrength(), de = E.basePower(), guard = E.raidGuard();
+        const st = E.raidStrength(), de = E.basePower();
         U.modal(`<h3>袭击预演</h3><div class="small">袭击强度 <b class="${st > de ? 'red' : 'green'}">${E.fmt(st)}</b> vs 基地战力 <b class="gold">${E.fmt(de)}</b></div>
-          ${guard < 0.999 ? `<div class="tiny green" style="margin-top:6px">早期保护生效：强度 ×${(guard * 100).toFixed(1)}%（基地战力达到 ${E.fmt(E.GAME.raidGuardPower)} 后解除）</div>` : ''}
           <div class="sub" style="margin-top:8px">${st > de ? '按当前战力，这次会被攻破：约 10% 物品与金币会被抢走。' : '按当前战力可以击退。'}</div>
           <div class="acts"><button onclick="UI.closeModal()">知道了</button></div>`);
         break;

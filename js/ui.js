@@ -1150,7 +1150,6 @@ const UI = {
   pageDefense() {
     const S = E.S;
     const last = S.raid.last;
-    const guard = E.raidGuard();
     let h = `<div class="wrap"><div class="pagehead"><h2>防御</h2>
       <span class="badge">基地战力 <b class="gold">${E.fmt(E.basePower())}</b></span>
       <span class="badge">下次袭击 ${S.raid.next - S.playtime > 0 ? E.fmtTime(S.raid.next - S.playtime) : '判定中'}</span>
@@ -1161,7 +1160,6 @@ const UI = {
           <div class="statrow"><span class="k">上场角色战力</span><span class="mono">${E.fmt(E.basePower() - E.fortPower())}</span></div>
           <div class="statrow"><span class="k">财富值（会被抢）</span><span class="mono">${E.fmt(E.wealth())}</span></div>
           <div class="statrow"><span class="k">预计袭击强度</span><span class="mono red">${E.fmt(E.raidStrength())}</span></div>
-          ${guard < 0.999 ? `<div class="tiny green" style="margin-top:4px">早期保护生效：强度 ×${(guard * 100).toFixed(1)}%（基地战力达到 ${E.fmt(E.GAME.raidGuardPower)} 后解除）</div>` : ''}
           <div class="row" style="margin-top:10px"><button data-act="raidPreview">预演袭击（不结算）</button></div>
           <div class="tiny dim" style="margin-top:8px">每 2 小时判定一次。强度 ≤ 战力则击退；否则仓库物品与金币各被抢 10%。</div>
         </div>

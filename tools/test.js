@@ -365,16 +365,17 @@ const card = U.recipeCard(inJob, E.S.jobs[inJob.id], E.jobRecipes(inJob)[0], 0);
 ok(card.includes('消耗：') && card.includes('<span class="red">'), '项目卡消耗行：缺料名称标红（' + inJob.name + '）');
 ok(!card.split('产出：')[1].split('<br>')[0].includes('class="red"'), '项目卡产出行不标红');
 
-console.log('== 袭击：早期保护 ==');
-E.S = E.newState('早期保护');
+console.log('== 袭击：时代基数 ×0.1（v0.0.20）==');
+const raidBase = Object.fromEntries(E.PR.raidEra.map(r => [r.id, r.base]));
+ok(raidBase.stone === 80 && raidBase.medieval === 300 && raidBase.industrial === 650 &&
+   raidBase.info === 1450 && raidBase.space === 3000, '时代基数 80/300/650/1450/3000');
+ok(E.raidGuard === undefined, '已移除早期保护缩放');
+E.S = E.newState('低战力袭击');
 E.S.techs.writing = true;    // 直接进入中世纪（1/8 进度）
-const earlyPower = E.basePower();
-const earlyMax = Math.max(...Array.from({ length: 80 }, () => E.raidStrength()));
-ok(E.raidGuard() <= 0.05, '新手基地战力 ' + earlyPower + ' → 早期保护系数 ' + E.raidGuard().toFixed(3));
-ok(earlyMax < 40, '新手袭击强度 ' + earlyMax + '（旧公式约 1400）');
-E.S.chars.player.lv = { hp: 10, atk: 10, str: 10, def: 10 };
-E.S.forts = E.FORTS.map(() => true);
-ok(E.raidGuard() === 1 && E.basePower() > 2500, '基地战力 ' + E.basePower() + ' → 早期保护解除');
+const lowPower = E.basePower();
+const lowSamples = Array.from({ length: 120 }, () => E.raidStrength());
+const lowMin = Math.min(...lowSamples), lowMax = Math.max(...lowSamples);
+ok(lowPower === 12 && lowMin >= 100 && lowMax <= 200, '中世纪 1/8 进度：战力 ' + lowPower + ' → 强度 ' + lowMin + '~' + lowMax);
 
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);
