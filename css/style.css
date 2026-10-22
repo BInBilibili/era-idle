@@ -411,4 +411,12 @@ html[data-theme="light"] .card.claim{border-color:#c9a24a;box-shadow:0 0 0 1px #
 .foeArt.xs{width:25px;height:25px;border-radius:6px;margin-right:6px;vertical-align:middle}
 .foeArt.xs .icSvg{width:23px;height:23px;vertical-align:0}
 .badge.bdFoe{display:inline-flex;align-items:center;padding-left:4px;padding-right:7px}
+
+/* 工作 / 被动图标的容器尺寸 */
+nav#side .nav .ic .icSvg{width:17px;height:17px;vertical-align:0;margin:0 auto}
+.chip .corner .icSvg{width:18px;height:18px;vertical-align:0}
+.upgIc{display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;vertical-align:-7px;margin-right:6px}
+.upgIc .icSvg{width:24px;height:24px;vertical-align:0}
+.upgIc.sm{width:20px;height:20px;vertical-align:-5px;margin-right:5px}
+.upgIc.sm .icSvg{width:20px;height:20px}
 html[data-theme="light"] .foeArt{background:radial-gradient(circle at 50% 64%,#e6eef8 0%,#f8fbfe 72%);border-color:#cfdbe8}

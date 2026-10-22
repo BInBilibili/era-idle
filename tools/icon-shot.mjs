@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 const arg = process.argv[2] || '0';
 const to = process.argv[3] || '9999';
 const out = process.argv[4] || join(tmpdir(), 'era-icons', `sheet-${arg}-${to}.png`);
-const query = arg.startsWith('ids=') ? `?${arg}&all=1` : `?from=${arg}&to=${to}`;const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const query = arg.startsWith('ids=') || arg.startsWith('group=') ? `?${arg}&all=1` : `?from=${arg}&to=${to}`;const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const port = 9600 + Math.floor(Math.random() * 300);
 const prof = mkdtempSync(join(tmpdir(), 'era-is-'));
 const url = pathToFileURL(join(process.cwd(), 'tools', 'icon-sheet.html')).href + query;

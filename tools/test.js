@@ -44,6 +44,12 @@ if (ICONS) {
   ok(Object.keys(ICONS.ENEMY_SPEC).every(id => E.ENEMIES.some(e => e.id === id)), 'ENEMY_SPEC 里没有已删除的敌人 id');
   const noId = ['stone', 'wood', 'iron_sword', 'book_mining'].every(id => !/id="/.test(ICONS.item(id)) && !/<defs/.test(ICONS.item(id)));
   ok(noId, '图标不含 id/defs（重复渲染不会串色）');
+  ok(E.JOBS.every(j => { const s = ICONS.job(j); return s.startsWith('<svg class="icSvg"') && s.length > 220; }), '全部 ' + E.JOBS.length + ' 份工作都有图标');
+  const passAll = [].concat(E.HOUSING, E.COMFORT, E.FORTS);
+  ok(passAll.every(p => { const s = ICONS.passive(p.name); return s.startsWith('<svg class="icSvg"') && s.length > 220; }), '全部 ' + passAll.length + ' 项被动都有图标');
+  ok(['housing', 'defense', 'shop', 'characters', 'codex', 'recruit', 'warehouse'].every(k => ICONS.nav(k).startsWith('<svg')), '7 个左侧导航图标都在');
+  ok(ICONS.job('woodcutting') !== ICONS.job('mining') && ICONS.passive('石墙') !== ICONS.passive('土垒'), '不同工作 / 不同工事图标不同');
+  ok(ICONS.job('black_soul') && ICONS.job({ id: 'hunting' }) === ICONS.job('hunting'), '工作图标可传对象或 id');
 }
 
 console.log('== 新档 ==');

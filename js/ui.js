@@ -105,7 +105,20 @@ const UI = {
     const svg = window.ICONS.enemy(e.id || e.name || e);
     return svg ? `<span class="foeArt ${cls || ''}">${svg}</span>` : '';
   },
-  jobIcon(j) { return j.icon || (j.special === 'hunting' ? '🏹' : j.special === 'mining' ? '⛏️' : j.special === 'power' ? '⚡' : j.special === 'research' ? '🔬' : j.special === 'blackSoul' ? '💀' : j.special === 'eraSim' ? '🧟' : '🔨'); },
+  jobIcon(j) {
+    if (!j) return '';
+    if (window.ICONS) { const s = window.ICONS.job(j); if (s) return s; }
+    return j.icon || '🔨';
+  },
+  /* 住房 / 舒适度 / 防御工事 的小图标（名字来自 passives.js） */
+  passIcon(name, small) {
+    if (!name) return '';
+    if (window.ICONS) {
+      const s = window.ICONS.passive(name);
+      if (s) return `<span class="upgIc${small ? ' sm' : ''}">${s}</span>`;
+    }
+    return '';
+  },
 
   /* ---------------- 物品面板（悬浮提示） ----------------
      数据来自两处：items.js 的静态字段 + enemies.js 的 WEAPON_COMBAT（按武器中文名索引）。
@@ -307,17 +320,18 @@ const UI = {
     const gifts = E.JOBS.filter(j => (j.special === 'blackSoul' || j.special === 'eraSim') && E.jobVisible(j));
     if (gifts.length) {
       h += `<div class="grp">角色特技</div>`;
-      gifts.forEach(j => h += nav('job:' + j.id, j.special === 'blackSoul' ? '💀' : '🧟', j.name + '（' + (j.staffOnly || (j.special === 'blackSoul' ? '星见由岐' : '大少')) + '）', ''));
+      gifts.forEach(j => h += nav('job:' + j.id, this.jobIcon(j), j.name + '（' + (j.staffOnly || (j.special === 'blackSoul' ? '星见由岐' : '大少')) + '）', ''));
     }
     // 被动
+    const nv = k => (window.ICONS ? window.ICONS.nav(k) : '•');
     h += `<div class="grp">被动</div>`;
-    h += nav('housing', '🏠', '住所与娱乐', E.onFieldChars().length + '/' + E.onFieldCap());
-    h += nav('defense', '🛡️', '防御', E.fmt(E.basePower()));
-    h += nav('shop', '🏪', '商店', E.fmt(S.gold) + ' 金');
-    h += nav('characters', '👥', '角色', Object.keys(S.chars).length + ' 人');
-    h += nav('codex', '📚', '图鉴', this.codexPct() + '%');
-    if (S.discoveredShard || E.shardCount() > 0) h += nav('recruit', '💎', '招募', E.fmt(E.shardCount()) + ' 碎片');
-    h += nav('warehouse', '📦', '仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
+    h += nav('housing', nv('housing'), '住所与娱乐', E.onFieldChars().length + '/' + E.onFieldCap());
+    h += nav('defense', nv('defense'), '防御', E.fmt(E.basePower()));
+    h += nav('shop', nv('shop'), '商店', E.fmt(S.gold) + ' 金');
+    h += nav('characters', nv('characters'), '角色', Object.keys(S.chars).length + ' 人');
+    h += nav('codex', nv('codex'), '图鉴', this.codexPct() + '%');
+    if (S.discoveredShard || E.shardCount() > 0) h += nav('recruit', nv('recruit'), '招募', E.fmt(E.shardCount()) + ' 碎片');
+    h += nav('warehouse', nv('warehouse'), '仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
     // 工作
     h += `<div class="grp">工作</div>`;
     E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim') && E.jobVisible(j)).forEach(j => {
@@ -1105,7 +1119,7 @@ const UI = {
             const done = i < S.housing, cur = i === S.housing;
             if (!done && !cur) return '';
             return `<div class="card upg ${done ? 'done' : ''}" style="margin-bottom:8px">
-              <div class="row" style="justify-content:space-between"><b class="small">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">可上场 ${t.cap} 人</span></div>
+              <div class="row" style="justify-content:space-between">${this.passIcon(t.name)}<b class="small" style="flex:1">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">可上场 ${t.cap} 人</span></div>
               ${done ? '<div class="tiny green">✓ 已建成</div>' : `<div class="price" style="margin-top:4px">${this.priceLine(t.cost)}</div>
               <button class="primary" style="margin-top:6px;width:100%" data-act="buyhouse" ${E.affordCost(t.cost) ? '' : 'disabled'}>建造</button>`}
             </div>`;
@@ -1120,7 +1134,7 @@ const UI = {
             const done = !!S.comfort[i];
             if (!done && !this.has30(t.cost)) return '';
             return `<div class="card upg ${done ? 'done' : ''}" style="padding:8px 10px">
-              <div class="row" style="justify-content:space-between"><b class="tiny">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">+${t.value}</span></div>
+              <div class="row" style="justify-content:space-between">${this.passIcon(t.name, true)}<b class="tiny" style="flex:1">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">+${t.value}</span></div>
               ${done ? '' : `<div class="price" style="margin-top:4px">${this.priceLine(t.cost)}</div>
                 <button style="margin-top:5px;width:100%" data-act="buycomfort" data-i="${i}" ${E.affordCost(t.cost) ? '' : 'disabled'}>购买</button>`}
             </div>`;
@@ -1166,7 +1180,7 @@ const UI = {
         const builtCount = S.forts.filter(Boolean).length;
         if (!done && i > builtCount) return '';
         return `<div class="card upg ${done ? 'done' : ''}">
-          <div class="row" style="justify-content:space-between"><b class="small">${this.esc(f.name)}</b><span class="badge ${done ? 'on' : ''}">战力 ${E.fmt(f.power)}</span></div>
+          <div class="row" style="justify-content:space-between">${this.passIcon(f.name)}<b class="small" style="flex:1">${this.esc(f.name)}</b><span class="badge ${done ? 'on' : ''}">战力 ${E.fmt(f.power)}</span></div>
           <div class="tiny muted">${f.reduce ? '袭击强度 -' + Math.round(f.reduce * 100) + '% ' : ''}${f.watt ? '⚡ ' + f.watt + ' 瓦' : ''}</div>
           ${done ? '' : `<div class="price" style="margin-top:6px">${this.priceLine(f.cost)}</div>
           <button class="primary" style="margin-top:8px;width:100%" data-act="buyfort" data-i="${i}" ${E.affordCost(f.cost) ? '' : 'disabled'}>建造</button>`}

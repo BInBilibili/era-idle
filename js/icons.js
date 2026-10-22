@@ -2383,15 +2383,1258 @@
     return s;
   };
 
+  /* ============================================================
+   * 工作图标（33 份工作）
+   * ============================================================ */
+  const JOB_SH = {};
+  /* 地面阴影（默认 y=43） */
+  const gsh = (w, y) => sh(24, y || 43, w || 13, 2.1);
+
+  /* 伐木：斧头剁进圆木 */
+  JOB_SH.woodcutting = function () {
+    const w = PAL.wood, k = PAL.bark, st = PAL.steel;
+    return gsh(15) +
+      sil('M7 31 H32 V41 H7 Z', w.m) +
+      det('M7 31 H32 V34.4 H7 Z', w.l) +
+      det('M7 38.4 H32 V41 H7 Z', w.d) +
+      el(32, 36, 3.4, 5, w.l) + el(32, 36, 2.2, 3.2, w.m) + el(32, 36, .9, 1.4, w.d) +
+      ln('M7 31 H32 V41 H7 Z', OUT, 1.4) +
+      ln('M11 34.6 H20', w.d, .9) +
+      ln('M20 33 L30 9', k.m, 3.2) + ln('M20 33 L30 9', k.l, 1) +
+      sil('M27 3 Q37 4 39 12 Q38 17 30 17 Q24 15 24 10 Q24 6 27 3 Z', st.m) +
+      det('M27 3 Q37 4 39 12 L33 11 Q27 9 27 3 Z', st.l) +
+      det('M25 13 Q31 15 37 13 Q34 17 29 16.6 Q26 15.4 25 13 Z', st.d);
+  };
+
+  /* 采矿：镐 + 矿石堆 */
+  JOB_SH.mining = function () {
+    const st = PAL.steel, w = PAL.wood, r = PAL.stone;
+    return gsh(14) +
+      sil('M6 35 Q10 27 18 28 Q24 25 31 28 Q40 29 42 35 Q41 40 35 41 H13 Q7 40 6 35 Z', r.m) +
+      det('M10 34 Q15 30 20 31 Q25 29 30 31 Q36 32 38 35 Q30 33 24 34 Q16 33 10 34 Z', r.l) +
+      det('M9 38 Q18 35 27 37 Q35 36 40 38 Q36 41 29 41 H15 Q10 41 9 38 Z', r.d) +
+      ln('M6 35 Q10 27 18 28 Q24 25 31 28 Q40 29 42 35 Q41 40 35 41 H13 Q7 40 6 35 Z', OUT, 1.5) +
+      ln('M18 34 L30 8', w.m, 3) + ln('M18 34 L30 8', w.l, 1) +
+      sil('M14 18 Q16 9 24 7 Q33 8 38 17 Q33 13 28 12.4 Q23 12 19 13.6 Q16 15 14 18 Z', st.m) +
+      det('M14 18 Q16 9 24 7 Q33 8 38 17 Q32 12 24 11.4 Q18 12 14 18 Z', st.l) +
+      ln('M22 11.4 Q26 10.8 31 12.4', st.d, 1);
+  };
+
+  /* 采集：装满果实的篮子 */
+  JOB_SH.gathering = function () {
+    const b = PAL.hemp;
+    return gsh(13) +
+      ci(16, 19, 4.4, PAL.berry.m) + ci(15.2, 18, 1.7, PAL.berry.l) +
+      ci(25, 17, 4.8, PAL.veg.m) + ci(24, 16, 1.9, PAL.veg.l) +
+      ci(33, 20, 4, PAL.grain.m) + ci(32.2, 19, 1.6, PAL.grain.l) +
+      sil('M10 25 H38 L35 40 H13 Z', b.m) +
+      det('M10 25 H38 V28.6 H10 Z', b.l) +
+      det('M13 25 L14 40 H17 L16 25 Z', b.d) +
+      ln('M12 31 H36 M13 35 H35', b.d, 1) +
+      ln('M13 25 L9 33 M35 25 L39 33', b.d, 2.2) +
+      ln('M10 25 H38 L35 40 H13 Z', OUT, 1.4) +
+      ln('M14 25 Q24 12 34 25', b.d, 2);
+  };
+
+  /* 种植：土垄 + 幼苗 */
+  JOB_SH.farming = function () {
+    const g = PAL.herbCrop, s = PAL.tuber;
+    return gsh(14) +
+      sil('M6 34 Q16 29 24 31 Q33 29 42 34 Q37 41 24 41 Q11 41 6 34 Z', s.m) +
+      det('M9 35 Q17 32 24 33.4 Q32 32 39 35 Q33 39 24 39 Q14 39 9 35 Z', s.l) +
+      det('M7 34 Q16 30 24 31.6 Q33 30 41 34 Q34 36 24 35.4 Q16 36 7 34 Z', s.d) +
+      ln('M6 34 Q16 29 24 31 Q33 29 42 34 Q37 41 24 41 Q11 41 6 34 Z', OUT, 1.4) +
+      ln('M24 33 V17', g.d, 2.4) +
+      sil('M24 26 Q14 25 11 16 Q21 17 24 26 Z', g.m) +
+      sil('M24 22 Q34 21 37 12 Q27 13 24 22 Z', g.l) +
+      sil('M24 19 Q20 11 24 6 Q28 11 24 19 Z', g.m) +
+      ci(15, 36, 1.1, PAL.seedBean.m) + ci(32, 36.6, 1.1, PAL.seedBean.m);
+  };
+
+  /* 狩猎：弓 + 箭 */
+  JOB_SH.hunting = function () {
+    const w = PAL.wood, st = PAL.steel;
+    return gsh(13) +
+      sil('M16 5 Q3 24 16 43 L20 41 Q9 24 20 7 Z', w.m) +
+      det('M18 8 Q8 24 18 40 L20 41 Q10 24 20 7 Z', w.l) +
+      ln('M16 5 Q3 24 16 43', OUT, 1.4) +
+      ln('M16 6.4 V41.6', '#e9dfcc', 1.1) +
+      ln('M13 24 H37', w.d, 2.2) +
+      sil('M37 24 L43 21 L41 24 L43 27 Z', st.m) +
+      ln('M14 24 L10 20 M14 24 L10 28', PAL.featherBrown.l, 1.6) +
+      ln('M31 24 H36', w.l, 1);
+  };
+
+  /* 畜牧：绵羊 + 围栏 */
+  JOB_SH.husbandry = function () {
+    const wool = PAL.furGoat, face = PAL.furMoose, fence = PAL.plank;
+    return gsh(14) +
+      ln('M7 35 V41 M15 35 V41 M33 35 V41 M41 35 V41', fence.d, 2) +
+      ln('M7 36.6 H41', fence.m, 1.8) +
+      ci(13, 24, 6.6, wool.m) + ci(20, 21, 7.2, wool.m) + ci(27, 24, 6.4, wool.m) +
+      ci(15, 29, 5.4, wool.m) + ci(24, 29, 5.6, wool.m) +
+      det('M7 22 Q10 15 19 16 Q27 15 31 22 Q25 18 19 19 Q13 18 7 22 Z', wool.l) +
+      det('M9 30 Q14 34 20 33 Q26 34 31 30 Q28 35 20 35 Q13 35 9 30 Z', wool.d) +
+      sil('M28 17 Q38 16 40 23 Q40 31 32 31 Q27 29 26 23 Q26 19 28 17 Z', face.m) +
+      det('M27 18 Q32 16 36 17 Q33 20 27 20 Z', face.l) +
+      ci(36.6, 23.4, 1.2, '#241b13') +
+      ln('M29 19.4 Q32 18 35 19.4', face.d, 1.2) +
+      ln('M14 33 V38 M20 34 V39 M27 33 V38', face.d, 2) +
+      ln('M33 32 V37 M37 31 V36', face.d, 1.8);
+  };
+
+  /* 烹饪：吊锅 + 热气 */
+  JOB_SH.cooking = function () {
+    const pot = PAL.iron, hot = PAL.ember;
+    return gsh(13) +
+      ln('M24 4 Q20 8 24 11 Q28 14 24 18', '#f2ead8', 1.6, '.5') +
+      ln('M33 6 Q29 9 33 12 Q37 15 33 19', '#f2ead8', 1.4, '.38') +
+      sil('M9 22 H39 L36 39 Q24 43 12 39 Z', pot.m) +
+      det('M11 24 H37 V28 H11 Z', pot.l) +
+      det('M13 33 Q24 36 35 33 Q33 40 24 41 Q15 40 13 33 Z', pot.d) +
+      el(24, 22, 15, 4, pot.d) + el(24, 22, 12.4, 3, hot.m) + el(24, 22, 8, 1.8, hot.l) +
+      ln('M9 22 H39 L36 39 Q24 43 12 39 Z', OUT, 1.5) +
+      ln('M9 24 Q5 26 7 31 M39 24 Q43 26 41 31', OUT, 1.8);
+  };
+
+  /* 加工：锤 + 扳手 */
+  JOB_SH.crafting = function () {
+    const st = PAL.steel, w = PAL.wood;
+    return gsh(13) +
+      ln('M15 40 L31 12', w.m, 3.2) + ln('M15 40 L31 12', w.l, 1) +
+      sil('M27 6 Q34 3 40 6 Q41 13 35 16 Q30 16 27 12 Z', st.m) +
+      det('M27 6 Q34 3 40 6 L36 8 Q31 6 27 10 Z', st.l) +
+      ln('M33 40 L17 12', st.m, 2.6) +
+      sil('M13 6 Q8 6 7 11 Q6 15 10 16 L14 12 L17 15 L16 8 Z', st.m) +
+      ci(33, 40, 2.4, st.d) + ci(33, 40, 1.1, '#241b13');
+  };
+
+  /* 科研：显微镜 */
+  JOB_SH.research = function () {
+    const st = PAL.steel, g = PAL.glass, b = PAL.pcb;
+    return gsh(12) +
+      ci(24, 20, 13, b.l, ' opacity=".10"') +
+      sil('M11 37 H37 L34 42 H14 Z', st.m) +
+      det('M11 37 H37 L36 39.4 H12 Z', st.l) +
+      ln('M11 37 H37 L34 42 H14 Z', OUT, 1.4) +
+      sil('M22 24 H26 V37 H22 Z', st.m) +
+      ln('M24 30 H17', st.d, 3) +
+      sil('M12.6 28 H21 L19.4 31.4 H14.2 Z', st.d) +
+      sil('M21.2 26.4 H26.8 V29.4 H21.2 Z', g.m) +
+      rot(22, sil('M25 10 H30 V23 H25 Z', st.d) + det('M25 10 H30 V13 H25 Z', st.m), 27.5, 17) +
+      ci(29.4, 9.6, 3.1, st.l) + ci(29.4, 9.6, 1.7, g.l);
+  };
+
+  /* 切石机：圆锯 + 石块 */
+  JOB_SH.stonecutting = function () {
+    const st = PAL.steel, r = PAL.granite;
+    return gsh(14) +
+      det(cogPath(17, 26, 16.6, 13, 14), st.m) +
+      ci(17, 26, 12.2, st.l) +
+      ci(17, 26, 8.6, st.m) +
+      ci(17, 26, 2.6, st.d) +
+      ln('M17 13.6 V38.4 M4.6 26 H29.4', st.d, 1, '.55') +
+      sil('M25 31 H42 V40 H25 Z', r.m) +
+      det('M25 31 H42 V34 H25 Z', r.l) +
+      ln('M25 31 H42 V40 H25 Z', OUT, 1.4) +
+      ln('M33 37 Q37 35 41 37', '#ffe08a', 1.7, '.95') +
+      ln('M31 41 Q36 39 40 41', '#ffe08a', 1.3, '.7');
+  };
+
+  /* 制陶：陶罐 + 轮盘 */
+  JOB_SH.pottery = function () {
+    const c = PAL.clay, w = PAL.wood;
+    return gsh(13) +
+      sil('M17 33 H31 L33 38 H15 Z', w.m) +
+      det('M15 38 H33 V41 H15 Z', w.d) +
+      ln('M17 33 H31 L33 38 H15 Z', OUT, 1.3) +
+      sil('M9 25 H39 V29 H9 Z', PAL.stone.m) +
+      ln('M9 25 H39 V29 H9 Z', OUT, 1.3) +
+      sil('M16 25 Q13 18 17 12 Q21 8 24 8 Q28 8 31 12 Q35 18 32 25 Z', c.m) +
+      det('M16 25 Q13 18 17 12 Q21 8 24 8 L24 25 Z', c.l) +
+      det('M20 21 H28 M19 17 H29', c.d, 1.2) +
+      el(24, 8, 6, 2.2, c.d) + el(24, 8, 4.2, 1.3, c.l) +
+      ln('M16 25 Q13 18 17 12 Q21 8 24 8 Q28 8 31 12 Q35 18 32 25 Z', OUT, 1.5) +
+      ln('M8 18 Q5 20 7 23 M40 17 Q43 19 41 22', c.d, 1.4, '.6');
+  };
+
+  /* 医疗：急救绷带 + 十字 */
+  JOB_SH.medicine = function () {
+    const cl = PAL.cloth, red = PAL.potionRed;
+    return gsh(12) +
+      sil('M11 18 H37 V36 H11 Z', cl.m) +
+      det('M11 18 H37 V22 H11 Z', cl.l) +
+      det('M11 32 H37 V36 H11 Z', cl.d) +
+      ln('M11 18 H37 V36 H11 Z', OUT, 1.4) +
+      ln('M15 23 H33 M15 27.6 H33 M15 31.6 H25', cl.d, 1.4) +
+      sil('M19 8 H29 V13 H34 V23 H29 V28 H19 V23 H14 V13 H19 Z', red.m) +
+      det('M19 8 H29 V13 H19 Z', red.l) +
+      ln('M19 8 H29 V13 H34 V23 H29 V28 H19 V23 H14 V13 H19 Z', OUT, 1.4);
+  };
+
+  /* 熔炼：砖炉 + 火焰 */
+  JOB_SH.smelting = function () {
+    const br = PAL.rock, hot = PAL.ember, st = PAL.steel;
+    return gsh(13) +
+      ln('M26 4 Q22 8 26 11 Q30 14 26 18', '#8b949e', 1.6, '.45') +
+      sil('M7 20 H41 L39 41 H9 Z', br.m) +
+      det('M7 20 H41 V24 H7 Z', br.l) +
+      det('M9 36 H39 V41 H9 Z', br.d) +
+      ln('M7 20 H41 L39 41 H9 Z', OUT, 1.5) +
+      ln('M14 20 V14 H34 V20', st.d, 2.2) +
+      sil('M15 41 V27 Q24 22 33 27 V41 Z', '#2a1c15') +
+      det('M18 40 Q19 32 24 30 Q29 32 30 40 Z', hot.m) +
+      det('M21 40 Q21.6 35 24 34 Q26.4 35 27 40 Z', hot.l) +
+      ln('M15 41 V27 Q24 22 33 27 V41', OUT, 1.4) +
+      ln('M11 28 H14 M34 28 H37', br.d, 1.2);
+  };
+
+  /* 锻造：铁砧 + 锤 */
+  JOB_SH.forging = function () {
+    const st = PAL.steel, w = PAL.wood, hot = PAL.ember;
+    return gsh(13) +
+      sil('M9 24 H33 L31 31 Q30 33 26 33 H16 Q12 33 11 31 Z', st.m) +
+      det('M9 24 H33 V26.6 H9 Z', st.l) +
+      sil('M38 24 Q43 25 42 28 Q40 30 36 29 L33 26 Z', st.m) +
+      sil('M15 33 H27 L25 38 H17 Z', st.d) +
+      sil('M11 38 H31 L30 42 H12 Z', st.d) +
+      ln('M9 24 H33 L31 31 Q30 33 26 33 H16 Q12 33 11 31 Z', OUT, 1.5) +
+      ln('M15 33 H27 L25 38 H17 Z M11 38 H31 L30 42 H12 Z', OUT, 1.3) +
+      ln('M28 6 L24 12', w.m, 3) +
+      sil('M30 3 H35 V9 H30 Z', st.d) +
+      ln('M24 13 Q27 18 24 22 M28 8 Q31 11 30 14', hot.l, 1.3, '.85');
+  };
+
+  /* 木工：手锯 + 木板 */
+  JOB_SH.carpentry = function () {
+    const st = PAL.steel, w = PAL.wood, pl = PAL.plank;
+    let teeth = '';
+    for (let i = 0; i < 9; i++) teeth += det('M' + (15 + i * 2.6) + ' 25 L' + (16.3 + i * 2.6) + ' 28.4 L' + (17.6 + i * 2.6) + ' 25 Z', st.d);
+    return gsh(14) +
+      sil('M6 32 H30 L28 39 H6 Z', pl.m) +
+      det('M6 32 H30 V34 H6 Z', pl.l) +
+      ln('M6 32 H30 L28 39 H6 Z', OUT, 1.3) +
+      ln('M10 36 H24', pl.d, 1) +
+      sil('M13 14 H38 L40 25 H13 Z', st.m) +
+      det('M13 14 H38 L39 18 H13 Z', st.l) +
+      teeth +
+      sil('M6 13 Q3 13 3 18 V26 Q3 30 6 30 H14 V13 Z', w.m) +
+      det('M6 16 H11 V27 H6 Z', w.d) +
+      ln('M13 14 H38 L40 25 H13 Z M6 13 H14 V30 H6 Q3 30 3 26 V18 Q3 13 6 13 Z', OUT, 1.4);
+  };
+
+  /* 纺织：线卷 + 针 */
+  JOB_SH.weaving = function () {
+    const w = PAL.wood, c = PAL.linen, st = PAL.steel;
+    return gsh(12) +
+      sil('M13 12 H31 V14 H13 Z', w.m) +
+      sil('M13 34 H31 V36 H13 Z', w.m) +
+      sil('M15 14 H29 V34 H15 Z', c.m) +
+      det('M15 17 H29 M15 21 H29 M15 25 H29 M15 29 H29', c.d) +
+      det('M15 14 H22 V34 H15 Z', c.l) +
+      ln('M13 12 H31 V14 H13 Z M13 34 H31 V36 H13 Z M15 14 H29 V34 H15 Z', OUT, 1.3) +
+      ln('M31 30 Q38 26 42 18', st.d, 2) +
+      ln('M31 32 Q36 28 39 20', c.l, 1.2);
+  };
+
+  /* 裁缝：剪刀 + 布 */
+  JOB_SH.tailoring = function () {
+    const cl = PAL.cloth, st = PAL.steel, w = PAL.wood;
+    return gsh(13) +
+      sil('M4 30 H22 L20 40 H4 Z', cl.m) +
+      det('M4 30 H22 V33 H4 Z', cl.l) +
+      det('M4 37 H20 V40 H4 Z', cl.d) +
+      ln('M4 30 H22 L20 40 H4 Z', OUT, 1.3) +
+      ln('M7 34 H18', cl.d, 1) +
+      sil('M21.4 6 L25 6 L26.6 20 L22.6 20 Z', st.m) +
+      sil('M28.6 6 L25.2 6 L23.6 20 L27.6 20 Z', st.l) +
+      ci(24, 21, 2.4, st.d) + ci(24, 21, 1.1, '#241b13') +
+      ln('M22.6 22 Q19 30 18 36 M25.4 22 Q29 30 30 36', st.d, 2.2) +
+      ci(17, 37.6, 3.4, 'none', ' stroke="' + OUT + '" stroke-width="2.4"') +
+      ci(31, 37.6, 3.4, 'none', ' stroke="' + OUT + '" stroke-width="2.4"') +
+      ci(33, 34, 1.4, w.l);
+  };
+
+  /* 药剂：研钵 + 药杵 */
+  JOB_SH.pharmacy = function () {
+    const g = PAL.glass, liq = PAL.potionGreen, st = PAL.steel;
+    return gsh(13) +
+      sil('M10 22 H38 L34 36 Q24 41 14 36 Z', g.m) +
+      det('M10 22 H38 V25 H10 Z', g.l) +
+      det('M13 31 Q24 35 35 31 Q32 37 24 38 Q16 37 13 31 Z', liq.m) +
+      ln('M10 22 H38 L34 36 Q24 41 14 36 Z', OUT, 1.5) +
+      ln('M31 22 L38 8', st.m, 3.2) + ci(38.6, 7, 2.4, st.l) +
+      ci(18, 18, 2.2, liq.l) + ci(28, 16, 1.6, liq.m) + ci(23, 13, 1.2, liq.l);
+  };
+
+  /* 编织：挂毯 + 织机 */
+  JOB_SH.carpet_weaving = function () {
+    const cp = PAL.carpet, w = PAL.wood;
+    return gsh(13) +
+      ln('M10 8 H38', w.m, 2.6) +
+      ln('M12 8 V41 M36 8 V41', w.d, 2) +
+      sil('M14 10 H34 V34 H14 Z', cp.m) +
+      det('M14 10 H34 V16 H14 Z', cp.l) +
+      det('M18 18 H30 V22 H18 Z', PAL.potionGold.m) +
+      det('M18 26 H30 V30 H18 Z', PAL.potionGold.m) +
+      ln('M14 10 H34 V34 H14 Z', OUT, 1.4) +
+      (function () { let s2 = ''; for (let i = 0; i < 6; i++) s2 += ln('M' + (15 + i * 3.6) + ' 34 V39', cp.d, 1.4); return s2; })();
+  };
+
+  /* 造纸：纸张 + 滚筒 */
+  JOB_SH.papermaking = function () {
+    const p = PAL.paper, w = PAL.wood, st = PAL.steel;
+    return gsh(13) +
+      rot(-9, sil('M12 12 H34 V34 H12 Z', p.d), 23, 23) +
+      sil('M10 16 H34 L36 32 Q30 37 22 36 Q13 36 10 32 Z', p.m) +
+      det('M10 16 H34 L34.6 20 H10 Z', p.l) +
+      ln('M10 16 H34 L36 32 Q30 37 22 36 Q13 36 10 32 Z', OUT, 1.4) +
+      ln('M14 22 H30 M14 25.6 H30 M14 29.2 H26', p.d, 1.1) +
+      sil('M30 32 H43 V38 H30 Z', w.m) +
+      det('M30 32 H43 V33.6 H30 Z', w.l) +
+      ln('M30 32 H43 V38 H30 Z', OUT, 1.2) +
+      ci(31.4, 35, 1.4, st.d) + ci(41.6, 35, 1.4, st.d) +
+      ln('M9 30 Q6 32 5 36', p.d, 1.2);
+  };
+
+  /* 电力：电池 + 闪电 */
+  JOB_SH.power = function () {
+    const p = PAL.power, en = PAL.energy;
+    return gsh(13) +
+      sil('M25 12 H37 V40 H25 Z', p.m) +
+      det('M25 12 H37 V17 H25 Z', p.l) +
+      det('M25 35 H37 V40 H25 Z', p.d) +
+      sil('M29 6 H33 V12 H29 Z', p.d) +
+      ln('M25 12 H37 V40 H25 Z', OUT, 1.4) +
+      sil('M21 6 L9 25 H18 L14 42 L31 20 H21 L25 6 Z', en.m) +
+      det('M21 6 L9 25 H18 L17 20 L25 10 Z', en.l) +
+      ln('M21 6 L9 25 H18 L14 42 L31 20 H21 L25 6 Z', OUT, 1.6) +
+      ln('M28 20 H33 M28 25 H33', p.l, 1, '.5');
+  };
+
+  /* 机械加工：齿轮 + 钻头 */
+  JOB_SH.machining = function () {
+    const m = PAL.machine, st = PAL.steel, w = PAL.wood;
+    return gsh(13) +
+      det(cogPath(19, 20, 13, 9.6, 12), m.m) +
+      ci(19, 20, 8.2, m.l) +
+      ci(19, 20, 3.4, m.d) +
+      det(cogPath(19, 20, 7.4, 5.6, 8), st.l, '.9') +
+      rot(-24, sil('M26 28 H33 V36 H26 Z', st.m) + det('M26 36 L33 36 L29.5 43 Z', st.l) + ln('M26 28 H33 L33 36 L29.5 43 L26 36 Z', OUT, 1.3), 30, 34) +
+      ln('M28 26 Q30 23 33 26 M27 30 Q30 27 33 30', m.d, 1.4) +
+      ln('M9 30 Q7 33 9 36 M6 28 Q3 33 6 38', m.d, 1.3, '.6');
+  };
+
+  /* 化学精炼：烧瓶 + 冷凝管 */
+  JOB_SH.chemistry = function () {
+    const g = PAL.glass, liq = PAL.potionGreen, st = PAL.steel;
+    return gsh(12) +
+      ln('M33 6 V14 Q39 18 39 24 Q39 33 31 36', st.m, 2.4) +
+      sil('M14 12 H25 V20 Q33 24 33 31 Q33 40 19.5 40 Q6 40 6 31 Q6 24 14 20 Z', g.m) +
+      det('M9 30 Q19 34 30 30 Q30 37 19.5 38.4 Q9 37 9 30 Z', liq.m) +
+      ln('M14 12 H25 V20 Q33 24 33 31 Q33 40 19.5 40 Q6 40 6 31 Q6 24 14 20 Z', OUT, 1.5) +
+      ln('M15 12 V16 M20 12 V16', g.d, 1.2) +
+      ci(16, 27, 2.2, liq.l, ' opacity=".85"') + ci(23, 22, 1.5, liq.l) +
+      ln('M38 20 Q43 22 41 26', st.d, 1.3, '.7');
+  };
+
+  /* 玻璃制造：吹制玻璃 + 吹管 */
+  JOB_SH.glassmaking = function () {
+    const g = PAL.glass, st = PAL.steel, em = PAL.ember;
+    return gsh(13) +
+      sil('M17 20 Q12 26 13 34 Q15 40 24 40 Q33 40 35 34 Q36 26 31 20 L29 20 V15 H19 V20 Z', g.m) +
+      det('M16 30 Q24 33 32 30 Q33 37 24 38 Q15 37 16 30 Z', g.d, '.75') +
+      hl('M19 24 Q16 28 17 33 L20 33 Q19 28 21 25 Z', '.55') +
+      ln('M17 20 Q12 26 13 34 Q15 40 24 40 Q33 40 35 34 Q36 26 31 20 L29 20 V15 H19 V20 Z', OUT, 1.5) +
+      ln('M19 15 H29', OUT, 1.3) +
+      ln('M29 17 L41 6', st.m, 3) +
+      ln('M40 5.4 L44 9', st.d, 2.6) +
+      ln('M12 40 Q8 41 6 39', em.l, 1.6, '.8');
+  };
+
+  /* 火药制作：木桶 + 引信 */
+  JOB_SH.gunpowder = function () {
+    const w = PAL.bark, st = PAL.steel, pw = PAL.powder, em = PAL.ember;
+    return gsh(13) +
+      sil('M11 16 Q24 9 37 16 V38 Q24 44 11 38 Z', w.m) +
+      det('M11 16 Q24 9 37 16 V20 Q24 13 11 20 Z', w.l) +
+      det('M11 33 Q24 39 37 33 V38 Q24 44 11 38 Z', w.d) +
+      det('M13 22 H35 V23.4 H13 Z M13 30 H35 V31.4 H13 Z', st.d) +
+      ln('M11 16 Q24 9 37 16 V38 Q24 44 11 38 Z', OUT, 1.5) +
+      el(24, 16, 6.4, 2.4, w.d) +
+      ln('M24 15 Q30 10 32 4', '#d8cbb4', 1.8) +
+      ci(33, 4, 2.6, em.l) + ci(33, 4, 1.4, '#fff3c0') +
+      ln('M33 0 V-2', em.m, 1.2);
+  };
+
+  /* 半导体制造：晶圆 + 芯片 */
+  JOB_SH.semiconductors = function () {
+    const si = PAL.silicon, op = PAL.optical, ch = PAL.chip;
+    return gsh(13) +
+      det(cogPath(20, 20, 13.4, 10, 16), PAL.steel.m) +
+      ci(20, 20, 10.6, si.m) +
+      ci(20, 20, 10.6, si.l, ' opacity=".45"') +
+      ln('M13 15 Q17 20 13 25 M20 12 Q24 20 20 28 M27 15 Q23 20 27 25', op.d, 1, '.7') +
+      ci(20, 20, 2.2, PAL.chip.d) +
+      sil('M27 27 H42 V41 H27 Z', ch.m) +
+      det('M29 29 H40 V39 H29 Z', ch.d) +
+      ln('M27 27 H42 V41 H27 Z', OUT, 1.3) +
+      (function () { let s2 = ''; for (let i = 0; i < 4; i++) s2 += det('M' + (29 + i * 3) + ' 41 H' + (30.4 + i * 3) + ' V45 H' + (29 + i * 3) + ' Z', PAL.gold.m); return s2; })() +
+      ln('M30 33 H38', PAL.pcb.l, 1.2);
+  };
+
+  /* 精密装配：游标卡尺 */
+  JOB_SH.precision_assembly = function () {
+    const st = PAL.steel, ch = PAL.chip, m = PAL.machine;
+    let tick = '';
+    for (let i = 0; i < 8; i++) tick += ln('M' + (12 + i * 3.2) + ' 27 V30', st.d, 1, '.8');
+    return gsh(13) +
+      sil('M6 24 H42 V28 H6 Z', st.m) +
+      det('M6 24 H42 V25.6 H6 Z', st.l) +
+      ln('M6 24 H42 V28 H6 Z', OUT, 1.3) +
+      tick +
+      sil('M6 13 H10 V24 H6 Z', st.d) +
+      sil('M6 13 H16 V16 H6 Z', st.d) +
+      sil('M24 14 H28 V28 H24 Z', st.m) +
+      det('M21 18 H31 V21 H21 Z', st.l) +
+      ci(26, 33.4, 2.8, m.m) + ci(26, 33.4, 1.3, '#241b13') +
+      sil('M36 15 H42 V20 H36 Z', st.d) +
+      det('M37.4 16.4 H40.6 V18.6 H37.4 Z', ch.m) +
+      ln('M6 13 H10 V24 M6 13 H16 V16', OUT, 1.3);
+  };
+
+  /* 外星采矿：镐 + 异星晶体 */
+  JOB_SH.alien_mining = function () {
+    const st = PAL.steel, aa = PAL.alienAlloy, al = PAL.alien;
+    return gsh(13) +
+      sil('M8 41 L14 24 L20 33 L26 20 L34 34 L40 41 Z', al.d) +
+      sil('M15 33 L21 17 L27 27 Z', al.m) +
+      det('M21 17 L27 27 L23 33 Z', al.l) +
+      ln('M15 33 L21 17 L27 27 Z', OUT, 1.3) +
+      ln('M10 40 L28 12', PAL.wood.m, 3) +
+      sil('M22 14 Q24 5 32 6 Q38 8 38 15 Q34 12 30 13 Q26 12 22 14 Z', st.m) +
+      det('M24 7 Q28 4 33 6 Q36 8 37 12 Q32 9 28 10 Z', st.l) +
+      ci(30, 24, 1.6, PAL.energy.l, ' opacity=".8"') + ci(12, 32, 1.2, PAL.energy.l, ' opacity=".6"');
+  };
+
+  /* 粒子对撞：原子轨道 */
+  JOB_SH.particle_collider = function () {
+    const en = PAL.energy, pl = PAL.plasma, ch = PAL.chip;
+    return gsh(12) +
+      el(24, 24, 19, 19, 'none') +
+      ci(24, 24, 4.4, pl.m) + ci(24, 24, 2.4, '#fff') +
+      (function () {
+        let s2 = '';
+        for (let i = 0; i < 3; i++) {
+          s2 += rot(i * 60, el(24, 24, 18.4, 6.8, 'none', ' stroke="' + en.m + '" stroke-width="1.7" opacity=".9"'), 24, 24);
+        }
+        return s2;
+      })() +
+      ci(42, 24, 2.2, en.l) + ci(6, 24, 2.2, en.l) +
+      ci(14.6, 10.6, 1.8, pl.l) + ci(33.4, 37.4, 1.8, pl.l) +
+      ci(24, 24, 21, ch.m, ' opacity=".07"');
+  };
+
+  /* 合成制造：两件合成一件 */
+  JOB_SH.synthesis = function () {
+    const en = PAL.energy, pl = PAL.plasma, m = PAL.machine;
+    return gsh(13) +
+      sil('M7 30 L17 24 L27 30 L17 36 Z', m.m) +
+      det('M7 30 L17 24 L17 30 L7 36 Z', m.l) +
+      det('M17 24 L27 30 L27 36 L17 30 Z', m.d) +
+      ln('M7 30 L17 24 L27 30 L17 36 Z M17 36 V42 M7 36 L17 42 M27 36 L17 42', OUT, 1.2) +
+      ln('M30 30 H38 M35 25 L40 30 L35 35', en.m, 2.2) +
+      sil('M33 8 L43 3 L43 13 L33 18 Z', pl.m) +
+      det('M33 8 L43 3 L43 8 L33 13 Z', pl.l) +
+      ln('M33 8 L43 3 L43 13 L33 18 Z', OUT, 1.2) +
+      ci(38, 30, 7, en.l, ' opacity=".18"');
+  };
+
+  /* 曲速核心：漩涡球 */
+  JOB_SH.warp_core = function () {
+    const wp = PAL.warp, en = PAL.energy;
+    return gsh(11) +
+      ci(24, 24, 17, wp.d) +
+      ci(24, 24, 15.4, wp.m) +
+      det('M10 18 Q24 6 38 18 Q30 12 24 20 Q18 12 10 18 Z', wp.l) +
+      det('M12 32 Q24 42 36 32 Q28 36 24 30 Q20 36 12 32 Z', wp.l, '.8') +
+      ci(24, 24, 6.6, en.m, ' opacity=".9"') +
+      ci(24, 24, 3.4, '#fff') +
+      ln('M24 4 V9 M24 39 V44 M4 24 H9 M39 24 H44', wp.l, 1.6, '.9') +
+      ci(24, 24, 20, en.m, ' opacity=".10"');
+  };
+
+  /* 黑暗之魂：骷髅 */
+  JOB_SH.black_soul = function () {
+    const so = PAL.soul, b = PAL.bone, ab = PAL.abyss;
+    return gsh(11) +
+      det('M8 24 Q8 8 24 8 Q40 8 40 24 Q40 34 33 38 L32 44 H16 L15 38 Q8 34 8 24 Z', so.m, '.25') +
+      sil('M12 26 Q12 12 24 12 Q36 12 36 26 Q36 34 31 37 L30 42 H18 L17 37 Q12 34 12 26 Z', b.m) +
+      det('M17 24 Q19 19 22.6 19 Q26 19 26 23 Q26 27 21.4 27 Q17 27 17 24 Z', '#241b13') +
+      det('M29.4 24 Q31 19 33.4 19 Q37 19 37 23 Q37 27 32.6 27 Q29.4 27 29.4 24 Z', '#241b13') +
+      ci(21.4, 23.4, 1.5, so.l) + ci(33, 23.4, 1.5, so.l) +
+      det('M23 30 L25 30 L24 33 Z', '#241b13') +
+      ln('M18 36 H30', '#241b13', 1.4) +
+      ln('M12 26 Q12 12 24 12 Q36 12 36 26 Q36 34 31 37 L30 42 H18 L17 37 Q12 34 12 26 Z', OUT, 1.5) +
+      det('M6 14 L12 20 L8 24 L3 18 Z', ab.m, '.7') + det('M42 14 L36 20 L40 24 L45 18 Z', ab.m, '.7');
+  };
+
+  /* 模拟纪元：沙漏 */
+  JOB_SH.era_sim = function () {
+    const w = PAL.wood, sd = PAL.grain, en = PAL.energy;
+    return gsh(13) +
+      sil('M11 6 H37 V10 H11 Z', w.m) +
+      sil('M11 38 H37 V42 H11 Z', w.m) +
+      det('M11 6 H37 V8.4 H11 Z', w.l) +
+      ln('M11 6 H37 V10 H11 Z M11 38 H37 V42 H11 Z', OUT, 1.3) +
+      sil('M14 10 H34 Q34 18 26 24 Q34 30 34 38 H14 Q14 30 22 24 Q14 18 14 10 Z', PAL.glass.m) +
+      det('M17 13 H31 Q30 18 24 22 Q18 18 17 13 Z', sd.m) +
+      det('M18 33 H30 Q29 37 24 40 Q19 37 18 33 Z', sd.m) +
+      ln('M14 10 H34 Q34 18 26 24 Q34 30 34 38 H14 Q14 30 22 24 Q14 18 14 10 Z', OUT, 1.4) +
+      ln('M24 24 V30', sd.d, 1.2, '.8') +
+      ci(24, 24, 2, en.l, ' opacity=".8"');
+  };
+
+  /* ============================================================
+   * 被动图标：住房 6 / 舒适 16 / 工事 14（按中文名索引）
+   * ============================================================ */
+  const PASS_SH = {};
+
+  /* 一排砖缝 */
+  function courses(x, y, w, h, rows, col, op) {
+    let s2 = '';
+    for (let i = 1; i < rows; i++) s2 += ln('M' + x + ' ' + (y + h * i / rows) + ' H' + (x + w), col, .9, op || '.45');
+    return s2;
+  }
+
+  /* 住房：茅草棚 */
+  PASS_SH.hut = function () {
+    const th = PAL.hay, wa = PAL.clay, w = PAL.wood;
+    return gsh(15) +
+      sil('M8 24 H40 V41 H8 Z', wa.m) +
+      det('M8 24 H40 V26 H8 Z', wa.l) +
+      ln('M8 24 H40 V41 H8 Z', OUT, 1.5) +
+      sil('M6 26 L14 9 L34 9 L42 26 Z', th.m) +
+      det('M6 26 L14 9 L34 9 L42 26 L24 22 Z', th.l) +
+      ln('M6 26 L14 9 H34 L42 26 Z', OUT, 1.6) +
+      ln('M12 24 L17 11 M20 25 L22 10 M30 25 L28 10 M36 24 L32 11', th.d, 1.1, '.7') +
+      sil('M19 32 H29 V41 H19 Z', w.m) +
+      det('M19 32 H29 V34 H19 Z', w.l) +
+      ln('M19 32 H29 V41 H19 Z', OUT, 1.3) +
+      ci(25.6, 37, .9, PAL.gold.m);
+  };
+
+  /* 住房：长屋 */
+  PASS_SH.longhouse = function () {
+    const w = PAL.wood, b = PAL.bark, th = PAL.hay;
+    return gsh(16) +
+      sil('M6 24 H42 V41 H6 Z', w.m) +
+      det('M6 24 H42 V28 H6 Z', w.l) +
+      ln('M6 24 H42 V41 H6 Z', OUT, 1.5) +
+      ln('M14 28 V41 M24 28 V41 M34 28 V41', b.d, 1.6) +
+      sil('M4 26 L24 10 L44 26 Z', th.m) +
+      det('M4 26 L24 10 L44 26 L24 22 Z', th.d) +
+      ln('M4 26 L24 10 L44 26 Z', OUT, 1.6) +
+      ln('M24 10 V26', th.d, 1.1) +
+      sil('M19 33 H29 V41 H19 Z', b.d) +
+      ln('M19 33 H29 V41 H19 Z', OUT, 1.2) +
+      det('M9 31 H15 V35 H9 Z', PAL.glass.m) + det('M33 31 H39 V35 H33 Z', PAL.glass.m) +
+      ln('M9 31 H15 V35 H9 Z M33 31 H39 V35 H33 Z', OUT, 1.1);
+  };
+
+  /* 住房：石屋 */
+  PASS_SH.stonehouse = function () {
+    const s = PAL.granite, r = PAL.carpet, st = PAL.stone;
+    return gsh(15) +
+      sil('M8 21 H40 V41 H8 Z', s.m) +
+      det('M8 21 H40 V24 H8 Z', s.l) +
+      det('M8 36 H40 V41 H8 Z', s.d) +
+      ln('M8 21 H40 V41 H8 Z', OUT, 1.5) +
+      courses(8, 24, 32, 12, 4, s.d) +
+      ln('M14 27 V33 M24 27 V33 M20 30 V36', s.d, .9, '.35') +
+      sil('M5 23 L17 11 H31 L43 23 Z', r.m) +
+      det('M5 23 L17 11 H31 L43 23 L24 19 Z', r.l) +
+      ln('M5 23 L17 11 H31 L43 23 Z', OUT, 1.5) +
+      sil('M33 14 H38 V21 H33 Z', st.m) +
+      ln('M33 14 H38 V21 H33 Z', OUT, 1.2) +
+      sil('M20 32 H28 V41 H20 Z', PAL.bark.m) +
+      ln('M20 32 H28 V41 H20 Z', OUT, 1.2) +
+      ci(26.4, 37, .9, PAL.gold.m);
+  };
+
+  /* 住房：公寓 */
+  PASS_SH.apartment = function () {
+    const c = PAL.concrete, g = PAL.glass, st = PAL.steel;
+    let win = '';
+    for (let r2 = 0; r2 < 4; r2++) for (let c2 = 0; c2 < 2; c2++) {
+      win += det('M' + (16 + c2 * 10) + ' ' + (16 + r2 * 6.4) + ' H' + (22 + c2 * 10) + ' V' + (19.4 + r2 * 6.4) + ' H' + (16 + c2 * 10) + ' Z', g.m);
+    }
+    return gsh(15) +
+      sil('M12 9 H36 V41 H12 Z', c.m) +
+      det('M12 9 H36 V12 H12 Z', c.d) +
+      det('M12 37 H36 V41 H12 Z', c.d) +
+      ln('M12 9 H36 V41 H12 Z', OUT, 1.5) +
+      win +
+      ln('M16 16 H22 V19.4 H16 Z M26 16 H32 V19.4 H26 Z', g.d, .9) +
+      sil('M19 34 H29 V41 H19 Z', PAL.bark.d) +
+      ln('M19 34 H29 V41 H19 Z', OUT, 1.2) +
+      ln('M24 9 V3 M20 3 H28', st.d, 1.6) +
+      ci(24, 2.4, 1.4, PAL.potionRed.l);
+  };
+
+  /* 住房：住宅区 */
+  PASS_SH.district = function () {
+    const c = PAL.concrete, g = PAL.glass, s = PAL.granite;
+    let win = '';
+    for (let r2 = 0; r2 < 3; r2++) win += det('M' + (27) + ' ' + (22 + r2 * 5) + ' H31 V' + (24.6 + r2 * 5) + ' H27 Z', g.m);
+    return gsh(16) +
+      sil('M4 26 H16 V41 H4 Z', s.m) + det('M4 26 H16 V29 H4 Z', s.l) +
+      ln('M4 26 H16 V41 H4 Z', OUT, 1.4) +
+      sil('M17 15 H31 V41 H17 Z', c.m) + det('M17 15 H31 V18 H17 Z', c.l) +
+      det('M26 21 H29 V24 H26 Z M26 26 H29 V29 H26 Z M26 31 H29 V34 H26 Z', g.m) +
+      ln('M17 15 H31 V41 H17 Z', OUT, 1.4) +
+      sil('M32 24 H44 V41 H32 Z', PAL.carpet.m) + det('M32 24 H44 V27 H32 Z', PAL.carpet.l) +
+      ln('M32 24 H44 V41 H32 Z', OUT, 1.4) +
+      ln('M35 31 H41 V35 H35 Z', PAL.carpet.d, 1.2) +
+      ci(21, 37, 1.6, PAL.gold.m) + ci(39, 37, 1.4, PAL.gold.m);
+  };
+
+  /* 住房：殖民舱 */
+  PASS_SH.colony = function () {
+    const al = PAL.lifeSupport, en = PAL.energy, st = PAL.steel;
+    return gsh(14) +
+      sil('M10 20 Q24 8 38 20 V34 Q24 46 10 34 Z', al.m) +
+      det('M10 20 Q24 8 38 20 V25 Q24 14 10 25 Z', al.l) +
+      det('M10 33 Q24 44 38 33 V34 Q24 46 10 34 Z', al.d) +
+      ln('M10 20 Q24 8 38 20 V34 Q24 46 10 34 Z', OUT, 1.5) +
+      ci(24, 26, 8, PAL.glass.m) + ci(24, 26, 6.4, PAL.glass.l) +
+      ci(24, 26, 8, 'none', ' stroke="' + OUT + '" stroke-width="1.4"') +
+      hl('M20 21 Q22 19 25 20 Q21 22 20 26 Z', '.5') +
+      ln('M14 38 L10 44 M34 38 L38 44', st.d, 2) +
+      ln('M24 12 V4 M20 6 H28', st.d, 1.4) +
+      ci(24, 3.4, 1.5, en.l);
+  };
+
+  /* 舒适：陶罐装饰 */
+  PASS_SH.potdecor = function () {
+    const c = PAL.clay;
+    return gsh(12) +
+      sil('M17 12 Q13 16 14 22 Q8 28 12 36 Q16 42 24 42 Q32 42 36 36 Q40 28 34 22 Q35 16 31 12 Z', c.m) +
+      det('M17 12 Q13 16 14 22 Q8 28 12 36 Q16 42 24 42 L24 12 Z', c.l) +
+      det('M17 12 H31 V15 H17 Z', c.d) +
+      det('M11 26 Q14 30 11 34 Q9 30 11 26 Z M37 26 Q34 30 37 34 Q39 30 37 26 Z', c.d, '.8') +
+      ln('M17 12 Q13 16 14 22 Q8 28 12 36 Q16 42 24 42 Q32 42 36 36 Q40 28 34 22 Q35 16 31 12 Z', OUT, 1.5) +
+      ln('M15 22 H33 M16 30 H32', c.d, 1.1, '.7') +
+      ci(24, 19, 2, PAL.potionGold.m);
+  };
+
+  /* 舒适：木床 */
+  PASS_SH.bed = function () {
+    const w = PAL.plank, cl = PAL.linen, bl = PAL.carpet;
+    return gsh(14) +
+      sil('M5 30 H43 V38 H5 Z', w.m) +
+      det('M5 30 H43 V32 H5 Z', w.l) +
+      ln('M5 30 H43 V38 H5 Z', OUT, 1.4) +
+      sil('M8 22 H20 V30 H8 Z', cl.m) +
+      det('M8 22 H20 V24.6 H8 Z', cl.l) +
+      ln('M8 22 H20 V30 H8 Z', OUT, 1.2) +
+      sil('M20 24 H40 V31 H20 Z', bl.m) +
+      det('M20 24 H40 V27 H20 Z', bl.l) +
+      ln('M20 24 H40 V31 H20 Z', OUT, 1.3) +
+      ln('M5 38 V42 M43 38 V42', w.d, 2.2) +
+      sil('M4 20 H8 V30 H4 Z', w.d) + sil('M40 27 H44 V30 H40 Z', w.d);
+  };
+
+  /* 舒适：木地板 */
+  PASS_SH.woodfloor = function () {
+    const w = PAL.plank;
+    let s2 = '';
+    for (let i = 0; i < 3; i++) s2 += ln('M15 ' + (15 + i * 7.4) + ' L33 ' + (15 + i * 7.4 - 3.2), w.d, 1);
+    return gsh(0) +
+      sil('M8 32 L24 22 L40 32 L24 42 Z', w.m) +
+      det('M8 32 L24 22 L40 32 L24 34 Z', w.l) +
+      det('M8 32 L24 34 L24 42 Z', w.d) +
+      ln('M8 32 L24 22 L40 32 L24 42 Z', OUT, 1.4) +
+      s2 +
+      ln('M24 22 V42', w.d, .8, '.5');
+  };
+
+  /* 舒适：地毯 */
+  PASS_SH.rugo = function () {
+    const cp = PAL.carpet, gd = PAL.potionGold;
+    let fr = '';
+    for (let i = 0; i < 5; i++) fr += ln('M' + (9 + i * 6) + ' 36 V40', cp.d, 1.3);
+    return gsh(13) +
+      sil('M7 12 H41 V36 H7 Z', cp.m) +
+      det('M7 12 H41 V15 H7 Z', cp.l) +
+      det('M11 18 H37 V21 H11 Z', gd.m) + det('M11 27 H37 V30 H11 Z', gd.m) +
+      det('M20 21 H28 V27 H20 Z', gd.d) +
+      ln('M7 12 H41 V36 H7 Z', OUT, 1.5) +
+      fr;
+  };
+
+  /* 舒适：纸窗 */
+  PASS_SH.paperwindow = function () {
+    const w = PAL.wood, p = PAL.paper;
+    return gsh(0) +
+      sil('M9 8 H39 V40 H9 Z', w.m) +
+      det('M12 11 H36 V37 H12 Z', p.m) +
+      det('M12 11 H36 V14 H12 Z', p.l) +
+      ln('M12 11 H36 V37 H12 Z', p.d, .9) +
+      ln('M9 8 H39 V40 H9 Z', OUT, 1.5) +
+      ln('M12 24 H36 M24 11 V37', w.d, 2) +
+      ln('M14 14 H22 V22 H14 Z M26 14 H34 V22 H26 Z M14 26 H22 V34 H14 Z M26 26 H34 V34 H26 Z', w.d, .9, '.45') +
+      ci(35, 34, 1.6, PAL.potionGold.m);
+  };
+
+  /* 舒适：木制家具 */
+  PASS_SH.furniture = function () {
+    const w = PAL.plank, b = PAL.bark;
+    return gsh(14) +
+      sil('M6 22 H30 V26 H6 Z', w.m) +
+      det('M6 22 H30 V24 H6 Z', w.l) +
+      ln('M6 22 H30 V26 H6 Z', OUT, 1.3) +
+      ln('M9 26 V38 M27 26 V38', b.d, 2.2) +
+      sil('M32 12 H44 V22 H32 Z', w.m) +
+      det('M32 12 H44 V14 H32 Z', w.l) +
+      ln('M32 12 H44 V22 H32 Z', OUT, 1.2) +
+      ln('M35 22 V30 M41 22 V30', b.d, 2) +
+      sil('M32 28 H44 V31 H32 Z', w.m) +
+      ci(35, 20, 1.2, PAL.cloth.m);
+  };
+
+  /* 舒适：石地板 */
+  PASS_SH.stonefloor = function () {
+    const s = PAL.granite;
+    return gsh(0) +
+      pa('M8 32 L24 22 L40 32 L24 42 Z', s.m) +
+      det('M8 32 L24 22 L24 32 L8 42 Z', s.l, '.85') +
+      det('M24 22 L40 32 L24 42 L24 32 Z', s.d, '.55') +
+      ln('M8 32 L24 22 L40 32 L24 42 Z', OUT, 1.4) +
+      ln('M16 27 L16 37 M32 27 L32 37', '#463f38', 1.1, '.75') +
+      ln('M24 22 L24 42', '#463f38', 1, '.75');
+  };
+
+  /* 舒适：台球桌 */
+  PASS_SH.pooltable = function () {
+    const f = PAL.plank, felt = PAL.pcb;
+    return gsh(14) +
+      sil('M5 20 H43 V34 H5 Z', f.m) +
+      det('M7 22 H41 V32 H7 Z', felt.m) +
+      det('M7 22 H41 V24 H7 Z', felt.l) +
+      ln('M5 20 H43 V34 H5 Z', OUT, 1.4) +
+      ln('M9 22 V32 M39 22 V32', felt.d, 1) +
+      ci(14, 27, 2.4, '#f4f2ea') + ci(24, 25.6, 2.4, PAL.potionRed.m) + ci(33, 28, 2.4, PAL.potionGold.m) +
+      ln('M5 34 V39 M43 34 V39', f.d, 2.2) +
+      ln('M30 16 L44 8', PAL.wood.l, 2.2);
+  };
+
+  /* 舒适：塑料家具 */
+  PASS_SH.plasticfurniture = function () {
+    const p = PAL.plastic;
+    return gsh(14) +
+      sil('M7 18 Q7 13 13 13 H35 Q41 13 41 18 V26 H7 Z', p.m) +
+      det('M9 16 H39 V18 H9 Z', p.l, '.7') +
+      ln('M7 18 Q7 13 13 13 H35 Q41 13 41 18 V26 H7 Z', OUT, 1.4) +
+      sil('M8 25 H40 Q40 36 24 36 Q8 36 8 25 Z', p.m) +
+      det('M8 25 H40 V27.6 H8 Z', p.l) +
+      ln('M8 25 H40 Q40 36 24 36 Q8 36 8 25 Z', OUT, 1.4) +
+      sil('M4 20 H9 V34 H4 Z', p.d) + sil('M39 20 H44 V34 H39 Z', p.d) +
+      ln('M4 20 H9 V34 H4 Z M39 20 H44 V34 H39 Z', OUT, 1.2) +
+      ln('M12 36 V41 M36 36 V41', p.d, 2.2) +
+      ln('M24 26 V32', p.d, 1, '.6');
+  };
+
+  /* 舒适：瓷砖地板 */
+  PASS_SH.tilefloor = function () {
+    const lt = '#dbe4ea', md = '#c3cfd8', dk = '#9fb0bd', gr = '#5b6672';
+    return gsh(0) +
+      pa('M8 32 L24 22 L40 32 L24 42 Z', md) +
+      det('M8 32 L24 22 L24 32 L8 42 Z', lt) +
+      det('M24 22 L40 32 L24 42 L24 32 Z', dk) +
+      ln('M8 32 L24 22 L40 32 L24 42 Z', OUT, 1.4) +
+      ln('M16 27 L32 37 M32 27 L16 37', gr, 1.2, '.85') +
+      ln('M24 22 L24 42', gr, 1, '.7');
+  };
+
+  /* 舒适：电气娱乐 */
+  PASS_SH.tv = function () {
+    const d = PAL.chip, st = PAL.machine, en = PAL.energy;
+    return gsh(13) +
+      sil('M6 14 H38 V32 H6 Z', d.m) +
+      det('M8 16 H36 V30 H8 Z', en.d) +
+      det('M10 18 H34 V28 H10 Z', en.m, '.8') +
+      ln('M6 14 H38 V32 H6 Z', OUT, 1.5) +
+      ln('M10 24 Q15 18 20 24 Q25 30 30 22', '#eafcff', 1.3, '.8') +
+      ln('M22 8 L16 3 M22 8 L29 3', st.m, 1.6) +
+      ci(22, 7, 2, st.m) +
+      ln('M12 32 V38 M32 32 V38 M8 38 H36', st.d, 2) +
+      ci(35, 17, 1, PAL.potionRed.l);
+  };
+
+  /* 舒适：合成地板 */
+  PASS_SH.synthfloor = function () {
+    const d = PAL.chip, en = PAL.energy;
+    return gsh(0) +
+      sil('M8 32 L24 22 L40 32 L24 42 Z', d.m) +
+      det('M8 32 L24 22 L24 32 L8 42 Z', d.l) +
+      det('M24 22 L40 32 L24 42 Z', '#171c22') +
+      ln('M8 32 L24 22 L40 32 L24 42 Z', OUT, 1.4) +
+      ln('M8 32 L24 42 M24 22 L40 32', en.m, 1.5, '.95') +
+      ln('M16 27 L16 37 M32 27 L32 37', en.m, 1, '.7') +
+      ci(24, 23, 4, en.m, ' opacity=".22"');
+  };
+
+  /* 舒适：AI 家电 */
+  PASS_SH.aiappliance = function () {
+    const p = PAL.power, en = PAL.energy, ch = PAL.chip;
+    return gsh(13) +
+      sil('M13 20 Q13 12 24 12 Q35 12 35 20 V36 Q35 42 24 42 Q13 42 13 36 Z', p.m) +
+      det('M13 20 Q13 12 24 12 Q35 12 35 20 V23 H13 Z', p.l) +
+      det('M18 25 H30 V31 H18 Z', ch.m) +
+      ci(21.4, 28, 1.6, en.l) + ci(26.6, 28, 1.6, en.l) +
+      ln('M13 20 Q13 12 24 12 Q35 12 35 20 V36 Q35 42 24 42 Q13 42 13 36 Z', OUT, 1.5) +
+      ln('M24 12 V5', OUT, 1.6) + ci(24, 4, 1.8, en.l) +
+      ln('M37 22 Q41 18 37 14 M40 24 Q45 18 40 12', en.m, 1.4, '.75');
+  };
+
+  /* 舒适：全息娱乐 */
+  PASS_SH.holoent = function () {
+    const en = PAL.optical, pl = PAL.plasma;
+    return gsh(13) +
+      sil('M11 30 H37 V36 H11 Z', PAL.machine.m) +
+      det('M11 30 H37 V32 H11 Z', PAL.machine.l) +
+      ln('M11 30 H37 V36 H11 Z', OUT, 1.4) +
+      det('M14 30 L20 14 L28 14 L34 30 Z', en.m, '.28') +
+      det('M19 30 L23 18 L25 18 L29 30 Z', en.l, '.18') +
+      sil('M20 8 L28 8 L27 16 L21 16 Z', pl.m) +
+      ci(24, 12, 2.2, '#fff', ' opacity=".85"') +
+      ln('M20 8 L28 8 L27 16 L21 16 Z', OUT, 1.2) +
+      ln('M15 36 V41 M33 36 V41', PAL.machine.d, 1.8) +
+      ci(24, 22, 8, en.m, ' opacity=".10"');
+  };
+
+  /* 舒适：全息地板 */
+  PASS_SH.holofloor = function () {
+    const en = PAL.optical, pl = PAL.plasma;
+    return gsh(0) +
+      sil('M6 34 L24 24 L42 34 L24 44 Z', 'none') +
+      det('M6 34 L24 24 L42 34 L24 44 Z', en.m, '.16') +
+      ln('M6 34 L24 24 L42 34 L24 44 Z', en.l, 1.6, '.95') +
+      ln('M15 29 L15 39 M33 29 L33 39 M24 24 V44', en.m, 1, '.75') +
+      ci(24, 33, 7, pl.m, ' opacity=".18"') +
+      ln('M18 33 H30 M24 27 V39', pl.l, 1.2, '.5') +
+      ci(24, 34, 21, en.l, ' opacity=".06"');
+  };
+
+  /* 舒适：生命维持舱 */
+  PASS_SH.lifepod = function () {
+    const l = PAL.lifeSupport, g = PAL.glass, en = PAL.energy;
+    return gsh(14) +
+      sil('M9 16 Q24 6 39 16 V32 Q24 44 9 32 Z', l.m) +
+      det('M9 16 Q24 6 39 16 V20 Q24 11 9 20 Z', l.l) +
+      det('M9 30 Q24 41 39 30 V32 Q24 44 9 32 Z', l.d) +
+      ln('M9 16 Q24 6 39 16 V32 Q24 44 9 32 Z', OUT, 1.5) +
+      ci(24, 24, 9, g.d) + ci(24, 24, 7.6, g.m) +
+      ci(24, 24, 9, 'none', ' stroke="' + OUT + '" stroke-width="1.4"') +
+      sil('M21 19 Q24 17 27 19 Q28 22 24 22.6 Q20 22 21 19 Z', PAL.potionRed.m) +
+      ln('M21 25 H27 M24 22.6 V27', PAL.potionRed.m, 1.3) +
+      ln('M13 38 L10 44 M35 38 L38 44', PAL.steel.d, 1.8) +
+      ln('M24 10 V3', PAL.steel.d, 1.3) + ci(24, 2.4, 1.4, en.l);
+  };
+
+  /* 工事：尖木陷阱 */
+  PASS_SH.spiketrap = function () {
+    const w = PAL.wood, b = PAL.bark, s = PAL.steel;
+    let sp = '';
+    for (let i = 0; i < 5; i++) {
+      const x = 9 + i * 7;
+      sp += sil('M' + x + ' 34 L' + (x + 2) + ' 14 L' + (x + 4) + ' 34 Z', i % 2 ? b.m : w.m);
+    }
+    return gsh(15) +
+      det('M6 34 H42 V40 H6 Z', PAL.tuber.d) +
+      ln('M6 34 H42', OUT, 1.3) +
+      sp +
+      ln('M7 40 H41', OUT, 1.2) +
+      det('M18 31 H30 V34 H18 Z', s.d);
+  };
+
+  /* 工事：陷坑 */
+  PASS_SH.pit = function () {
+    const b = PAL.bark, s = PAL.steel, e = PAL.tuber;
+    return gsh(16) +
+      sil('M4 29 Q24 22 44 29 L39 41 H9 Z', e.m) +
+      det('M7 30 Q24 24 41 30 L38 34 H10 Z', e.l) +
+      det('M10 31 Q24 26 38 31 L36 40 H12 Z', '#140d08') +
+      ln('M4 29 Q24 22 44 29 L39 41 H9 Z', OUT, 1.4) +
+      (function () {
+        let s2 = '';
+        for (let i = 0; i < 4; i++) {
+          const x = 13 + i * 6.4, y = 40 - i * .4;
+          s2 += sil('M' + x + ' ' + y + ' L' + (x + 2) + ' 34 L' + (x + 4) + ' ' + y + ' Z', s.m);
+        }
+        return s2;
+      })() +
+      ln('M6 29 L2 25 M42 29 L46 25', b.d, 2.2);
+  };
+
+  /* 工事：土垒 */
+  PASS_SH.rampart = function () {
+    const e = PAL.tuber, w = PAL.wood, b = PAL.bark;
+    let st2 = '';
+    for (let i = 0; i < 5; i++) {
+      const x = 8 + i * 7.6;
+      st2 += sil('M' + x + ' 30 L' + (x + 2) + ' 13 L' + (x + 4) + ' 30 Z', i % 2 ? b.m : w.m);
+    }
+    return gsh(16) +
+      sil('M4 33 Q16 24 24 26 Q34 23 44 33 Q38 41 24 41 Q10 41 4 33 Z', e.m) +
+      det('M8 33 Q18 28 24 29 Q32 27 40 33 Q33 37 24 37 Q15 37 8 33 Z', e.l) +
+      ln('M4 33 Q16 24 24 26 Q34 23 44 33 Q38 41 24 41 Q10 41 4 33 Z', OUT, 1.4) +
+      st2 +
+      ln('M10 33 H38', w.d, 1.6);
+  };
+
+  /* 工事：石墙 */
+  PASS_SH.stonewall = function () {
+    const s = PAL.granite;
+    let m = '';
+    for (let i = 0; i < 4; i++) m += det('M' + (8 + i * 9) + ' 15 H' + (15 + i * 9) + ' V21 H' + (8 + i * 9) + ' Z', s.d, '.35');
+    return gsh(15) +
+      sil('M6 21 H42 V41 H6 Z', s.m) +
+      det('M6 21 H42 V24 H6 Z', s.l) +
+      ln('M6 21 H42 V41 H6 Z', OUT, 1.5) +
+      courses(6, 24, 36, 17, 4, s.d) +
+      ln('M13 24 V41 M24 24 V41 M35 24 V41', s.d, .9, '.4') +
+      (function () {
+        let c2 = '';
+        for (let i = 0; i < 4; i++) c2 += sil('M' + (6 + i * 9) + ' 21 V15 H' + (13 + i * 9) + ' V21 Z', s.m);
+        return c2;
+      })() +
+      ln('M6 21 V15 H13 V21 M15 21 V15 H22 V21 M24 21 V15 H31 V21 M33 21 V15 H40 V21', OUT, 1.3);
+  };
+
+  /* 工事：铁蒺藜 */
+  PASS_SH.caltrops = function () {
+    const s = PAL.steel;
+    const one = (x, y, r2) => gp('translate(' + x + ' ' + y + ') rotate(' + r2 + ')',
+      sil('M0 -9 L2.6 -2.4 L9 0 L2.6 2.4 L0 9 L-2.6 2.4 L-9 0 L-2.6 -2.4 Z', s.m) +
+      det('M0 -9 L2.6 -2.4 L0 0 Z', s.l) +
+      ci(0, 0, 2, '#241b13'));
+    return gsh(14) +
+      one(16, 26, 8) + one(33, 30, -22) + one(24, 38, 40) +
+      ln('M6 41 H42', s.d, 1, '.35');
+  };
+
+  /* 工事：瞭望塔 */
+  PASS_SH.watchtower = function () {
+    const w = PAL.plank, b = PAL.bark, r = PAL.carpet;
+    return gsh(15) +
+      sil('M14 18 H34 V36 H14 Z', w.m) +
+      det('M14 18 H34 V21 H14 Z', w.l) +
+      ln('M14 18 H34 V36 H14 Z', OUT, 1.4) +
+      ln('M14 36 L18 41 M34 36 L30 41', b.d, 2.4) +
+      ln('M17 22 L31 34 M31 22 L17 34', b.d, 1.6) +
+      sil('M10 14 H38 V19 H10 Z', b.m) +
+      det('M10 14 H38 V16 H10 Z', b.l) +
+      ln('M10 14 H38 V19 H10 Z', OUT, 1.4) +
+      sil('M12 14 L24 5 L36 14 Z', r.m) +
+      ln('M12 14 L24 5 L36 14 Z', OUT, 1.4) +
+      ln('M24 5 V11', PAL.steel.d, 1.3) +
+      det('M36 6 L44 8 L36 10 Z', PAL.potionGold.m) +
+      det('M18 24 H22 V27 H18 Z M26 24 H30 V27 H26 Z', PAL.glass.m);
+  };
+
+  /* 工事：钢筋混凝土墙 */
+  PASS_SH.concretewall = function () {
+    const c = PAL.concrete, st = PAL.steel;
+    return gsh(15) +
+      sil('M6 20 H42 V41 H6 Z', c.m) +
+      det('M6 20 H42 V23 H6 Z', c.l) +
+      det('M6 37 H42 V41 H6 Z', c.d) +
+      ln('M6 20 H42 V41 H6 Z', OUT, 1.5) +
+      courses(6, 23, 36, 14, 3, c.d) +
+      ln('M14 20 V41 M26 20 V41 M36 20 V41', c.d, .9, '.35') +
+      ln('M18 20 V11 M24 20 V8 M30 20 V12 M36 20 V9', st.d, 1.5) +
+      ln('M15 11 H21 M21 8 H27 M27 12 H33 M33 9 H39', st.l, 1.1, '.8') +
+      det('M9 27 L14 31 L11 34 L16 37', '#2b2b31', 1.2) +
+      ln('M9 27 L14 31 L11 34 L16 37', c.d, 1.1, '.8');
+  };
+
+  /* 工事：自动炮塔 */
+  PASS_SH.turret = function () {
+    const st = PAL.machine, d = PAL.chip, en = PAL.ember;
+    return gsh(14) +
+      sil('M10 36 H38 V41 H10 Z', d.m) +
+      ln('M10 36 H38 V41 H10 Z', OUT, 1.3) +
+      sil('M17 26 H31 L33 36 H15 Z', st.m) +
+      det('M17 26 H31 V29 H17 Z', st.l) +
+      ln('M17 26 H31 L33 36 H15 Z', OUT, 1.4) +
+      sil('M13 15 H31 Q35 15 35 20 Q35 26 31 26 H13 Z', st.m) +
+      det('M13 15 H31 V18.4 H13 Z', st.l) +
+      ln('M13 15 H31 Q35 15 35 20 Q35 26 31 26 H13 Z', OUT, 1.4) +
+      sil('M35 18 H43 V23 H35 Z', d.d) +
+      ln('M35 18 H43 V23 H35 Z', OUT, 1.2) +
+      ci(14, 21, 3, en.m) + ci(14, 21, 1.5, en.l) +
+      ln('M24 26 V36', st.d, 2);
+  };
+
+  /* 工事：机枪碉堡 */
+  PASS_SH.bunker = function () {
+    const c = PAL.concrete, st = PAL.steel, sg = PAL.hemp;
+    return gsh(15) +
+      sil('M6 24 H38 V41 H6 Z', c.m) +
+      det('M6 24 H38 V27 H6 Z', c.l) +
+      det('M6 37 H38 V41 H6 Z', c.d) +
+      ln('M6 24 H38 V41 H6 Z', OUT, 1.5) +
+      det('M10 29 H26 V34 H10 Z', '#1b1b20') +
+      ln('M10 29 H26 V34 H10 Z', OUT, 1.1) +
+      sil('M26 30 H42 V33.6 H26 Z', st.d) +
+      ln('M26 30 H42 V33.6 H26 Z', OUT, 1.1) +
+      ln('M24 33.6 L22 36 M32 33.6 V36.6 M37 33.6 V36.6', st.d, 1.1) +
+      ci(14, 22, 3.4, sg.m) + ci(20, 21, 3, sg.m) + ci(38, 38, 3.2, sg.m) +
+      ln('M9 39 H20', c.d, 1, '.6');
+  };
+
+  /* 工事：合金要塞 */
+  PASS_SH.alloyfort = function () {
+    const a = PAL.titanium, en = PAL.energy, g = PAL.glass;
+    return gsh(16) +
+      sil('M8 22 H40 V37 H8 Z', a.m) +
+      det('M8 22 H40 V25 H8 Z', a.l) +
+      ln('M8 22 H40 V37 H8 Z', OUT, 1.4) +
+      (function () {
+        let s2 = '';
+        for (let i = 0; i < 3; i++) {
+          const x = 10 + i * 11;
+          s2 += sil('M' + x + ' 22 V15 H' + (x + 7) + ' V22 Z', a.m);
+        }
+        return s2;
+      })() +
+      ln('M10 22 V15 H17 V22 M21 22 V15 H28 V22 M32 22 V15 H39 V22', OUT, 1.3) +
+      det('M17 28 H23 V33 H17 Z M27 28 H33 V33 H27 Z', g.m) +
+      ln('M17 28 H23 V33 H17 Z M27 28 H33 V33 H27 Z', OUT, 1.1) +
+      ln('M12 30 H44', a.d, 1.2, '.5') +
+      sil('M20 10 H28 V15 H20 Z', en.m) +
+      ln('M20 10 H28 V15 H20 Z', OUT, 1.1) +
+      ci(24, 12.4, 1.4, '#fff');
+  };
+
+  /* 工事：激光炮塔 */
+  PASS_SH.laserturret = function () {
+    const st = PAL.machine, en = PAL.energy;
+    return gsh(14) +
+      sil('M9 36 H39 V41 H9 Z', PAL.chip.m) +
+      ln('M9 36 H39 V41 H9 Z', OUT, 1.2) +
+      sil('M18 26 H30 L32 36 H16 Z', st.m) +
+      ln('M18 26 H30 L32 36 H16 Z', OUT, 1.3) +
+      sil('M16 16 H32 Q36 16 36 21 Q36 26 32 26 H16 Z', st.d) +
+      det('M16 16 H32 V19.4 H16 Z', st.m) +
+      ln('M16 16 H32 Q36 16 36 21 Q36 26 32 26 H16 Z', OUT, 1.4) +
+      sil('M36 18 H41 V24 H36 Z', en.d) +
+      ci(38.6, 21, 2.4, en.m) + ci(38.6, 21, 1.2, '#fff') +
+      ln('M40 21 L46 15 M40 21 L46 27', en.l, 1.8, '.85') +
+      det('M40 20 L46 15 L44 21 Z', en.l, '.5') +
+      ci(24, 27, 8, en.m, ' opacity=".10"');
+  };
+
+  /* 工事：护盾塔 */
+  PASS_SH.shieldtower = function () {
+    const a = PAL.titanium, en = PAL.optical, pl = PAL.plasma;
+    return gsh(15) +
+      sil('M13 22 H35 V41 H13 Z', a.m) +
+      det('M13 22 H35 V25 H13 Z', a.l) +
+      det('M13 38 H35 V41 H13 Z', a.d) +
+      ln('M13 22 H35 V41 H13 Z', OUT, 1.4) +
+      ln('M20 25 V38 M28 25 V38', a.d, 1, '.45') +
+      sil('M16 12 H32 L30 22 H18 Z', pl.m) +
+      ln('M16 12 H32 L30 22 H18 Z', OUT, 1.3) +
+      ci(24, 10, 3.2, en.m) + ci(24, 10, 1.6, '#fff') +
+      gp('none', el(24, 24, 19, 21, 'none', ' stroke="' + en.m + '" stroke-width="1.6" stroke-dasharray="4 3" opacity=".75"')) +
+      det('M22 8 Q24 4 26 8 Q28 5 30 9 Q26 12 24 12 Q20 12 19 9 Q21 5 22 8 Z', en.l, '.5');
+  };
+
+  /* 工事：战斗机器人 */
+  PASS_SH.battlebot = function () {
+    const st = PAL.machine, d = PAL.chip, en = PAL.potionRed;
+    return gsh(14) +
+      sil('M17 8 H31 V13 H17 Z', st.m) +
+      det('M19 10 H29 V12 H19 Z', en.m) +
+      ln('M17 8 H31 V13 H17 Z', OUT, 1.3) +
+      sil('M14 13 H34 V29 H14 Z', st.m) +
+      det('M14 13 H34 V17 H14 Z', st.l) +
+      det('M19 19 H24 V23 H19 Z M26 19 H31 V23 H26 Z', en.d) +
+      ln('M14 13 H34 V29 H14 Z', OUT, 1.4) +
+      sil('M8 16 H13 V27 H8 Z', st.d) + sil('M35 16 H40 V27 H35 Z', st.d) +
+      ln('M8 16 H13 V27 H8 Z M35 16 H40 V27 H35 Z', OUT, 1.2) +
+      sil('M16 29 H22 V40 H16 Z', d.m) + sil('M26 29 H32 V40 H26 Z', d.m) +
+      ln('M16 29 H22 V40 H16 Z M26 29 H32 V40 H26 Z', OUT, 1.2) +
+      ln('M12 29 V34 M36 29 V34', st.d, 2.2) +
+      ci(24, 15, 1.4, PAL.energy.l);
+  };
+
+  /* 工事：轨道防御平台 */
+  PASS_SH.orbital = function () {
+    const a = PAL.titanium, en = PAL.energy, st = PAL.steel;
+    return gsh(14) +
+      det('M4 36 Q24 24 44 36 Q44 44 24 44 Q4 44 4 36 Z', PAL.alien.d, '.9') +
+      ln('M4 36 Q24 24 44 36', PAL.alien.m, 1.4, '.85') +
+      sil('M12 20 H36 V27 H12 Z', a.m) +
+      det('M12 20 H36 V22.4 H12 Z', a.l) +
+      ln('M12 20 H36 V27 H12 Z', OUT, 1.3) +
+      sil('M8 15 H20 V20 H8 Z', a.d) + sil('M28 15 H40 V20 H28 Z', a.d) +
+      ln('M8 15 H20 V20 H8 Z M28 15 H40 V20 H28 Z', OUT, 1.2) +
+      sil('M20 12 H28 V16 H20 Z', en.m) +
+      ln('M20 12 H28 V16 H20 Z', OUT, 1.1) +
+      ci(24, 14, 1.3, '#fff') +
+      ln('M14 27 L10 33 M34 27 L38 33', st.d, 1.6) +
+      ci(8, 12, 1.2, '#fff', ' opacity=".8"') + ci(42, 10, 1, '#fff', ' opacity=".6"') +
+      ci(36, 6, .9, '#fff', ' opacity=".5"');
+  };
+
+  /* ============================================================
+   * 导航图标（左侧栏）
+   * ============================================================ */
+  const NAV_SH = {
+    housing: function () {
+      return sil('M7 23 H41 V41 H7 Z', PAL.clay.m) +
+        det('M7 23 H41 V25.4 H7 Z', PAL.clay.l) +
+        ln('M7 23 H41 V41 H7 Z', OUT, 1.5) +
+        sil('M4 25 L24 8 L44 25 Z', PAL.carpet.m) +
+        ln('M4 25 L24 8 L44 25 Z', OUT, 1.5) +
+        sil('M19 32 H29 V41 H19 Z', PAL.bark.d) +
+        ln('M19 32 H29 V41 H19 Z', OUT, 1.2);
+    },
+    defense: function () {
+      return sil('M24 4 L40 10 V24 Q40 37 24 44 Q8 37 8 24 V10 Z', PAL.steel.m) +
+        det('M24 8 L36 12.6 V24 Q36 34 24 40 Z', PAL.steel.l) +
+        ln('M24 4 L40 10 V24 Q40 37 24 44 Q8 37 8 24 V10 Z', OUT, 1.6) +
+        sil('M20 17 H28 V23 H34 V31 H28 V37 H20 V31 H14 V23 H20 Z', PAL.potionRed.m) +
+        ln('M20 17 H28 V23 H34 V31 H28 V37 H20 V31 H14 V23 H20 Z', OUT, 1.2);
+    },
+    shop: function () {
+      let aw = '';
+      for (let i = 0; i < 4; i++) aw += det('M' + (8 + i * 8) + ' 14 H' + (16 + i * 8) + ' L' + (14 + i * 8) + ' 22 H' + (10 + i * 8) + ' Z', i % 2 ? PAL.carpet.l : PAL.linen.m);
+      return sil('M8 22 H40 V26 H8 Z', PAL.wood.m) +
+        ln('M8 22 H40 V26 H8 Z', OUT, 1.3) +
+        aw +
+        ln('M6 14 H42 L40 22 H8 Z', OUT, 1.4) +
+        ln('M8 26 V41 M40 26 V41 M8 39 H40', PAL.wood.d, 1.8) +
+        ci(20, 32, 3.2, PAL.potionGold.m) + ci(28, 33, 2.6, PAL.potionGreen.m);
+    },
+    characters: function () {
+      const h = (x, y, r2) => ci(x, y, r2, PAL.clay.m) + ln('M' + (x - r2) + ' ' + (y + r2 + 2) + ' Q' + x + ' ' + (y + r2 * 2 + 4) + ' ' + (x + r2) + ' ' + (y + r2 + 2), PAL.clay.d, 2.6);
+      return ci(17, 17, 7, PAL.clay.m) + det('M11 18 Q17 12 23 18 L23 22 H11 Z', PAL.clay.l) +
+        ln('M10 17 A7 7 0 0 1 24 17 L24 27 Q17 31 10 27 Z', OUT, 1.4) +
+        ci(32, 20, 5.4, PAL.linen.m) + ln('M27 20 A5.4 5.4 0 0 1 37 20 L37 27 Q32 30 27 27 Z', OUT, 1.3) +
+        sil('M6 30 Q17 24 28 30 L28 40 H6 Z', PAL.pcb.m) +
+        det('M6 30 Q17 24 28 30 L28 33 Q17 28 6 33 Z', PAL.pcb.l) +
+        ln('M6 30 Q17 24 28 30 L28 40 H6 Z', OUT, 1.4) +
+        sil('M27 31 Q34 26 42 31 L42 39 Q34 42 27 39 Z', PAL.machine.m) +
+        ln('M27 31 Q34 26 42 31 L42 39 Q34 42 27 39 Z', OUT, 1.3);
+    },
+    codex: function () {
+      return sil('M6 10 Q16 6 24 10 Q32 6 42 10 V34 Q32 30 24 34 Q16 30 6 34 Z', PAL.bookInfo.m) +
+        det('M6 10 Q16 6 24 10 V34 Q16 30 6 34 Z', PAL.bookInfo.l) +
+        det('M24 10 Q32 6 42 10 V34 Q32 30 24 34 Z', PAL.bookInfo.d) +
+        ln('M6 10 Q16 6 24 10 Q32 6 42 10 V34 Q32 30 24 34 Q16 30 6 34 Z', OUT, 1.5) +
+        ln('M24 10 V34', OUT, 1.3) +
+        ln('M11 15 H19 M11 20 H19 M11 25 H18', PAL.linen.l, 1.3) +
+        ln('M29 15 H37 M29 20 H37', PAL.linen.l, 1.3);
+    },
+    recruit: function () {
+      return sil('M24 4 L38 16 L30 42 H18 L10 16 Z', PAL.shardBlue.m) +
+        det('M24 4 L38 16 L24 24 Z', PAL.shardBlue.l) +
+        det('M10 16 L24 24 L18 42 Z', PAL.shardBlue.d) +
+        ln('M24 4 L38 16 L30 42 H18 L10 16 Z', OUT, 1.5) +
+        ln('M24 4 L24 24 M10 16 H38', OUT, 1.1) +
+        ci(24, 20, 8, '#fff', ' opacity=".12"');
+    },
+    warehouse: function () {
+      return sil('M8 20 H40 V41 H8 Z', PAL.plank.m) +
+        det('M8 20 H40 V23 H8 Z', PAL.plank.l) +
+        ln('M8 20 H40 V41 H8 Z', OUT, 1.5) +
+        ln('M8 27 H40 M8 34 H40 M17 20 V41 M31 20 V41', PAL.plank.d, 1.4) +
+        sil('M18 8 H30 V20 H18 Z', PAL.bark.m) +
+        ln('M18 8 H30 V20 H18 Z', OUT, 1.3) +
+        det('M22 4 H26 V8 H22 Z', PAL.steel.d);
+    },
+  };
+
+  /* ============================================================
+   * 名称 → 形状 表（被动按中文名索引，和 passives.js 一致）
+   * ============================================================ */
+  const PASS_SPEC = {
+    /* 住房 6 */
+    '茅草棚': 'hut', '长屋': 'longhouse', '石屋': 'stonehouse',
+    '公寓': 'apartment', '住宅区': 'district', '殖民舱': 'colony',
+    /* 舒适度 16 */
+    '陶罐装饰': 'potdecor', '木床': 'bed', '木地板': 'woodfloor', '地毯': 'rugo',
+    '纸窗': 'paperwindow', '木制家具': 'furniture', '石地板': 'stonefloor', '台球桌': 'pooltable',
+    '塑料家具': 'plasticfurniture', '瓷砖地板': 'tilefloor', '电气娱乐': 'tv', '合成地板': 'synthfloor',
+    'AI 家电': 'aiappliance', 'AI家电': 'aiappliance', '全息娱乐': 'holoent', '全息地板': 'holofloor',
+    '生命维持舱': 'lifepod',
+    /* 工事 14 */
+    '尖木陷阱': 'spiketrap', '陷坑': 'pit', '土垒': 'rampart', '石墙': 'stonewall',
+    '铁蒺藜': 'caltrops', '瞭望塔': 'watchtower', '钢筋混凝土墙': 'concretewall', '自动炮塔': 'turret',
+    '机枪碉堡': 'bunker', '合金要塞': 'alloyfort', '激光炮塔': 'laserturret', '护盾塔': 'shieldtower',
+    '战斗机器人': 'battlebot', '轨道防御平台': 'orbital',
+  };
+
+  /* ---------- 渲染入口：工作 / 被动 / 导航 ---------- */
+  function job(x) {
+    const j = typeof x === 'string' ? null : x;
+    const id = typeof x === 'string' ? x : (j && j.id);
+    if (!id) return svgWrap(SH.box(PAL.wood));
+    if (cache['j:' + id]) return cache['j:' + id];
+    const fn = JOB_SH[id];
+    let out;
+    try { out = fn ? fn(PAL.wood, rng('job:' + id)) : SH.box(PAL.wood); } catch (e) { out = SH.box(PAL.wood); }
+    if (!out) out = SH.box(PAL.wood);
+    cache['j:' + id] = svgWrap(out);
+    return cache['j:' + id];
+  }
+
+  function passive(x) {
+    const name = typeof x === 'string' ? x : (x && x.name);
+    if (!name) return svgWrap(SH.box(PAL.stone));
+    const k = 'p:' + name;
+    if (cache[k]) return cache[k];
+    const shape = PASS_SPEC[name];
+    const fn = shape && PASS_SH[shape];
+    let out;
+    try { out = fn ? fn() : SH.box(PAL.stone); } catch (e) { out = SH.box(PAL.stone); }
+    if (!out) out = SH.box(PAL.stone);
+    cache[k] = svgWrap(out);
+    return cache[k];
+  }
+
+  const NAV_ALIAS = { home: 'housing', city: 'housing', house: 'housing', fight: 'defense', market: 'shop', people: 'characters', chars: 'characters', book: 'codex', gacha: 'recruit', shard: 'recruit', storage: 'warehouse', items: 'warehouse' };
+  function nav(key) {
+    const k = NAV_ALIAS[key] || key;
+    if (cache['n:' + k]) return cache['n:' + k];
+    const fn = NAV_SH[k];
+    let out;
+    try { out = fn ? fn() : SH.box(PAL.stone); } catch (e) { out = SH.box(PAL.stone); }
+    if (!out) out = SH.box(PAL.stone);
+    cache['n:' + k] = svgWrap(out);
+    return cache['n:' + k];
+  }
+
   /* __SHAPES__ */
 
   window.ICONS = {
-    item, enemy, SPEC, PAL, SH, ENEMY_SPEC,
+    item, enemy, job, passive, nav, SPEC, PAL, SH, ENEMY_SPEC, JOB_SH, PASS_SPEC, PASS_SH, NAV_SH,
     nameToId: n => NAME2ID[n] || null,
     missing() {
-      return Object.keys(SPEC).filter(id => !SH[SPEC[id][0]]).concat(
+      const out = Object.keys(SPEC).filter(id => !SH[SPEC[id][0]]).concat(
         Object.keys(ENEMY_SPEC).filter(id => !ENEMY_SH[ENEMY_SPEC[id][0]])
       );
+      const jobs = (window.JOBS || []).filter(j => !JOB_SH[j.id]).map(j => 'J:' + j.id);
+      const ps = [].concat(window.HOUSING || [], window.COMFORT || [], window.FORTS || [])
+        .filter(p => !PASS_SH[PASS_SPEC[p.name]]).map(p => 'P:' + p.name);
+      const ns = ['housing', 'defense', 'shop', 'characters', 'codex', 'recruit', 'warehouse']
+        .filter(k => !NAV_SH[k]).map(k => 'N:' + k);
+      return out.concat(jobs, ps, ns);
     },
   };
 })();

@@ -19,18 +19,29 @@
 <body>
 <div id="out"></div>
 <script src="../js/data/items.js"></script>
+<script src="../js/data/jobs.js"></script>
+<script src="../js/data/passives.js"></script>
 <script src="../js/data/enemies.js"></script>
 <script src="../js/icons.js"></script>
 <script>
   const q = new URLSearchParams(location.search);
   const from = +(q.get('from') || 0), to = +(q.get('to') || 9999);
+  const group = q.get('group') || 'items';
   const items = (window.ITEM_ORDER || []).filter(id => q.get('all') || !window.ITEMS[id].hidden);
   const enemies = window.ENEMIES.filter(e => q.get('all') || !e.hidden);
-  let all = items.map(id => ({ id, name: window.ITEMS[id].name, svg: ICONS.item(id) }))
-    .concat(enemies.map(e => ({ id: 'E:' + e.id, name: e.name, svg: ICONS.enemy(e.id), en: 1 })));
+  const jobs = window.JOBS.map(j => ({ id: 'J:' + j.id, name: j.name, svg: ICONS.job(j), en: 1 }));
+  const passives = [].concat(window.HOUSING, window.COMFORT, window.FORTS)
+    .map(p => ({ id: 'P:' + p.name, name: p.name, svg: ICONS.passive(p.name), en: 1 }));
+  const navs = ['housing', 'defense', 'shop', 'characters', 'codex', 'recruit', 'warehouse']
+    .map(k => ({ id: 'N:' + k, name: k, svg: ICONS.nav(k), en: 1 }));
+  const pools = { items: jobs, jobs, passive: passives, passives, nav: navs };
+  let all = group === 'items'
+    ? items.map(id => ({ id, name: window.ITEMS[id].name, svg: ICONS.item(id) }))
+      .concat(enemies.map(e => ({ id: 'E:' + e.id, name: e.name, svg: ICONS.enemy(e.id), en: 1 })))
+    : (pools[group] || jobs);
   if (q.get('ids')) {
     const want = q.get('ids').split(',');
-    all = want.map(w => all.find(x => x.id === w || x.id === 'E:' + w) || { id: w, name: '?', svg: '' });
+    all = want.map(w => all.find(x => x.id === w || x.name === w || x.id === 'E:' + w) || { id: w, name: '?', svg: '' });
   }
   const list = q.get('ids') ? all : all.slice(from, to);
   document.getElementById('out').innerHTML = '<div class="grid">' + list.map(x =>
