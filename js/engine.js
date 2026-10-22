@@ -347,7 +347,7 @@ function powerProduced() {
   const g = window.JOB_POWER_GENERATORS || {};
   for (const era in g) (g[era] || []).forEach(x => { if (S.power.built[x.id]) p += x.watt || 0; });
   const pj = S.jobs.power;
-  if (pj && pj.char && S.power.built.coal) p += 0;
+  if (pj && pj.char) p += 10;   // 电力工作：2 木材 / 3 秒 → 10 瓦
   return p;
 }
 function powerDemand() {
@@ -460,6 +460,12 @@ function produceJob(jobId, dt) {
       const pick = weightedPick(pool);
       if (pick) addItem(pick.id, 1);
       gainMastery(c, jobId, (job.duration||3) * 0.55);
+      js.done = (js.done||0) + 1;
+      continue;
+    }
+    if (job.special === 'power') {
+      // 电力的产出由 powerProduced() 统一结算（10 瓦），这里只消耗燃料
+      gainMastery(c, jobId, (job.duration||3));
       js.done = (js.done||0) + 1;
       continue;
     }
