@@ -8,6 +8,10 @@
 
 **https://binbilibili.github.io/era-idle/**
 
+![工作页](assets/screenshot-job.png)
+![角色页](assets/screenshot-characters.png)
+![科技树](assets/screenshot-tech.png)
+
 ## 现在能玩到什么
 
 | 系统 | 内容 |
