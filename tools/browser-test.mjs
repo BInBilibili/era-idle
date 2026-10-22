@@ -56,6 +56,26 @@ try {
   const ver = await js(`document.getElementById('hudVer').textContent`);
   ok(/^v0\.0\.\d+$/.test(ver), 'HUD 显示测试版版本号：' + ver);
 
+  console.log('== HUD 布局 ==');
+  const layout = await js(`(function(){
+    const b=document.querySelector('.brand').getBoundingClientRect();
+    const r=document.getElementById('resbar').getBoundingClientRect();
+    const a=document.querySelector('.acts').getBoundingClientRect();
+    return Math.round(r.left)+','+Math.round(r.top)+','+Math.round(b.right)+','+Math.round(a.left);
+  })()`);
+  const [rl, rt, br, al] = layout.split(',').map(Number);
+  ok(rl > br - 5 && rl < al, '资源条在版本号右侧、按钮左侧：' + layout);
+  const rate = await js(`(document.querySelector('.res.food .rate')||{}).textContent||''`);
+  ok(/-\d+\.\d\d\/秒|0\/秒/.test(rate), '食物显示每秒消耗：' + rate);
+
+  console.log('== 导航：科研在工作组 ==');
+  const nav = await js(`(function(){
+    const items=[...document.querySelectorAll('#side .nav')].map(n=>(n.querySelector('.nm')||{}).textContent||'');
+    const research=items.filter(t=>t.indexOf('科研')===0);
+    return research.length + '|' + (research[0]||'');
+  })()`);
+  ok(nav.startsWith('1|') && !nav.includes('科技树'), '科研只出现一次且名称为「科研」：' + nav);
+
   console.log('== 点击入驻槽 ==');
   const modalOpened = await js(`(function(){
     const slot=document.querySelector('[data-act="recslot"]');

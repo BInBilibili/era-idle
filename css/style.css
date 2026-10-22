@@ -274,3 +274,9 @@ html[data-theme="light"] .log{background:#fff}
 
 .ver{font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:20px;padding:1px 7px;letter-spacing:.3px;white-space:nowrap}
 html[data-theme="light"] .ver{color:#5c6b7d}
+
+/* ===== 资源条左置 + 食物消耗速率 ===== */
+#hud .resbar{margin-left:6px;flex-wrap:wrap}
+.res .rate{font-size:10px;color:var(--muted);margin-left:3px;white-space:nowrap}
+.res.food.low .rate{color:var(--red)}
+html[data-theme="light"] .res .rate{color:#7a8798}

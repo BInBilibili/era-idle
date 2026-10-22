@@ -94,13 +94,14 @@ const UI = {
     if (E.powerProduced() >= 1) S.ui.showPower = true;
     const food = E.granaryTotal(), cap = E.granaryCap();
     const chars = E.onFieldChars().length;
-    const foodLeft = chars > 0 ? food / (chars * E.GAME.foodPerCharSec) : Infinity;
+    const foodRate = chars * E.GAME.foodPerCharSec;
+    const foodLeft = chars > 0 ? food / foodRate : Infinity;
     const low = food <= 0 || foodLeft < 60;
     let html = '';
     html += `<div class="res gold"><span class="k">金币</span><span class="v mono" id="resGold">${E.fmt(S.gold)}</span></div>`;
     if (S.ui.showResearch) html += `<div class="res research"><span class="k">科研</span><span class="v mono" id="resResearch">${E.fmt(S.research)}</span></div>`;
     if (S.ui.showPower) html += `<div class="res power"><span class="k">电力</span><span class="v mono" id="resPower">${E.fmt(E.powerProduced(), 0)}/${E.fmt(E.powerDemand(), 0)}</span></div>`;
-    html += `<div class="res food ${low ? 'low' : ''}" title="粮仓份数；${chars ? '约可支撑 ' + E.fmtTime(foodLeft) : '无人在场'}"><span class="k">食物</span><span class="v mono" id="resFood">${E.fmt(food, 0)}/${E.fmt(cap, 0)}</span></div>`;
+    html += `<div class="res food ${low ? 'low' : ''}" title="粮仓份数；${chars ? '约可支撑 ' + E.fmtTime(foodLeft) : '无人在场'}"><span class="k">食物</span><span class="v mono" id="resFood">${E.fmt(food, 0)}/${E.fmt(cap, 0)}</span><span class="rate">${chars ? '-' + foodRate.toFixed(2) + '/秒' : '0/秒'}</span></div>`;
     document.getElementById('resbar').innerHTML = html;
   },
 
@@ -113,8 +114,6 @@ const UI = {
          <span class="ic">${icon}</span><span class="nm">${name}</span>${sub ? `<span class="sub ${String(sub).indexOf('人在工作') >= 0 ? 'green' : ''}">${sub}</span>` : ''}
        </div>`;
     let h = '';
-    h += `<div class="grp">科研</div>`;
-    h += nav('job:research', '🔬', '科研 · 科技树', `${E.techsDone()}/${E.TECHS.length}`);
     // 战斗
     const hunt = E.JOB_BY_ID.hunting;
     const gifts = E.JOBS.filter(j => (j.special === 'blackSoul' || j.special === 'eraSim') && E.jobVisible(j));
@@ -139,7 +138,7 @@ const UI = {
     h += nav('warehouse', '📦', '#仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
     // 工作
     h += `<div class="grp">工作</div>`;
-    E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim' && j.special !== 'research') && E.jobVisible(j)).forEach(j => {
+    E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim') && E.jobVisible(j)).forEach(j => {
       h += nav('job:' + j.id, this.jobIcon(j), j.name, this.jobSub(j), this.jobSub(j) && j.id !== 'hunting' ? '' : '');
     });
     document.getElementById('side').innerHTML = h;
