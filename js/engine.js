@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.6';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.7';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -15,6 +15,7 @@ const GAME = {
   shopRefresh: 60,
   weaponDefaultInterval: 2.4,
   mineBaseSec: 3,           // 采矿基础时长：权重 100 的矿石 = 3 秒，其余 = 3×100/权重
+  secPerDay: 24,            // 1 天 = 24 秒（1 秒 = 1 小时）：只有按「天」写的数值靠它换算
 };
 
 const HEROES = [
@@ -968,16 +969,15 @@ function tick(dt) {
     S._muyiAcc = (S._muyiAcc || 0) + dt * rate / 2;
     while (S._muyiAcc >= 1) { S._muyiAcc -= 1; addItem('wood', 1); gainMastery(muyi, 'woodcutting', 1); }
   }
-  // 恢复 / 重伤
+  // 恢复 / 重伤：1 天 = 24 秒；自然 5%/天，有医疗角色 15%/天（数值来自 CC 的 /天 字段）
+  const regenPctPerDay = healerPresent()
+    ? (CC.healerRegenPctPerDay || 15) : (CC.naturalRegenPctPerDay || 5);
+  const regenPctPerSec = regenPctPerDay / 100 / GAME.secPerDay;
   chars.forEach(c => {
     const st = charStats(c);
     if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
-    if (c.injured) {
-      c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * 0.05 * dt * (healerPresent() ? 3 : 1));
-      if (c.hpNow > st.maxHp * 0.5) { c.injured = false; log('<b class="green">' + charName(c) + '</b> 伤愈归队。'); }
-    } else {
-      c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * 0.05 * dt * (healerPresent() ? 3 : 1));
-    }
+    c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regenPctPerSec * dt);
+    if (c.injured && c.hpNow > st.maxHp * 0.5) { c.injured = false; log('<b class="green">' + charName(c) + '</b> 伤愈归队。'); }
   });
   // 粮仓腐坏
   granaryDecay(dt);
@@ -1097,7 +1097,7 @@ window.Engine = {
   masteryOf, masteryLvl, masteryPct, masteryNext, charBonusFor, charName,
   comfortValue, comfortMult, fortPower, fortWatts, fortReduce, powerProduced, powerDemand, powerEfficiency, powerNow,
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
-  recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState,
+  recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, shardCount, ownsHero, poolComplete, pull, giftTo, starUp,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
