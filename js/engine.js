@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.14';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.15';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -333,7 +333,12 @@ function jobVisible(j) {
 function unlockedJobs() { return JOBS.filter(jobVisible); }
 
 /* ---------- 角色 ---------- */
-function onFieldCap() { return Math.min(5 + S.housing * 2, 18); }
+/* 可上场人数：初始 5，每建成一档取该档 cap；住满 6 档 = 18 */
+function onFieldCap() {
+  if (!S.housing) return 5;
+  const t = HOUSING[Math.min(S.housing, HOUSING.length) - 1];
+  return Math.min(t ? t.cap : 18, 18);
+}
 function charPower(c) {
   const st = charStats(c);
   const gear = gearPower(c);
@@ -554,6 +559,13 @@ const GENERIC_IN = {
 function genericCount(name) {
   const list = GENERIC_IN[name] || [];
   return list.reduce((a, n) => a + (S.items[iid(n)] || 0), 0);
+}
+/* 需求行的实际可用量：通用分类（素食食材 / 肉食食材 / 种子）按组成物品合计，
+   其余按物品 id 取库存；名字不认识时返回 0（宁可标缺料，也不假装充足）。 */
+function stockOf(name) {
+  if (GENERIC_IN[name]) return genericCount(name);
+  const id = iid(normName(name));
+  return id ? (S.items[id] || 0) : 0;
 }
 function consumeInputs(r) {
   const ins = r.inputs || {};
@@ -1064,7 +1076,7 @@ function costHtml(cost) {
     return '<span class="' + (have >= q ? 'ok' : 'no') + '">' + n + ' ' + fmt(have) + '/' + fmt(q) + '</span>';
   }).join(' ');
 }
-function buyHousing() { const t = HOUSING[S.housing]; if (!t) return { ok:false, why:'已到顶' }; if (comfortValue() < (t.comfortReq||0)) return { ok:false, why:'舒适度不足（需要 ' + t.comfortReq + '）' }; if (!payCost(t.cost)) return { ok:false, why:'材料不足' }; S.housing++; return { ok:true }; }
+function buyHousing() { const t = HOUSING[S.housing]; if (!t) return { ok:false, why:'已到顶' }; if (!payCost(t.cost)) return { ok:false, why:'材料不足' }; S.housing++; return { ok:true }; }
 function buyComfort(i) { const t = COMFORT[i]; if (!t || S.comfort[i]) return { ok:false }; if (!payCost(t.cost)) return { ok:false, why:'材料不足' }; S.comfort[i] = true; return { ok:true }; }
 function buyFort(i) { const t = FORTS[i]; if (!t || S.forts[i]) return { ok:false }; if (!payCost(t.cost)) return { ok:false, why:'材料不足' }; S.forts[i] = true; return { ok:true }; }
 function buyWarehouse() { const t = WH_UPG[S.whUpg]; if (!t) return { ok:false }; if (!payCost(t.cost)) return { ok:false, why:'材料不足' }; S.whUpg++; return { ok:true }; }
@@ -1570,7 +1582,7 @@ window.Engine = {
   masteryOf, masteryLvl, masteryPct, masteryNext, charBonusFor, charName,
   comfortValue, comfortMult, fortPower, fortWatts, fortReduce, powerProduced, powerDemand, powerEfficiency, powerNow,
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
-  recipeInputs, recipeOutputs, canMake, jobSpeed, jobGate, produceJob, combatState, healerPresent,
+  recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
   pull, dismissChar, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,

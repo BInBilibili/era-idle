@@ -355,6 +355,18 @@ try {
   await sleep(1900);
   const tipAfter = JSON.parse(await js(`JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), id:UI._tipId})`));
   ok(ta.before && tipAfter.show && tipAfter.id, '1.5 秒整页重绘后面板仍然跟随：' + JSON.stringify({before:ta.before,after:tipAfter.show,id:tipAfter.id}));
+
+  console.log('== 住房页（5→18，无舒适度门槛）==');
+  const house = await js(`(function(){
+    Engine.S.ui.page='housing'; UI.render();
+    const txt=document.getElementById('mainWrap').textContent;
+    const badges=[...document.querySelectorAll('#mainWrap .badge')].map(b=>b.textContent.trim());
+    return JSON.stringify({hasMin: txt.indexOf('min(')>=0, comfortGate: txt.indexOf('舒适度 ≥')>=0,
+      caps: badges.filter(b=>/可上场 \\d+ 人/.test(b))});
+  })()`);
+  const hh = JSON.parse(house);
+  ok(!hh.hasMin && !hh.comfortGate, '住房页不再有 min() 公式 / 舒适度门槛：min=' + hh.hasMin + ' 门槛=' + hh.comfortGate);
+  ok(hh.caps.length > 0 && hh.caps[0] === '可上场 7 人', '当前档显示「可上场 N 人」：' + hh.caps.join(' / '));
 } catch (e) {
   console.error('测试异常：', e.message);
   fails++;

@@ -28,6 +28,21 @@ ok(E.granaryTotal() > 0, '开局有食物：' + E.granaryTotal().toFixed(1));
 ok(E.warehouseCap() === 20, '初始仓库 20 格');
 ok(S.settings && S.settings.theme === 'dark', '默认深色主题');
 
+console.log('== 住房：6 档住满 = 18 人 ==');
+ok(E.HOUSING.map(h => h.cap).join(',') === '7,9,11,13,15,18', '每档可上场人数 7/9/11/13/15/18');
+ok(E.HOUSING.every(h => h.comfortReq === undefined), '住房不再有舒适度门槛');
+const savedHousing = S.housing;
+S.housing = 0; ok(E.onFieldCap() === 5, '没盖房 = 5 人');
+S.housing = 1; ok(E.onFieldCap() === 7, '茅草棚 = 7 人');
+S.housing = 3; ok(E.onFieldCap() === 11, '第 3 档 = 11 人');
+S.housing = 6; ok(E.onFieldCap() === 18, '住满 6 档 = 18 人（不是 17/25）');
+S.housing = 0;
+S.comfort = E.COMFORT.map(() => false);            // 舒适度 0 也能盖房
+E.addItem('木材', 300); E.addItem('石头', 150);
+const hr = E.buyHousing();
+ok(hr.ok && S.housing === 1 && E.onFieldCap() === 7, '舒适度 0 也能建茅草棚：' + JSON.stringify(hr));
+S.housing = savedHousing;
+
 console.log('== 黑暗之魂线隐藏 ==');
 ok(E.JOB_BY_ID.black_soul && E.JOB_BY_ID.black_soul.hidden, '#黑暗之魂 标记隐藏');
 ok(E.jobVisible(E.JOB_BY_ID.black_soul) === false, '#黑暗之魂 不可见（不出现在导航/工作页）');
@@ -290,6 +305,27 @@ E.combatState('hunting').region = 7;
 rep = E.settleOffline(600);
 ok(rep.injured.length > 0 && E.S.chars.player.injured, '离线打不过会重伤：' + rep.injured.join('、'));
 ok(rep.kills === 0, '打不过时没有击杀产出');
+
+console.log('== 界面：消耗栏缺料标红 ==');
+require('../js/ui.js');
+const U = window.UI;
+E.S = E.newState('界面测试');
+ok(!U.ioList({ '木材': 2 }).includes('<span class="red">'), '产出行不检查库存（不标红）');
+ok(U.ioList({ '木材': 2 }, true).includes('<span class="red">木材</span>'), '消耗栏缺木材：名称标红');
+E.addItem(E.N2I('木材'), 2);
+ok(!U.ioList({ '木材': 2 }, true).includes('<span class="red">'), '库存够：名称不标红');
+// 通用输入（素食食材 = 浆果 / 块根 / 野菌 / 坚果）按合计判定
+['浆果', '块根', '野菌', '坚果'].forEach(n => { E.S.items[E.N2I(n)] = 0; });
+ok(U.ioList({ '素食食材': 1 }, true).includes('<span class="red">素食食材</span>'), '通用消耗（素食食材）缺料：名称标红');
+E.S.items[E.N2I('浆果')] = 1;
+ok(!U.ioList({ '素食食材': 1 }, true).includes('<span class="red">'), '通用消耗凑够：名称不标红');
+// 真实项目卡：消耗行接入检查，产出行不受影响
+const inJob = E.JOBS.find(j => !j.special && j.inputs && Object.keys(j.inputs).length > 0);
+E.ensureSlots(E.S.jobs[inJob.id], E.jobRecipes(inJob).length);
+E.S.items = {};
+const card = U.recipeCard(inJob, E.S.jobs[inJob.id], E.jobRecipes(inJob)[0], 0);
+ok(card.includes('消耗：') && card.includes('<span class="red">'), '项目卡消耗行：缺料名称标红（' + inJob.name + '）');
+ok(!card.split('产出：')[1].split('<br>')[0].includes('class="red"'), '项目卡产出行不标红');
 
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);

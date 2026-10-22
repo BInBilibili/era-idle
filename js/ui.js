@@ -145,7 +145,6 @@ const UI = {
       .filter(seg => !restated.some(([val, re]) => !!val && re.test(seg)))
       .join('，');
   },
-
   itemTipHtml(id) {
     const info = this.itemInfo(id);
     if (!info) return '';
@@ -510,7 +509,7 @@ const UI = {
           ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
         </div>
       </div>
-      <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs) : ''}</div>
+      <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs, true) : ''}</div>
       <div class="row tiny" style="justify-content:space-between;margin-top:6px">
         <span>${c ? `<span class="green">${this.esc(E.charName(c))}</span> · 精通 <b class="mono" data-live="masterylvl" data-i="${i}">${mastery}</b>${bonus ? ' · +' + bonus + '%' : ''}` : '<span class="dim">空置 · 拖入角色</span>'}</span>
         <span class="mono">${dur.toFixed(1)}s</span>
@@ -520,13 +519,15 @@ const UI = {
       ${blocked ? '<div class="tiny red" style="margin-top:4px">材料不足</div>' : ''}
     </div>`;
   },
-  ioList(obj) {
+  ioList(obj, checkStock) {
     const ent = Object.entries(obj || {});
     if (!ent.length) return '<span class="dim">无</span>';
     return ent.map(([n, q]) => {
       const id = this.itemIdOf(n);
       const it = id ? E.ITEMS[id] : null;
-      return `<span class="badge io"${id ? ` data-tip-item="${id}"` : ''}>${it ? this.itemIcon(it) + ' ' : ''}${this.esc(n)} ×${E.fmt(q)}</span>`;
+      const lack = !!checkStock && E.stockOf(n) < q;   // 消耗栏：库存不够时物品名标红
+      const name = lack ? `<span class="red">${this.esc(n)}</span>` : this.esc(n);
+      return `<span class="badge io"${id ? ` data-tip-item="${id}"` : ''}>${it ? this.itemIcon(it) + ' ' : ''}${name} ×${E.fmt(q)}</span>`;
     }).join(' ');
   },
   miningPanel(job) {
@@ -1081,23 +1082,21 @@ const UI = {
       <span class="badge">全局效率 +${(E.comfortValue() * 0.35).toFixed(1)}%</span></div>
       <div class="split">
         <div class="card"><h3>住房（角色上限）</h3>
-          <div class="sub">实际上限 = min(住所上限, 18)。当前 ${E.onFieldCap()} 人可上场。</div>
+          <div class="sub">盖房提高角色上限：能同时上场干活、并计入基地战力的人更多。初始 5 人，住满 6 档共 18 人。</div>
           <div class="hr"></div>
           ${E.HOUSING.map((t, i) => {
             const done = i < S.housing, cur = i === S.housing;
             if (!done && !cur) return '';
-            const needC = E.comfortValue() < (t.comfortReq || 0);
             return `<div class="card upg ${done ? 'done' : ''}" style="margin-bottom:8px">
-              <div class="row" style="justify-content:space-between"><b class="small">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">上限 ${t.cap}</span></div>
-              ${done ? '<div class="tiny green">✓ 已建成</div>' : `<div class="tiny muted">需要舒适度 ≥ ${t.comfortReq || 0}（当前 ${E.comfortValue()}）</div>
-              <div class="price" style="margin-top:4px">${this.priceLine(t.cost)}</div>
-              <button class="primary" style="margin-top:6px;width:100%" data-act="buyhouse" ${(needC || !E.affordCost(t.cost)) ? 'disabled' : ''}>建造</button>`}
+              <div class="row" style="justify-content:space-between"><b class="small">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">可上场 ${t.cap} 人</span></div>
+              ${done ? '<div class="tiny green">✓ 已建成</div>' : `<div class="price" style="margin-top:4px">${this.priceLine(t.cost)}</div>
+              <button class="primary" style="margin-top:6px;width:100%" data-act="buyhouse" ${E.affordCost(t.cost) ? '' : 'disabled'}>建造</button>`}
             </div>`;
           }).join('')}
-          ${!next ? '<div class="tiny green">已建满全部住房（17 上限）。</div>' : ''}
+          ${!next ? '<div class="tiny green">已建满全部住房：18 人可上场。</div>' : ''}
         </div>
         <div class="card"><h3>舒适度（家具 / 娱乐 / 地板）</h3>
-          <div class="sub">每 1 点舒适度 → 全部工作 +0.35%。上限 100。高层住房需要舒适度达标。</div>
+          <div class="sub">每 1 点舒适度 → 全部工作 +0.35%。上限 100。</div>
           <div class="hr"></div>
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px">
           ${E.COMFORT.map((t, i) => {
