@@ -468,7 +468,7 @@ const UI = {
             return `<div class="card upg ${bought ? 'done' : ''}">
               <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b>${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</div>
               <div class="tiny muted" style="margin-top:4px">产出 +${u.bonusPct || 0}%${u.note ? ' · ' + this.esc(u.note) : ''}</div>
-              <div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>
+              ${bought ? '' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>`}
               ${bought ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="upg" data-id="${job.id}" data-i="${i}" ${E.affordCost(u.cost) ? '' : 'disabled'}>购买</button>`}
             </div>`;
           }).join('') || '<div class="empty">暂无可用升级项</div>'}
@@ -502,7 +502,7 @@ const UI = {
     const mnext = c ? E.masteryNext(c, job.id) : 0;
     const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
     const outItem = Object.keys(r.outputs || {}).map(n => this.itemIdOf(n)).filter(Boolean)[0] || null;
-    return `<div class="card recipe ${c ? 'run' : ''}" data-drop-job="${job.id}" data-drop-i="${i}"${outItem ? ` data-tip-item="${outItem}"` : ''}>
+    return `<div class="card recipe ${c ? 'run' : ''}" data-act="cardrec" data-job="${job.id}" data-i="${i}" data-drop-job="${job.id}" data-drop-i="${i}"${outItem ? ` data-tip-item="${outItem}"` : ''}>
       <div class="row" style="justify-content:space-between">
         <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.recipeIcon(job, r)}</span><b class="small">${this.esc(r.name || job.name)}</b></div>
         <div class="slot mini ${c ? 'filled' : ''}" data-act="recslot" data-job="${job.id}" data-i="${i}" title="${c ? this.esc(E.charName(c)) : '点击选择入驻角色'}">
@@ -973,7 +973,6 @@ const UI = {
       <span class="badge">敌人 ${seenEnemies.length}/${enemyList.length}</span>
       <span class="badge">角色 ${ownedChars.length}/${charDefs.length}</span>
       ${pending.total ? `<button class="gold" data-act="claimAllCodex">全部领取 · ${pending.total} 项（+${pending.shards} 碎片）</button>` : ''}</div>
-      <div class="hint">首次收录后条目会亮金边 + 出现「领取」：物品 ${E.CODEX_REWARD.items} 个 / 敌人 ${E.CODEX_REWARD.enemies} 个 / 角色 ${E.CODEX_REWARD.chars} 个英雄碎片。每个条目只能领一次。</div>
       <div class="tabs">
         <div class="tab ${tab === 'items' ? 'active' : ''}" data-act="tab" data-k="codex" data-v="items">物品</div>
         <div class="tab ${tab === 'enemies' ? 'active' : ''}" data-act="tab" data-k="codex" data-v="enemies">敌人</div>

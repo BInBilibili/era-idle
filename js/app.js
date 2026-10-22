@@ -146,7 +146,7 @@
     document.addEventListener('click', onClick);
     document.addEventListener('click', e => {
       if (!slotMenuEl) return;
-      if (e.target.closest('#slotMenu') || e.target.closest('[data-act="recslot"]')) return;
+      if (e.target.closest('#slotMenu') || e.target.closest('[data-act="recslot"],[data-act="cardrec"]')) return;
       closeSlotMenu();
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlotMenu(); U.hideTip(); } });
@@ -216,6 +216,18 @@
       case 'tab': S.ui.tab[k] = v; U.render(); break;
       case 'sort': S.ui.tab.whSort = v; U.render(); break;
       case 'recslot': openJobSlot(el.dataset.job || id, +(i || 0), el); break;
+      /* 整张项目卡：空置 → 弹出与入驻槽相同的下拉菜单；已有人 → 直接撤下 */
+      case 'cardrec': {
+        const jobId = el.dataset.job, idx = +(el.dataset.i || 0);
+        const js2 = S.jobs[jobId];
+        const cur = (js2 && js2.slots) ? js2.slots[idx] : null;
+        if (cur && S.chars[cur]) {
+          E.clearSlot(jobId, idx);
+          U.toast('已撤下 ' + E.charName(S.chars[cur]));
+          U.render();
+        } else openJobSlot(jobId, idx, el);
+        break;
+      }
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
       case 'upg': {
         const r = E.buyUpgrade(id, +i);
