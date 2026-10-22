@@ -130,6 +130,22 @@ const UI = {
     info.power = it.cat === 'weapon' ? info.str * 2 + info.atk : (it.dr || 0) * 5 + info.str * 2;   // 与 engine.gearPower 同权重
     return info;
   },
+  /* 特性只保留面板里没有单列的信息：「射程 2」「破甲 10%」这类数值上面已经成行，不再重复一遍；
+     剥完为空就整行不显示（短弓只写了「射程 2」时，这一行直接消失）。 */
+  tipSpecial(info) {
+    const raw = String(info.special || '').trim();
+    if (!raw) return '';
+    const restated = [
+      [info.range, /^射程\s*\d+$/],
+      [info.armorPen, /^破甲\s*\d+%?$/],
+      [info.crit, /^暴击\s*\d+%?$/],
+      [info.ignoreDR, /^无视\s*\d+%\s*伤害减免$/],
+    ];
+    return raw.split(/[，,、;；]/).map(s => s.trim()).filter(Boolean)
+      .filter(seg => !restated.some(([val, re]) => !!val && re.test(seg)))
+      .join('，');
+  },
+
   itemTipHtml(id) {
     const info = this.itemInfo(id);
     if (!info) return '';
@@ -159,7 +175,8 @@ const UI = {
       if (info.crit) rows.push(row('暴击', info.crit + '%', 'gold'));
       rows.push(row('战力贡献', '+' + E.fmt(info.power), 'gold'));
       h += `<div class="ttSec">战斗数值</div><div class="ttRows">${rows.join('')}</div>`;
-      if (info.special) h += `<div class="ttDesc">特性：${esc(info.special)}</div>`;
+      const special = this.tipSpecial(info);
+      if (special) h += `<div class="ttDesc">特性：${esc(special)}</div>`;
     }
 
     h += `<div class="ttSec">经济</div><div class="ttRows">`
