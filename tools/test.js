@@ -434,5 +434,20 @@ E.buyUpgrade('woodcutting', 0);
 const chainHtml = U.pageJob('woodcutting');
 ok(chainHtml.includes('铜斧'), '石斧买完：铜斧出现');
 
+console.log('== 英雄立绘（v0.0.25）==');
+const fs = require('fs'), path = require('path');
+const ROOT = path.join(__dirname, '..');
+['dashao', 'lare'].forEach(id => {
+  const p = E.heroDef(id).portrait;
+  ok(!!p && fs.existsSync(path.join(ROOT, p)), '立绘文件存在：' + id + ' → ' + p);
+});
+const dashaoArt = U.avatar({ cid: 'dashao', kind: 'hero', name: '大少' }, 'lg');
+ok(dashaoArt.includes('assets/portraits/dashao.jpg') && dashaoArt.includes('<img'), '大少头像渲染为立绘图片');
+ok(dashaoArt.includes('?v=0.0.25'), '立绘 URL 带版本号缓存串');
+const randArt = U.avatar({ cid: 'gen9', gen: true, name: '林子墨' });
+ok(!randArt.includes('<img') && randArt.includes('林'), '随机普通角色仍是首字色块');
+const cssText = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
+ok(cssText.includes('.av.art img'), 'CSS 有 .av.art img 铺满规则');
+
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);

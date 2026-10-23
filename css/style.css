@@ -112,6 +112,9 @@ main#page{overflow-y:auto;padding:18px 20px 60px;min-width:0}
 .av.sm{width:32px;height:32px;border-radius:7px;font-size:12px}
 .av.lg{width:96px;height:96px;border-radius:14px;font-size:34px}
 .av.xl{width:128px;height:128px;border-radius:16px}
+.av.art{padding:0;background:#05070b}
+.av.art img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;border-radius:inherit;pointer-events:none}
+.av.art.sm img{border-radius:6px}
 .chip{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px;border-radius:9px;border:1px solid var(--line);background:#111925;cursor:grab;min-width:66px;position:relative;user-select:none}
 .chip.hover,.chip:hover{border-color:#4d6478;background:#16202c}
 .chip.on{border-color:#2f6b4c;box-shadow:0 0 0 2px #2f6b4c33}
