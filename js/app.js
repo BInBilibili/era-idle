@@ -249,15 +249,16 @@
       case 'sellall': { const g = E.sellItem(id, S.items[id] || 0); if (g) U.toast('卖出获得 ' + E.fmt(g) + ' 金'); U.render(); break; }
       case 'buy': confirmBuy(+i); break;
       case 'buyPotion': {
-        const sd = E.N2I('星尘'), pot = E.N2I('升星药水');
-        if (E.count(sd) >= 3) { E.removeItem(sd, 3); E.addItem(pot, 1); U.toast('买到升星药水 ×1', 'good'); } else U.toast('星尘不足', 'bad');
+        const sd = E.N2I('星尘'), pot = E.N2I('升星药水'), cost = E.POTION_STARDUST_COST;
+        if (E.count(sd) >= cost) { E.removeItem(sd, cost); E.addItem(pot, 1); U.toast('买到升星药水 ×1', 'good'); } else U.toast('星尘不足', 'bad');
         U.render(); break;
       }
       case 'buybook': {
         const it = E.ITEMS[id]; if (!it) break;
-        if (S.gold < 24000) { U.toast('金币不足', 'bad'); break; }
+        const price = E.buyPrice(id);
+        if (S.gold < price) { U.toast('金币不足', 'bad'); break; }
         if (E.warehouseFull() && !S.items[id]) { U.toast('仓库已满', 'bad'); break; }
-        S.gold -= 24000; E.addItem(id, 1); U.toast('购买《' + it.name + '》', 'good'); U.render(); break;
+        S.gold -= price; E.addItem(id, 1); U.toast('购买《' + it.name + '》', 'good'); U.render(); break;
       }
       case 'eqslot': openEquipSlot(slot); break;
       case 'eqfrom': {
@@ -306,7 +307,7 @@
       case 'raidPreview': {
         const st = E.raidStrength(), de = E.basePower();
         U.modal(`<h3>袭击预演</h3><div class="small">袭击强度 <b class="${st > de ? 'red' : 'green'}">${E.fmt(st)}</b> vs 基地战力 <b class="gold">${E.fmt(de)}</b></div>
-          <div class="sub" style="margin-top:8px">${st > de ? '按当前战力，这次会被攻破：约 10% 物品与金币会被抢走。' : '按当前战力可以击退。'}</div>
+          <div class="sub" style="margin-top:8px">${st > de ? '按当前战力，这次会被攻破。' : '按当前战力可以击退。'}</div>
           <div class="acts"><button onclick="UI.closeModal()">知道了</button></div>`);
         break;
       }

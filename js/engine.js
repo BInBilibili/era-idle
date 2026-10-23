@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.21';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.22';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -104,7 +104,9 @@ const HERO_BY_ID = {}; HEROES.forEach(h => HERO_BY_ID[h.id] = h);
 
 /* ---------- 抽卡常数 / 随机普通角色 ---------- */
 const PULL_COST = 10;      // 一次抽卡消耗的英雄碎片
-const PITY_LIMIT = 30;     // 连续 N 抽没新角色 → 下一抽必新（每池独立）
+const PITY_MIN = 1;        // 保底阈值起点：连续 1 抽没新角色 → 下一抽必新
+const PITY_MAX = 10;       // 每触发一次保底，阈值 +1，封顶 10（每池独立，礼物也累计）
+const POTION_STARDUST_COST = 3;   // 升星药水的常驻兑换价
 const CODEX_REWARD = { items: 1, enemies: 3, chars: 5 };   // 图鉴首次收录可领的碎片
 
 /* 随机普通角色：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐 / 不进图鉴。
@@ -273,7 +275,7 @@ function removeItem(idOrName, qty) {
 }
 function itemName(id) { return ITEMS[id] ? ITEMS[id].name : id; }
 function sellPrice(id) { return ITEMS[id] ? (ITEMS[id].price || 0) : 0; }
-function buyPrice(id) { const it = ITEMS[id]; if (!it) return 0; return Math.max(1, Math.round(it.price * 3)); }
+function buyPrice(id) { const it = ITEMS[id]; if (!it) return 0; return Math.max(1, Math.round(it.buy || it.price * 3)); }
 function warehouseCap() {
   if (!S.whUpg) return 20;
   const t = WH_UPG[S.whUpg - 1];
@@ -920,6 +922,15 @@ function gachaPity(poolId) {
   if (!S.gacha.noNew[poolId]) S.gacha.noNew[poolId] = 0;
   return S.gacha.noNew[poolId];
 }
+/* 保底阈值：第一次触发前 = 1，每触发一次保底 +1，封顶 10（分池独立） */
+function gachaPityLimit(poolId) {
+  const n = (S.gacha.pity && S.gacha.pity[poolId]) || 0;
+  return Math.min(PITY_MAX, PITY_MIN + n);
+}
+function bumpGachaPity(poolId) {
+  if (!S.gacha.pity) S.gacha.pity = {};
+  S.gacha.pity[poolId] = Math.min(PITY_MAX, (S.gacha.pity[poolId] || 0) + 1);
+}
 function shardCount() { const id = N2I('英雄碎片'); return id ? (S.items[id]||0) : 0; }
 function ownsHero(hid) { return !!S.chars[hid]; }
 /* 「池子集齐」只对有名英雄有意义（随机普通角色是无限池，永远集不齐） */
@@ -931,7 +942,7 @@ function pull(poolId) {
   removeItem(shardId, PULL_COST);
   S.gacha.pulls++; S.stats.pulls++;
   const noNew = gachaPity(poolId);
-  const needPity = noNew >= PITY_LIMIT;
+  const needPity = noNew >= gachaPityLimit(poolId);
   const isChar = needPity || Math.random() < 0.30;
   if (!isChar) {
     const roll = Math.random() * 100;
@@ -968,6 +979,7 @@ function pull(poolId) {
     c.hpNow = charStats(c).maxHp;
     S.chars[hid] = c; S.order.push(hid);
     S.seen.chars[hid] = true;
+    if (needPity) bumpGachaPity(poolId);
     S.gacha.noNew[poolId] = 0;
     S.discoveredShard = true;
     log('抽到新角色 <b class="gold">' + hero.name + '</b>！');
@@ -979,6 +991,7 @@ function pull(poolId) {
     hp: h.hp, atk: h.atk, str: h.str, def: h.def, stars: 1 });
   c.hpNow = charStats(c).maxHp;
   S.chars[h.id] = c; S.order.push(h.id);
+  if (needPity) bumpGachaPity(poolId);
   S.gacha.noNew[poolId] = 0;
   S.discoveredShard = true;
   log('一名随机普通角色加入了：<b class="gold">' + h.name + '</b>');
@@ -1599,8 +1612,8 @@ window.Engine = {
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
   recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   refreshShop, buyShopSlot, sellItem, shopPool,
-  gachaPity, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
-  pull, dismissChar, giftTo, starUp, PULL_COST, PITY_LIMIT, CODEX_REWARD, NORMAL,
+  gachaPity, gachaPityLimit, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
+  pull, dismissChar, giftTo, starUp, PULL_COST, PITY_MIN, PITY_MAX, POTION_STARDUST_COST, CODEX_REWARD, NORMAL,
   codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
   wealth, basePower, raidStrength, doRaid, tick, log, toast,

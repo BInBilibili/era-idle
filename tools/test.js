@@ -200,34 +200,45 @@ const p1 = E.pull('limited');
 ok(p1.ok, '抽卡一次：' + p1.type);
 ok(E.shardCount() === before - E.PULL_COST, '单抽消耗 ' + E.PULL_COST + ' 碎片：' + (before - E.shardCount()));
 
-// 常驻池：出角色时 100% 是全新随机普通角色
-S.gacha.noNew.standard = 30;
-const p2 = E.pull('standard');
-ok(p2.ok && p2.type === 'new' && p2.gen, '常驻池保底必出全新随机普通角色');
-ok(!S.chars[p2.hero.id].e1, '随机普通角色没有社交恩赐');
-S.gacha.noNew.standard = 30;
-const p2b = E.pull('standard');
-ok(p2b.ok && p2b.type === 'new' && p2b.gen && p2b.hero.id !== p2.hero.id, '随机普通角色无限：再保底又是一张新面孔');
-S.gacha.noNew.standard = 0;
-
-// 限定池：保底优先补齐两名有名英雄
-for (let i = 0; i < 4 && !['dashao', 'lare'].every(id => S.chars[id]); i++) { S.gacha.noNew.limited = 30; E.pull('limited'); }
-ok(['dashao', 'lare'].every(id => S.chars[id]), '限定池保底补齐两名英雄');
-S.gacha.noNew.limited = 30;
-const p5 = E.pull('limited');
-ok(p5.ok && p5.type === 'new' && p5.gen, '英雄集齐后，限定池保底 = 全新随机普通角色（' + p5.type + '）');
-S.gacha.noNew.limited = 0;
-
-// 礼物也算「这一抽没出新角色」：连抽 30 次礼物 → 第 31 抽保底必出角色
-S.gacha.noNew.standard = 0;
+// 常驻池：保底阈值 1 → 10（每触发一次 +1，封顶 10；礼物也计入）
+ok(E.PITY_MIN === 1 && E.PITY_MAX === 10, '保底阈值范围 1~10');
+S.gacha.noNew.standard = 0; S.gacha.pity.standard = 0;
 const rnd = Math.random;
 Math.random = () => 0.99;            // 30% 判定必失败 → 全部出礼物
-for (let i = 0; i < 30; i++) E.pull('standard');
-const pityCnt = S.gacha.noNew.standard;
-const p4 = E.pull('standard');
+E.pull('standard');                  // 1 次礼物
+ok(E.gachaPityLimit('standard') === 1 && S.gacha.noNew.standard === 1, '第 1 次保底前：阈值 1，计数 1');
+const p2 = E.pull('standard');       // 触发第 1 次保底
+ok(p2.ok && p2.type === 'new' && p2.gen, '连续 1 抽没新角色 → 下一抽保底出随机角色');
+ok(!S.chars[p2.hero.id].e1, '随机普通角色没有社交恩赐');
+ok(S.gacha.pity.standard === 1 && E.gachaPityLimit('standard') === 2, '第 1 次保底后阈值升到 2');
+E.pull('standard'); E.pull('standard');   // 2 次礼物
+const p2b = E.pull('standard');
+ok(p2b.ok && p2b.type === 'new' && p2b.gen && p2b.hero.id !== p2.hero.id, '第 2 次保底又是一张新面孔');
+ok(S.gacha.pity.standard === 2 && E.gachaPityLimit('standard') === 3, '第 2 次保底后阈值升到 3');
+// 阈值封顶 10
+S.gacha.pity.standard = 9; S.gacha.noNew.standard = 0;
+for (let i = 0; i < 10; i++) E.pull('standard');   // 10 次礼物
+const pCap = E.pull('standard');
+ok(E.gachaPityLimit('standard') === 10, '阈值封顶 10');
+ok(pCap.type === 'new' && pCap.gen, '阈值 10：连续 10 抽没新角色后必出');
+ok(S.gacha.pity.standard === 10 && E.gachaPityLimit('standard') === 10, '封顶后不再增长');
+S.gacha.pity.standard = 0; S.gacha.noNew.standard = 0;
+
+// 限定池：保底优先补该池还没拥有的有名英雄（阈值独立）
+S.gacha.pity.limited = 0; S.gacha.noNew.limited = 0;
+E.pull('limited');                   // 礼物
+E.pull('limited');                   // 第 1 次保底 → 有名英雄
+ok(E.gachaPityLimit('standard') === 1, '保底阈值分池独立：限定池触发不影响常驻池');
+for (let i = 0; i < 2 && !['dashao', 'lare'].every(id => S.chars[id]); i++) {
+  S.gacha.noNew.limited = E.gachaPityLimit('limited');
+  E.pull('limited');
+}
+ok(['dashao', 'lare'].every(id => S.chars[id]), '限定池保底补齐两名英雄');
+S.gacha.noNew.limited = E.gachaPityLimit('limited');
+const p5 = E.pull('limited');
+ok(p5.ok && p5.type === 'new' && p5.gen, '英雄集齐后，限定池保底 = 全新随机普通角色（' + p5.type + '）');
 Math.random = rnd;
-ok(pityCnt === 30, '礼物抽也累计保底计数：' + pityCnt);
-ok(p4.type === 'new' && p4.gen, '第 31 抽保底必出全新角色：' + p4.type);
+S.gacha.pity.limited = 0; S.gacha.noNew.limited = 0;
 
 console.log('== 开除随机普通角色 ==');
 const gcId = Object.keys(S.chars).find(id => S.chars[id].gen);
@@ -348,6 +359,17 @@ console.log('== 界面：消耗栏缺料标红 ==');
 require('../js/ui.js');
 const U = window.UI;
 E.S = E.newState('界面测试');
+E.S.techs.writing = true;    // 开启商店
+const shopHtml = U.pageShop();
+ok(shopHtml.includes('data-tip-item=') && shopHtml.includes('buyPotion'), '商店所有商品（货架 + 常驻）都能悬停看面板');
+ok(shopHtml.includes('升星药水') && shopHtml.includes('精通 +10'), '升星药水与精通书以卡片形式常驻在商店');
+ok(!shopHtml.includes('买入价 = 卖出价'), '商店不再写买入价规则说明');
+ok(U.itemTipHtml(E.N2I('升星药水')).includes('兑换价') && !U.itemTipHtml(E.N2I('升星药水')).includes('买入价'), '升星药水面板显示 3 星尘兑换价');
+const recHtml = U.pageRecruit();
+ok(!recHtml.includes('保底') && !recHtml.includes('每次都是新的'), '招募页不显示保底计数与「每次都是新的」');
+ok(U.pageHousing().includes('住房能提高角色上限'), '住所页描述精简为一句');
+ok(U.pageDefense().includes('每隔一段时间会有袭击发生'), '防御页描述精简为一句');
+delete E.S.techs.writing;
 ok(!U.ioList({ '木材': 2 }).includes('<span class="red">'), '产出行不检查库存（不标红）');
 ok(U.ioList({ '木材': 2 }, true).includes('<span class="red">木材</span>'), '消耗栏缺木材：名称标红');
 E.addItem(E.N2I('木材'), 2);

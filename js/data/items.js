@@ -251,12 +251,12 @@ window.ITEMS = {
   /* ============================================================
    * §十二 抽卡与恩赐新增物品（13 种）
    * ============================================================ */
-  hero_shard:  { name: '英雄碎片',       era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 667,  buy: 2000,  kind: 'shard',     src: '任意工作极低概率 / 商店第 6 格', note: '20 个 = 1 次抽卡' },
+  hero_shard:  { name: '英雄碎片',       era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 667,  buy: 2000,  kind: 'shard',     src: '任意工作极低概率 / 商店第 6 格', note: '10 个 = 1 次抽卡' },
   sticky_note: { name: '好感度礼物·便利贴', era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 400,  buy: 1200,  kind: 'gift', gift: 2,  src: '抽卡 35.0%' },
   merch:       { name: '好感度礼物·周边',   era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 1200, buy: 3600,  kind: 'gift', gift: 6,  src: '抽卡 21.0%' },
   collector:   { name: '好感度礼物·典藏',   era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 3000, buy: 9000,  kind: 'gift', gift: 15, src: '抽卡 10.5%' },
   heirloom:    { name: '好感度礼物·传家宝', era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 6000, buy: 18000, kind: 'gift', gift: 30, src: '抽卡 3.5%' },
-  stardust:    { name: '星尘',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 600,  kind: 'stardust',   src: '抽到重复角色（×10）/ 池集齐后的保底（×30）', note: '不能用金币买' },
+  stardust:    { name: '星尘',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 600,  kind: 'stardust',   src: '抽到重复角色（×10）', note: '不能用金币买' },
   star_potion: { name: '升星药水',       era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 1800, kind: 'starPotion', src: '商店界面用 3 星尘买', note: '给角色升 1 星（★1~★5）' },
   soul:        { name: '灵魂',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 80,   kind: 'soul',       hidden: true, src: '#黑暗之魂 掉落', use: '黑魂装备套的唯一材料来源' },
   ember:       { name: '余火',           era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 200,  kind: 'ember',      hidden: true, src: '#黑暗之魂 掉落', use: '黑魂装备套的造价材料（不强化）' },

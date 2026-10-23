@@ -198,9 +198,12 @@ const UI = {
       if (special) h += `<div class="ttDesc">特性：${esc(special)}</div>`;
     }
 
+    const buyRow = it.kind === 'starPotion'
+      ? row('兑换价', E.POTION_STARDUST_COST + ' 星尘', 'violet')
+      : (it.kind === 'stardust' ? '' : row('买入价', E.fmt(E.buyPrice(id)) + ' 金'));
     h += `<div class="ttSec">经济</div><div class="ttRows">`
       + row('卖出价', E.fmt(E.sellPrice(id)) + ' 金', 'gold')
-      + row('买入价', E.fmt(E.buyPrice(id)) + ' 金')
+      + buyRow
       + row('持有', q ? E.fmt(q) + ' 件' : '<span class="dim">没有</span>')
       + row('总价值', E.fmt(q * (it.price || 0)) + ' 金') + '</div>';
 
@@ -562,7 +565,7 @@ const UI = {
         return `<tr style="${unlocked ? '' : 'opacity:.4'}"><td>${this.itemIcon(it)} ${this.esc(o.name)}${unlocked ? '' : ' 🔒'}</td><td class="r mono">${o.weight}</td><td class="r mono">${unlocked ? (o.weight / total * 100).toFixed(1) + '%' : '—'}</td><td class="r mono">${it ? E.fmt(it.price) : '—'}</td></tr>`;
       }).join('')}
       </tbody></table>
-      <div class="tiny dim" style="margin-top:6px">稀有矿需要对应科技解锁；爆破（深层矿）与选矿厂可改变概率。</div>
+      <div class="tiny dim" style="margin-top:6px">稀有矿需要对应科技解锁。</div>
     </div>`;
   },
   oreUnlocked(name) {
@@ -578,7 +581,7 @@ const UI = {
     const cs = E.combatState(job.id);
     const region = (job.regions || E.REGIONS)[cs.region || 0] || { name: '—', enemies: [] };
     let h = `<div class="wrap">
-      <div class="pagehead"><div class="icon lg">🏹</div><div><h2>狩猎</h2><div class="sub">选择区域，派一名角色自动与区域内的敌人战斗。角色不会死亡，只会重伤。</div></div></div>
+      <div class="pagehead"><div class="icon lg">🏹</div><div><h2>狩猎</h2><div class="sub">选择区域，派一名角色自动战斗。角色不会死亡，只会重伤。</div></div></div>
       <div class="split">
         <div class="card">
           <h3>区域</h3>
@@ -616,7 +619,7 @@ const UI = {
       <div class="card" style="margin-top:12px">
         <h3>本区域敌人物种</h3>
         <div class="row">${(region.enemies || []).map(n => { const e = E.ENEMIES.find(x => x.name === n); if (!e) return ''; const seen = E.S.seen.enemies[e.id]; return `<span class="badge bdFoe ${seen ? 'on' : 'off'}">${seen ? this.enemyIcon(e, 'xs') : ''}${seen ? e.name + ' ' + e.hp + 'HP' : '？？？'}</span>`; }).join('')}</div>
-        <div class="tiny dim" style="margin-top:8px">击杀 +1 图鉴认知度（每级 +2% 伤害）；满 100 级后可开展畜牧。</div>
+        <div class="tiny dim" style="margin-top:8px">击杀可提升图鉴认知度；满级后可开展畜牧。</div>
       </div>
     </div>`;
     return h;
@@ -644,7 +647,7 @@ const UI = {
           <table class="t"><thead><tr><th>怪物</th><th class="r">HP</th><th class="r">解锁</th></tr></thead><tbody>
           ${tiers.map(e => `<tr style="${lv >= (e.unlockLevel||1) ? '' : 'opacity:.45'}"><td>${this.esc(e.name)}</td><td class="r mono">${e.hp}</td><td class="r mono">Lv.${e.unlockLevel||1}</td></tr>`).join('')}
           </tbody></table>
-          <div class="tiny dim" style="margin-top:6px">击破档位越高，掉落越多。${job.special === 'blackSoul' ? '产出灵魂 / 余火（黑魂装备套唯一材料）。' : '产出随机资源（按 1/单价 权重抽取）。'}</div>
+          <div class="tiny dim" style="margin-top:6px">击破档位越高，掉落越多。${job.special === 'blackSoul' ? '产出灵魂 / 余火。' : ''}</div>
         </div>
         <div class="card">
           <h3>战场</h3>
@@ -666,7 +669,7 @@ const UI = {
     const list = [];
     for (const era in gens) (gens[era] || []).forEach(g => list.push(Object.assign({ era }, g)));
     return `<div class="wrap">
-      <div class="pagehead"><div class="icon lg">⚡</div><div><h2>电力</h2><div class="sub">发电设备提供瓦数，工作升级项与防御工事消耗瓦数。供电不足时耗电工作整体减速。</div></div></div>
+      <div class="pagehead"><div class="icon lg">⚡</div><div><h2>电力</h2><div class="sub">发电设备提供电力；供电不足时耗电工作会减速。</div></div></div>
       <div class="card">
         <div class="row" style="gap:26px">
           <div><div class="tiny muted">发电</div><div style="font-size:22px" class="mono green">${E.fmt(E.powerProduced(), 0)} <span class="small muted">瓦</span></div></div>
@@ -686,7 +689,7 @@ const UI = {
           </div>`;
         }).join('') || '<div class="empty">暂无发电设备</div>'}
       </div>
-      <div class="card" style="margin-top:12px"><h3>电力工作</h3><div class="sub">煤炭发电：指派角色到「电力」工作，基础 +10 瓦（需先建造煤炭发电）。</div></div>
+      <div class="card" style="margin-top:12px"><h3>电力工作</h3><div class="sub">指派角色到「电力」工作可发电。</div></div>
       <div class="card" style="margin-top:12px"><h3>入驻</h3>
         <div class="row" data-act="recslot" data-job="power" data-i="0" style="cursor:pointer">${c ? this.avatar(c) + '<b>' + this.esc(E.charName(c)) + '</b>' : '<div class="av empty">＋</div><span class="dim">点击选择角色</span>'}</div>
         <div style="margin-top:10px">${this.chips()}</div>
@@ -725,7 +728,7 @@ const UI = {
       <span class="badge">已研究 ${E.techsDone()}/${E.TECHS.length}</span>
       <span class="badge blue">科研点 <b class="mono" data-live="researchval">${E.fmt(S.research)}</b></span>
       <span class="badge">${E.eraName()}</span></div>
-      <div class="hint">未解锁的内容完全不可见——这是刻意的。研究消耗科研点，由上层「科研」产出。</div>`;
+      <div class="hint">研究消耗科研点。</div>`;
     E.ERA_LIST.forEach(era => {
       const list = E.TECHS.filter(t => t.era === era.id);
       if (!list.length) return;
@@ -792,7 +795,7 @@ const UI = {
       if (!done && !cur) return;
       h += `<div class="card upg ${done ? 'done' : ''}">
         <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name)}</b><span class="badge ${done ? 'on' : ''}">${u.slots} 格</span></div>
-        <div class="tiny muted">扩容至 ${u.slots} 格（+34）</div>
+        <div class="tiny muted">共 ${u.slots} 格</div>
         ${done ? '<div class="tiny green" style="margin-top:6px">✓ 已建成</div>' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>
           <button class="primary" style="margin-top:8px;width:100%" data-act="buywh" ${E.affordCost(u.cost) ? '' : 'disabled'}>扩建</button>`}
       </div>`;
@@ -833,43 +836,50 @@ const UI = {
     const S = E.S;
     if (!E.researched('文字')) {
       return `<div class="wrap"><div class="pagehead"><h2>商店</h2></div>
-      <div class="card empty">商店尚未开张。研究 <b class="blue">文字</b>（中世纪，60 科研点）后开启。</div></div>`;
+      <div class="card empty">商店尚未开张。研究 <b class="blue">文字</b>后开启。</div></div>`;
     }
     let h = `<div class="wrap"><div class="pagehead"><h2>商店</h2><span class="badge gold">金币 ${E.fmt(S.gold)}</span>
       <span class="badge">货架刷新 ${Math.max(0, S.shop.next - S.playtime).toFixed(0)}s</span></div>
-      <div class="hint">买入价 = 卖出价 × 3。第 6 格固定卖英雄碎片（20 个抽一次卡）。点商品确认后扣金币。</div>
       <div class="shopgrid" style="margin-top:12px">`;
     S.shop.slots.forEach((s, i) => {
       if (!s) { h += `<div class="shopitem" style="opacity:.3">已售罄</div>`; return; }
       const it = E.ITEMS[s.id];
       const price = Math.ceil(s.price * s.qty);
-      h += `<div class="shopitem">
-        <div class="icon">${this.itemIcon(it)}</div>
+      h += `<div class="shopitem" data-tip-item="${s.id}">
+        <div class="icon">${it ? this.itemIcon(it) : '📦'}</div>
         <b class="small">${this.esc(it ? it.name : s.id)}</b>
         <div class="tiny muted">×${s.qty}</div>
         <button class="gold" data-act="buy" data-i="${i}" ${S.gold < price ? 'disabled' : ''}>${E.fmt(price)} 金</button>
       </div>`;
     });
     h += `</div>`;
-    // 星尘线
-    const sd = E.N2I('星尘') ? E.count('星尘') : 0;
-    const potion = E.N2I('升星药水') ? E.count('升星药水') : 0;
-    h += `<div class="card" style="margin-top:14px">
-      <h3>星尘兑换</h3>
-      <div class="row" style="justify-content:space-between">
-        <div class="small">星尘 <b class="violet">${E.fmt(sd)}</b> · 升星药水 <b class="gold">${E.fmt(potion)}</b> 瓶</div>
-        <button class="gold" data-act="buyPotion" ${sd < 3 ? 'disabled' : ''}>3 星尘 → 升星药水 ×1</button>
-      </div>
-      <div class="tiny dim" style="margin-top:6px">星尘只能由「抽到重复角色」获得（×10），池集齐后的保底 ×30。升星药水在角色页给角色升星。</div>
-    </div>
-    <div class="card" style="margin-top:12px"><h3>精通技能书</h3>
-      <div class="sub">24,000 金/本，给角色对应工作的精通 +10 级。可在仓库卖出 8,000 金。</div>
-      <div class="row" style="margin-top:8px">
-      ${['伐木','采矿','采集'].map(n => { const j = E.JOB_BY_NAME[n]; const id = E.N2I(n + '精通书') || Object.values(E.ITEMS).find(x => x.cat === 'book' && x.name.includes(n))?.id; return id ? `<button data-act="buybook" data-id="${id}" ${S.gold < 24000 ? 'disabled' : ''}>${n}精通书 24,000</button>` : ''; }).join('')}
-      </div>
-      <div class="tiny dim" style="margin-top:6px">技能书也会随机出现在货架上；这里提供常驻购买入口。</div>
-    </div>`;
-    h += `</div>`;
+    // 常驻商品：升星药水 + 已解锁工作的精通书（卡片 + 图标，悬停看物品面板）
+    const sd = E.count('星尘');
+    const potion = E.count('升星药水');
+    const potionId = E.N2I('升星药水');
+    h += `<h3 style="font-size:15px;margin-top:18px">常驻商品</h3>
+      <div class="shopgrid" style="margin-top:8px">`;
+    if (potionId) {
+      const it = E.ITEMS[potionId];
+      h += `<div class="shopitem" data-tip-item="${potionId}">
+        <div class="icon">${this.itemIcon(it)}</div>
+        <b class="small">${this.esc(it.name)}</b>
+        <div class="tiny muted">持有 ${E.fmt(potion)}</div>
+        <button class="gold" data-act="buyPotion" ${sd < E.POTION_STARDUST_COST ? 'disabled' : ''}>${E.POTION_STARDUST_COST} 星尘</button>
+      </div>`;
+    }
+    E.JOBS.filter(j => !j.special && E.jobVisible(j)).forEach(j => {
+      const id = E.N2I(j.name + '精通书');
+      const it = id && E.ITEMS[id];
+      if (!it) return;
+      h += `<div class="shopitem" data-tip-item="${id}">
+        <div class="icon">${this.itemIcon(it)}</div>
+        <b class="small">${this.esc(it.name)}</b>
+        <div class="tiny muted">精通 +10</div>
+        <button data-act="buybook" data-id="${id}" ${S.gold < E.buyPrice(id) ? 'disabled' : ''}>${E.fmt(E.buyPrice(id))} 金</button>
+      </div>`;
+    });
+    h += `</div></div>`;
     return h;
   },
 
@@ -933,10 +943,10 @@ const UI = {
               <span class="small">升星 <b class="gold">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</b></span>
               <button class="gold" data-act="starup" data-id="${c.cid}" ${c.stars >= 5 ? 'disabled' : ''}>升星（${c.stars} 瓶药水）</button>
             </div>
-            <div class="tiny dim" style="margin-top:4px">${c.gen ? '随机普通角色：无社交恩赐、不进图鉴' : '自带工作加成'}：${(() => { const h = E.heroDef(c.cid); return (h && h.job) ? this.esc(h.job) + ' +' + Math.round(E.charBonusFor(c, { name: h.job }) * 100) + '%' : '无'; })()}</div>
+            <div class="tiny dim" style="margin-top:4px">${c.gen ? '随机普通角色' : '自带工作加成'}：${(() => { const h = E.heroDef(c.cid); return (h && h.job) ? this.esc(h.job) + ' +' + Math.round(E.charBonusFor(c, { name: h.job }) * 100) + '%' : '无'; })()}</div>
             <div class="row" style="margin-top:8px">
               ${c.gen ? `<button class="red" data-act="dismissChar" data-id="${c.cid}">开除</button>` : `<button data-act="sendgift" data-id="${c.cid}">🎁 送礼物</button>`}
-            </div>` : `<div class="tiny dim" style="margin-top:8px">玩家角色：无自带加成、不能升星、不参与好感度。</div>`}
+            </div>` : `<div class="tiny dim" style="margin-top:8px">玩家角色。</div>`}
         </div>
 
         <div class="card">
@@ -1061,17 +1071,14 @@ const UI = {
       <span class="badge">英雄碎片 <b class="gold">${shards}</b></span>
       <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span>
       <span class="badge">随机普通角色 ${genOwned}</span></div>
-      <div class="hint">${cost} 个英雄碎片抽一次（商店第 6 格 2,000 金/个；图鉴首次收录也能领碎片）。30% 出角色，70% 出好感度礼物；连续 30 抽没出新角色，下一抽必出。<br>
-        出角色时：<b>限定池</b> 有名英雄 : 全新随机普通角色 = <b>10 : 1</b>（大少 / Laremehpe 各 45.5%，随机普通角色 9.1%）；<b>常驻池</b> 100% 是全新的随机普通角色。
-        随机普通角色<b>无限生成</b>（随机名字 / 属性 / 工作加成，无社交恩赐、不进图鉴），在角色页可以开除，装备会退回仓库。</div>
+      <div class="hint">消耗英雄碎片招募。可能抽到角色，也可能抽到好感度礼物。</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
     E.POOLS.forEach(p => {
       const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
       const namedOwned = named.filter(hero => E.ownsHero(hero.id)).length;
       const complete = named.length > 0 && namedOwned === named.length;
-      const pity = E.gachaPity(p.id);
       h += `<div class="card">
-        <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${named.length ? '英雄 ' + namedOwned + '/' + named.length : '随机角色 ∞'}</span></div>
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${named.length ? '英雄 ' + namedOwned + '/' + named.length : '随机角色'}</span></div>
         <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
           ${named.map(hero => {
             const own = E.ownsHero(hero.id);
@@ -1079,13 +1086,11 @@ const UI = {
               ${own ? this.avatar(S.chars[hero.id], 'sm') : '<div class="av sm empty">？</div>'}
               <div class="cn tiny">${own ? this.esc(hero.name) : '？？？'}</div></div>`;
           }).join('')}
-          <div class="chip" style="min-width:56px" title="无限生成：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐 / 不进图鉴">
-            <div class="av sm empty">？</div><div class="cn tiny">随机普通角色</div>
-            <div class="tiny gold">∞ 每次都是新的</div>
+          <div class="chip" style="min-width:76px">
+            <div class="av sm empty">？</div><div class="cn tiny" style="max-width:none">随机普通角色</div>
           </div>
         </div>
-        <div class="row" style="margin-top:10px;justify-content:space-between">
-          <span class="tiny ${pity >= 25 ? 'gold' : 'muted'}">保底 ${pity}/30</span>
+        <div class="row" style="margin-top:10px;justify-content:flex-end">
           <button class="gold" data-act="pull" data-id="${p.id}" ${shards < cost ? 'disabled' : ''}>抽一次（${cost} 碎片）</button>
         </div>
       </div>`;
@@ -1096,7 +1101,7 @@ const UI = {
         <div class="chips" style="margin-top:8px">
           ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip"><div class="cn">${this.esc(E.charName(c))}${c.gen ? ' <span class="tiny dim">随机</span>' : ''}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
         </div>
-        <div class="tiny dim" style="margin-top:8px">好感 25 解锁头像使用权；50 解锁一级社交恩赐；100 解锁二级（随机普通角色没有社交恩赐，只有头像与属性）。</div>
+        <div class="tiny dim" style="margin-top:8px">好感随送礼提升，解锁头像与社交恩赐。</div>
       </div>
     </div>`;
     return h;
@@ -1112,7 +1117,7 @@ const UI = {
       <span class="badge">全局效率 +${(E.comfortValue() * 0.35).toFixed(1)}%</span></div>
       <div class="split">
         <div class="card"><h3>住房（角色上限）</h3>
-          <div class="sub">盖房提高角色上限：能同时上场干活、并计入基地战力的人更多。初始 5 人，住满 6 档共 18 人。</div>
+          <div class="sub">住房能提高角色上限，使有效角色更多。</div>
           <div class="hr"></div>
           ${E.HOUSING.map((t, i) => {
             const done = i < S.housing, cur = i === S.housing;
@@ -1123,10 +1128,10 @@ const UI = {
               <button class="primary" style="margin-top:6px;width:100%" data-act="buyhouse" ${E.affordCost(t.cost) ? '' : 'disabled'}>建造</button>`}
             </div>`;
           }).join('')}
-          ${!next ? '<div class="tiny green">已建满全部住房：18 人可上场。</div>' : ''}
+          ${!next ? '<div class="tiny green">已建满全部住房。</div>' : ''}
         </div>
         <div class="card"><h3>舒适度（家具 / 娱乐 / 地板）</h3>
-          <div class="sub">每 1 点舒适度 → 全部工作 +0.35%。上限 100。</div>
+          <div class="sub">舒适度提高工作效率，上限 100。</div>
           <div class="hr"></div>
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px">
           ${E.COMFORT.map((t, i) => {
@@ -1160,7 +1165,7 @@ const UI = {
           <div class="statrow"><span class="k">财富值（会被抢）</span><span class="mono">${E.fmt(E.wealth())}</span></div>
           <div class="statrow"><span class="k">预计袭击强度</span><span class="mono red">${E.fmt(E.raidStrength())}</span></div>
           <div class="row" style="margin-top:10px"><button data-act="raidPreview">预演袭击（不结算）</button></div>
-          <div class="tiny dim" style="margin-top:8px">每 2 小时判定一次。强度 ≤ 战力则击退；否则仓库物品与金币各被抢 10%。</div>
+          <div class="tiny dim" style="margin-top:8px">每隔一段时间会有袭击发生，基地战力过低会丢失部分财物。</div>
         </div>
         <div class="card"><h3>最近战报</h3>
           ${last ? `<div class="row" style="justify-content:space-between"><span class="${last.win ? 'green' : 'red'}">${last.win ? '击退' : '失守'}</span><span class="tiny dim">${new Date(last.time).toLocaleTimeString()}</span></div>
