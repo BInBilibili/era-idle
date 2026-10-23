@@ -482,12 +482,13 @@ const UI = {
       </div>
 
       <div style="margin-top:16px">
-        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">升级项</h3><span class="tiny dim">未解锁或材料不足 30% 的档位不显示</span></div>
+        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">升级项</h3><span class="tiny dim">未解锁、上一档未购或材料不足 30% 的档位不显示</span></div>
         <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-top:8px">
           ${(job.upgrades || []).map((u, i) => {
             const bought = js.up && js.up[i];
+            const locked = (u.req != null && !(js.up && js.up[u.req])) || !!(u.tech && !E.researched(u.tech));
             const have = Object.keys(u.cost || {}).every(n => E.count(E.iid(n)) >= (u.cost[n] || 0) * 0.3);
-            if (!bought && !have) return '';
+            if (!bought && (locked || !have)) return '';
             return `<div class="card upg ${bought ? 'done' : ''}">
               <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b>${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</div>
               <div class="tiny muted" style="margin-top:4px">产出 +${u.bonusPct || 0}%${u.note ? ' · ' + this.esc(u.note) : ''}</div>

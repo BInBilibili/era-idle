@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.22';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.23';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -215,7 +215,7 @@ function newState(name) {
     stats: { kills:0, raids:0, pulls:0 },
   };
   JOBS.forEach(j => {
-    st.jobs[j.id] = { slots: [], prog: [], blocked: [], up: [0,0,0,0] };
+    st.jobs[j.id] = { slots: [], prog: [], blocked: [], up: new Array((j.upgrades || []).length).fill(0), upVer: 2 };
   });
   const pc = newChar('player', { name: st.name, kind:'player', hp:1, atk:1, str:1, def:1 });
   st.chars.player = pc; st.order.push('player');
@@ -1108,7 +1108,10 @@ function researchTech(id) {
 function buyUpgrade(jobId, idx) {
   const job = JOB_BY_ID[jobId], js = S.jobs[jobId], t = job && job.upgrades && job.upgrades[idx];
   if (!t) return { ok:false };
+  if (!Array.isArray(js.up)) js.up = [];
   if (js.up[idx]) return { ok:false, why:'已购买' };
+  if (t.tech && !researched(t.tech)) return { ok:false, why:'未解锁' };
+  if (t.req != null && !js.up[t.req]) return { ok:false, why:'需先购买上一档' };
   if (!payCost(t.cost)) return { ok:false, why:'材料不足' };
   js.up[idx] = 1; return { ok:true };
 }
@@ -1535,6 +1538,12 @@ function load() {
     return migrate(st);
   } catch (e) { console.error(e); return null; }
 }
+/* v0.0.23：伐木 / 采矿的工具档从「三选一」改成链式（石 → 铜 → 铁，各 +25%）。
+   js.up 按下标存，新增档插在队首，旧存档必须按「旧下标 → 旧名字」重新映射。 */
+const UPG_RENAME = {
+  woodcutting: { 0: '石斧', 1: '伐木小屋', 2: '伐木场', 3: '蒸汽锯' },
+  mining: { 0: '石镐', 1: '采矿小屋', 2: '采矿场', 3: '爆破', 4: '选矿厂', 5: '电动矿钻' },
+};
 function migrate(st) {
   // 补全缺失字段
   const base = newState(st.name || '无名者');
@@ -1567,7 +1576,22 @@ function migrate(st) {
     if (typeof js.prog === 'number') { js.prog = []; js.prog[clamp(js.recipe || 0, 0, Math.max(0, jobRecipes(j).length - 1))] = js.prog; }
     delete js.char; delete js.recipe;
     ensureSlots(js, Math.max(1, jobRecipes(j).length));
-    if (!Array.isArray(js.up)) js.up = [0,0,0,0];
+    const nUp = (j.upgrades || []).length;
+    if (!Array.isArray(js.up)) js.up = [];
+    if (js.upVer !== 2) {
+      const ren = UPG_RENAME[j.id], oldUp = js.up.slice();
+      if (ren) {
+        const owned = new Set();
+        oldUp.forEach((b, k) => { const nm = ren[k]; if (b && nm) owned.add(nm); });
+        js.up = new Array(nUp).fill(0);
+        (j.upgrades || []).forEach((u, k) => { if (owned.has(u.name)) js.up[k] = 1; });
+      } else {
+        js.up = oldUp.slice(0, nUp);
+      }
+      js.upVer = 2;
+    }
+    while (js.up.length < nUp) js.up.push(0);
+    if (js.up.length > nUp) js.up.length = nUp;
   });
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});

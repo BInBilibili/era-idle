@@ -399,5 +399,39 @@ const lowSamples = Array.from({ length: 120 }, () => E.raidStrength());
 const lowMin = Math.min(...lowSamples), lowMax = Math.max(...lowSamples);
 ok(lowPower === 12 && lowMin >= 100 && lowMax <= 200, '中世纪 1/8 进度：战力 ' + lowPower + ' → 强度 ' + lowMin + '~' + lowMax);
 
+console.log('== 链式升级：伐木 / 采矿 石→铜→铁（v0.0.23）==');
+ok(E.JOB_BY_ID.woodcutting.upgrades.slice(0, 3).map(u => u.name).join('/') === '石斧/铜斧/铁斧', '伐木前三档 = 石斧/铜斧/铁斧');
+ok(E.JOB_BY_ID.mining.upgrades.slice(0, 3).map(u => u.name).join('/') === '石镐/铜镐/铁镐', '采矿前三档 = 石镐/铜镐/铁镐');
+E.S = E.newState('链式升级');
+['木材', '石头', '铜锭', '铁锭'].forEach(n => { E.S.items[E.N2I(n)] = 500; });
+ok(E.buyUpgrade('woodcutting', 1).why === '未解锁', '未买石斧 / 无科技：买不了铜斧');
+ok(E.buyUpgrade('woodcutting', 0).ok, '买石斧成功');
+const metalTech = E.TECHS.find(t => t.name === '金属冶炼').id;
+ok(E.buyUpgrade('woodcutting', 1).why === '未解锁', '石斧已买但无 *金属冶炼：铜斧仍未解锁');
+E.S.techs[metalTech] = 1;
+ok(E.buyUpgrade('woodcutting', 1).ok, '石斧 + *金属冶炼 → 铜斧可买');
+ok(E.buyUpgrade('woodcutting', 2).ok, '铜斧之后 → 铁斧可买');
+const woodBonus = E.JOB_BY_ID.woodcutting.upgrades.reduce((a, u, i) => a + (E.S.jobs.woodcutting.up[i] ? u.bonusPct : 0), 0);
+ok(woodBonus === 75, '三档工具合计 +75%：' + woodBonus);
+ok(E.S.jobs.woodcutting.up.length === E.JOB_BY_ID.woodcutting.upgrades.length, 'up 数组长度跟随档位数');
+// 旧存档迁移：旧下标 [石斧, 小屋] / [石镐, 采矿场, 电动矿钻]
+const oldSave = E.newState('旧档');
+oldSave.jobs.woodcutting.up = [1, 1, 0, 0]; delete oldSave.jobs.woodcutting.upVer;
+oldSave.jobs.mining.up = [1, 0, 1, 0, 0, 1]; delete oldSave.jobs.mining.upVer;
+const migSave = E.migrate(oldSave);
+ok(JSON.stringify(migSave.jobs.woodcutting.up) === JSON.stringify([1, 0, 0, 1, 0, 0]), '旧伐木档位按名字迁移：石斧 + 伐木小屋');
+ok(JSON.stringify(migSave.jobs.mining.up) === JSON.stringify([1, 0, 0, 0, 1, 0, 0, 1]), '旧采矿档位按名字迁移：石镐 + 采矿场 + 电动矿钻');
+// 界面：上一档没买 / 科技没点亮时，下一档卡不出现
+E.S = E.newState('链式卡片');
+['木材', '石头', '铜锭', '铁锭'].forEach(n => { E.S.items[E.N2I(n)] = 500; });
+const lockedHtml = U.pageJob('woodcutting');
+ok(lockedHtml.includes('石斧') && !lockedHtml.includes('铜斧'), '未点亮 *金属冶炼：只显示石斧');
+E.S.techs[metalTech] = 1;
+const stillLocked = U.pageJob('woodcutting');
+ok(!stillLocked.includes('铜斧'), '科技有了但石斧没买：铜斧仍不显示');
+E.buyUpgrade('woodcutting', 0);
+const chainHtml = U.pageJob('woodcutting');
+ok(chainHtml.includes('铜斧'), '石斧买完：铜斧出现');
+
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);
