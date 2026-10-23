@@ -82,6 +82,11 @@ const UI = {
   hue(str) { let h = 0; for (let i = 0; i < String(str).length; i++) h = (h * 31 + String(str).charCodeAt(i)) % 360; return h; },
   avatar(c, cls) {
     const name = E.charName(c);
+    const hd = E.heroDef(c.cid);
+    if (hd && hd.portrait) {
+      const v = String(E.APP_VERSION || '').replace(/^v/, '');
+      return `<div class="av art ${cls || ''}"><img src="${hd.portrait}${v ? '?v=' + v : ''}" alt="${this.esc(name)}" draggable="false"></div>`;
+    }
     const hue = this.hue(c.cid);
     const bg = `linear-gradient(145deg,hsl(${hue} 42% 32%),hsl(${(hue + 40) % 360} 38% 20%))`;
     const initial = c.kind === 'player' ? '你' : name.slice(0, 1);
@@ -1072,7 +1077,7 @@ const UI = {
       <span class="badge">英雄碎片 <b class="gold">${shards}</b></span>
       <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span>
       <span class="badge">随机普通角色 ${genOwned}</span></div>
-      <div class="hint">消耗英雄碎片招募。可能抽到角色，也可能抽到好感度礼物。</div>
+      <div class="hint">使用英雄碎片概率获取到角色</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
     E.POOLS.forEach(p => {
       const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
@@ -1102,7 +1107,6 @@ const UI = {
         <div class="chips" style="margin-top:8px">
           ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip"><div class="cn">${this.esc(E.charName(c))}${c.gen ? ' <span class="tiny dim">随机</span>' : ''}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
         </div>
-        <div class="tiny dim" style="margin-top:8px">好感随送礼提升，解锁头像与社交恩赐。</div>
       </div>
     </div>`;
     return h;

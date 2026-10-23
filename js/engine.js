@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.23';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.24';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -25,8 +25,8 @@ const GAME = {
    其余 7 位 retired=true —— 数据保留（旧存档、#黑暗之魂 的门槛、刘的商店折扣仍按 id 查得到），
    但不再进任何卡池、不进图鉴、不可获得。 */
 const HEROES = [
-  { id:'dashao', name:'大少',           pool:'limited', hp:14, atk:6,  str:8,  def:12, job:'医疗',     e1:'模拟纪元',           e2:'模拟纪元+' },
-  { id:'lare',   name:'Laremehpe',      pool:'limited', hp:8,  atk:10, str:8,  def:8,  job:'科研',     e1:'波浪式地向前进',      e2:'波浪式地向前进+' },
+  { id:'dashao', name:'大少',           pool:'limited', portrait:'assets/portraits/dashao.jpg', hp:14, atk:6,  str:8,  def:12, job:'医疗',     e1:'模拟纪元',           e2:'模拟纪元+' },
+  { id:'lare',   name:'Laremehpe',      pool:'limited', portrait:'assets/portraits/lare.jpg',   hp:8,  atk:10, str:8,  def:8,  job:'科研',     e1:'波浪式地向前进',      e2:'波浪式地向前进+' },
   { id:'yuki',   name:'星见由岐',       pool:null, retired:true, hp:12, atk:10, str:12, def:6,  job:'锻造',     e1:'黑暗之魂',           e2:'黑暗之魂+' },
   { id:'finger', name:'一根手指扣晕你', pool:null, retired:true, hp:4,  atk:12, str:14, def:10, job:'火药制作', e1:'让这个瞬间成为永恒', e2:'让这个瞬间成为永恒+' },
   { id:'chao',   name:'超超',           pool:null, retired:true, hp:10, atk:8,  str:6,  def:16, job:'种植',     e1:'开拓者',             e2:'开拓者+' },

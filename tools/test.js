@@ -366,7 +366,8 @@ ok(shopHtml.includes('升星药水') && shopHtml.includes('精通 +10'), '升星
 ok(!shopHtml.includes('买入价 = 卖出价'), '商店不再写买入价规则说明');
 ok(U.itemTipHtml(E.N2I('升星药水')).includes('兑换价') && !U.itemTipHtml(E.N2I('升星药水')).includes('买入价'), '升星药水面板显示 3 星尘兑换价');
 const recHtml = U.pageRecruit();
-ok(!recHtml.includes('保底') && !recHtml.includes('每次都是新的'), '招募页不显示保底计数与「每次都是新的」');
+ok(recHtml.includes('使用英雄碎片概率获取到角色'), '招募页只留一句「使用英雄碎片概率获取到角色」');
+ok(!recHtml.includes('保底') && !recHtml.includes('每次都是新的') && !recHtml.includes('好感随送礼提升'), '招募页不显示保底、好感说明与「每次都是新的」');
 ok(U.pageHousing().includes('住房能提高角色上限'), '住所页描述精简为一句');
 ok(U.pageDefense().includes('每隔一段时间会有袭击发生'), '防御页描述精简为一句');
 delete E.S.techs.writing;
