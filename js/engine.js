@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.25';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.26';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -103,11 +103,12 @@ const POOL_BY_ID = {}; POOLS.forEach(p => POOL_BY_ID[p.id] = p);
 const HERO_BY_ID = {}; HEROES.forEach(h => HERO_BY_ID[h.id] = h);
 
 /* ---------- 抽卡常数 / 随机普通角色 ---------- */
-const PULL_COST = 10;      // 一次抽卡消耗的英雄碎片
-const PITY_MIN = 1;        // 保底阈值起点：连续 1 抽没新角色 → 下一抽必新
-const PITY_MAX = 10;       // 每触发一次保底，阈值 +1，封顶 10（每池独立，礼物也累计）
+const PULL_COST = 10;      // 一次抽卡消耗的招募券
+const PITY_MIN = 1;        // 保底窗口起点：第 1 抽必出角色
+const PITY_MAX = 10;       // 每抽到一次角色，下一窗口 +1 抽，封顶 10 抽（每池独立）
 const POTION_STARDUST_COST = 3;   // 升星药水的常驻兑换价
-const CODEX_REWARD = { items: 1, enemies: 3, chars: 5 };   // 图鉴首次收录可领的碎片
+const CODEX_REWARD = { items: 1, enemies: 3, chars: 5 };   // 图鉴首次收录可领的招募券
+const SHARD_ITEM = 'hero_shard';  // 招募券的物品 id（旧存档按 id 存，改名不影响存档）
 
 /* 随机普通角色：随机名字 / 随机初始属性 / 随机工作加成 / 无社交恩赐 / 不进图鉴。
    v0.0.12 起改为【完全无限】：不预生成、不设上限，每次「抽到随机普通角色」时现造一个，
@@ -886,9 +887,8 @@ function refreshShop(force) {
     if (it && it.cat === 'book') qty = 1;
     slots.push({ id, qty, price: Math.max(1, Math.round((it ? it.price : 1) * 3)) });
   }
-  // 第 6 格：英雄碎片
-  const shard = N2I('英雄碎片') || ensureItemByName('英雄碎片');
-  slots.push({ id: shard, qty: 1 + Math.floor(Math.random()*3), price: 2000 });
+  // 第 6 格：招募券
+  slots.push({ id: SHARD_ITEM, qty: 1 + Math.floor(Math.random()*3), price: 2000 });
   S.shop.slots = slots;
   S.shop.next = now + GAME.shopRefresh;
 }
@@ -922,7 +922,7 @@ function gachaPity(poolId) {
   if (!S.gacha.noNew[poolId]) S.gacha.noNew[poolId] = 0;
   return S.gacha.noNew[poolId];
 }
-/* 保底阈值：第一次触发前 = 1，每触发一次保底 +1，封顶 10（分池独立） */
+/* 保底窗口：第 1 抽必出角色；每抽到一次角色，下一窗口 +1 抽，封顶 10 抽（分池独立） */
 function gachaPityLimit(poolId) {
   const n = (S.gacha.pity && S.gacha.pity[poolId]) || 0;
   return Math.min(PITY_MAX, PITY_MIN + n);
@@ -931,25 +931,24 @@ function bumpGachaPity(poolId) {
   if (!S.gacha.pity) S.gacha.pity = {};
   S.gacha.pity[poolId] = Math.min(PITY_MAX, (S.gacha.pity[poolId] || 0) + 1);
 }
-function shardCount() { const id = N2I('英雄碎片'); return id ? (S.items[id]||0) : 0; }
+function shardCount() { return S.items[SHARD_ITEM] || 0; }
 function ownsHero(hid) { return !!S.chars[hid]; }
 /* 「池子集齐」只对有名英雄有意义（随机普通角色是无限池，永远集不齐） */
 function poolComplete(poolId) { return (POOL_BY_ID[poolId].heroes || []).every(ownsHero); }
 function pull(poolId) {
   const pool = POOL_BY_ID[poolId]; if (!pool) return { ok:false, why:'没有这个卡池' };
-  const shardId = N2I('英雄碎片'); if (!shardId) return { ok:false };
-  if ((S.items[shardId]||0) < PULL_COST) return { ok:false, why:'英雄碎片不足（需要 ' + PULL_COST + ' 个）' };
-  removeItem(shardId, PULL_COST);
+  if ((S.items[SHARD_ITEM]||0) < PULL_COST) return { ok:false, why:'招募券不足（需要 ' + PULL_COST + ' 张）' };
+  removeItem(SHARD_ITEM, PULL_COST);
   S.gacha.pulls++; S.stats.pulls++;
   const noNew = gachaPity(poolId);
-  const needPity = noNew >= gachaPityLimit(poolId);
+  const needPity = noNew + 1 >= gachaPityLimit(poolId);   // 本窗口的最后一抽 → 必出角色
   const isChar = needPity || Math.random() < 0.30;
   if (!isChar) {
     const roll = Math.random() * 100;
     let acc = 0, tier = GIFTS[0];
     for (const g of GIFTS) { acc += g.w; if (roll <= acc) { tier = g; break; } }
     addItem(tier.id, 1);
-    S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出新角色」
+    S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出角色」
     return { ok:true, type:'gift', gift: tier };
   }
   // 抽角色：先掷「有名英雄 or 全新随机普通角色」
@@ -967,11 +966,13 @@ function pull(poolId) {
       hero = named[rndInt(0, named.length - 1)];
     }
   }
+  // 抽到角色（含重复）→ 关闭当前窗口：本窗口计数清零，下一窗口 +1 抽（封顶 10）
+  bumpGachaPity(poolId);
+  S.gacha.noNew[poolId] = 0;
   if (hero) {
     const hid = hero.id;
     if (ownsHero(hid)) {
       addItem(N2I('星尘') || ensureItemByName('星尘'), 10);
-      S.gacha.noNew[poolId] = needPity ? 0 : noNew + 1;
       return { ok:true, type:'dup', hero, gen:false, n:10 };
     }
     const c = newChar(hid, { name: hero.name, kind:'hero', pool: poolId, gen:false, job: hero.job,
@@ -979,8 +980,6 @@ function pull(poolId) {
     c.hpNow = charStats(c).maxHp;
     S.chars[hid] = c; S.order.push(hid);
     S.seen.chars[hid] = true;
-    if (needPity) bumpGachaPity(poolId);
-    S.gacha.noNew[poolId] = 0;
     S.discoveredShard = true;
     log('抽到新角色 <b class="gold">' + hero.name + '</b>！');
     return { ok:true, type:'new', hero, gen:false };
@@ -991,8 +990,6 @@ function pull(poolId) {
     hp: h.hp, atk: h.atk, str: h.str, def: h.def, stars: 1 });
   c.hpNow = charStats(c).maxHp;
   S.chars[h.id] = c; S.order.push(h.id);
-  if (needPity) bumpGachaPity(poolId);
-  S.gacha.noNew[poolId] = 0;
   S.discoveredShard = true;
   log('一名随机普通角色加入了：<b class="gold">' + h.name + '</b>');
   return { ok:true, type:'new', hero: h, gen:true };
@@ -1020,7 +1017,7 @@ function dismissChar(cid) {
   return { ok:true, n: eqN, name: nm };
 }
 
-/* ---------- 图鉴收集奖励（英雄碎片） ---------- */
+/* ---------- 图鉴收集奖励（招募券） ---------- */
 function codexSeen(kind, id) {
   if (kind === 'chars') return id !== 'player' && !!(S.seen.chars && S.seen.chars[id]);
   return !!(S.seen[kind] && S.seen[kind][id]);
@@ -1033,7 +1030,7 @@ function codexClaim(kind, id) {
   if (!S.codex[kind]) S.codex[kind] = {};
   const n = CODEX_REWARD[kind] || 0;
   S.codex[kind][id] = true;
-  addItem(N2I('英雄碎片') || ensureItemByName('英雄碎片'), n);
+  addItem(SHARD_ITEM, n);
   S.discoveredShard = true;
   return { ok:true, n };
 }
@@ -1637,7 +1634,7 @@ window.Engine = {
   recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, gachaPityLimit, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
-  pull, dismissChar, giftTo, starUp, PULL_COST, PITY_MIN, PITY_MAX, POTION_STARDUST_COST, CODEX_REWARD, NORMAL,
+  pull, dismissChar, giftTo, starUp, PULL_COST, PITY_MIN, PITY_MAX, POTION_STARDUST_COST, CODEX_REWARD, SHARD_ITEM, NORMAL,
   codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
   wealth, basePower, raidStrength, doRaid, tick, log, toast,

@@ -214,7 +214,7 @@ try {
   console.log('== 招募：限定 / 常驻 ==');
   const recruit = await js(`(function(){
     Engine.S.ui.page='recruit';
-    Engine.addItem('英雄碎片', 30);
+    Engine.addItem('招募券', 30);
     UI.render();
     const btns=[...document.querySelectorAll('[data-act="pull"]')];
     const txt=document.getElementById('mainWrap').textContent;
@@ -228,14 +228,14 @@ try {
   })()`);
   const rc = JSON.parse(recruit);
   ok(rc.pools.join(',') === 'limited,standard', '招募页只有限定 / 常驻两个池：' + rc.pools.join(','));
-  ok(rc.btn.length === 2 && rc.btn.every(t => t.includes('10 碎片')), '每池按钮都是 10 碎片：' + rc.btn.join(' | '));
+  ok(rc.btn.length === 2 && rc.btn.every(t => t.includes('10 招募券')), '每池按钮都是 10 招募券：' + rc.btn.join(' | '));
   ok(rc.hasRatio && rc.normal && rc.infinite, '招募页写明 10:1、随机普通角色无限生成');
 
   console.log('== 开除随机普通角色 ==');
   const dismiss = await js(`(function(){
     const S=Engine.S;
     S.gacha.noNew.standard=30;
-    Engine.addItem('英雄碎片', 20);
+    Engine.addItem('招募券', 20);
     const r=Engine.pull('standard');
     if(!r.ok||!r.gen) return JSON.stringify({bad:'抽卡没出普通角色：'+r.type});
     const cid=r.hero.id;
@@ -288,7 +288,7 @@ try {
   const cx = JSON.parse(codex);
   ok(cx.gold > 0 && cx.claims > 0, '收录条目有金边 + 领取按钮：金边 ' + cx.gold + ' / 按钮 ' + cx.claims);
   ok(cx.all, '有未领奖励时显示「全部领取」');
-  ok(cx.after === cx.before + 1, '点领取到账 1 碎片：' + cx.before + ' → ' + cx.after);
+  ok(cx.after === cx.before + 1, '点领取到账 1 张招募券：' + cx.before + ' → ' + cx.after);
 
   console.log('== 物品悬浮面板 ==');
   const tipCodex = await js(`(function(){

@@ -182,10 +182,12 @@ ok(S.chars.player.xp.atk > 0 || S.chars.player.lv.atk > 1, '战斗经验累积 '
 ok(Object.keys(S.seen.enemies).length > 0, '图鉴记录了遇敌');
 
 console.log('== 抽卡 ==');
-E.addItem(E.N2I('英雄碎片'), 4000);
+E.addItem(E.SHARD_ITEM, 4000);
 S.gold = 100000;
 ok(E.POOLS.length === 2 && E.POOLS[0].id === 'limited' && E.POOLS[1].id === 'standard', '卡池只有 限定 / 常驻：' + E.POOLS.map(p => p.name).join(' / '));
 ok(E.pull('shenren').ok === false, '旧卡池（神人俱乐部）已移除');
+ok(E.ITEMS[E.SHARD_ITEM] && E.ITEMS[E.SHARD_ITEM].name === '招募券', '英雄碎片已改名为招募券');
+ok(E.N2I('英雄碎片') === null && E.N2I('招募券') === 'hero_shard', '旧名不再映射、新名映射到同一物品 id');
 ok(E.poolMembers('limited').length === 2, '限定池只预置 2 名有名英雄：' + E.poolMembers('limited').length);
 ok(E.poolMembers('standard').length === 0, '常驻池不预置角色，随机普通角色全部现造');
 ok(E.poolMembers('limited').map(m => m.def.name).join('/') === '大少/Laremehpe', '限定池有名角色 = 大少 / Laremehpe');
@@ -198,45 +200,67 @@ ok(E.poolHeroList().length === 2, '图鉴角色只统计 2 名有名英雄（随
 const before = E.shardCount();
 const p1 = E.pull('limited');
 ok(p1.ok, '抽卡一次：' + p1.type);
-ok(E.shardCount() === before - E.PULL_COST, '单抽消耗 ' + E.PULL_COST + ' 碎片：' + (before - E.shardCount()));
+ok(E.shardCount() === before - E.PULL_COST, '单抽消耗 ' + E.PULL_COST + ' 张招募券：' + (before - E.shardCount()));
 
-// 常驻池：保底阈值 1 → 10（每触发一次 +1，封顶 10；礼物也计入）
-ok(E.PITY_MIN === 1 && E.PITY_MAX === 10, '保底阈值范围 1~10');
+// 保底窗口：第 1 抽必出角色；每抽到一次角色，下一窗口 +1 抽，封顶 10 抽（礼物也计入）
+ok(E.PITY_MIN === 1 && E.PITY_MAX === 10, '保底窗口范围 1~10 抽');
 S.gacha.noNew.standard = 0; S.gacha.pity.standard = 0;
 const rnd = Math.random;
-Math.random = () => 0.99;            // 30% 判定必失败 → 全部出礼物
-E.pull('standard');                  // 1 次礼物
-ok(E.gachaPityLimit('standard') === 1 && S.gacha.noNew.standard === 1, '第 1 次保底前：阈值 1，计数 1');
-const p2 = E.pull('standard');       // 触发第 1 次保底
-ok(p2.ok && p2.type === 'new' && p2.gen, '连续 1 抽没新角色 → 下一抽保底出随机角色');
+Math.random = () => 0.99;            // 30% 角色判定必失败 → 正常情况会出礼物
+const p1s = E.pull('standard');      // 窗口 1：必出
+ok(p1s.ok && p1s.type === 'new' && p1s.gen, '窗口 1：第 1 抽必出角色');
+ok(S.gacha.pity.standard === 1 && E.gachaPityLimit('standard') === 2, '出角色后窗口升到 2 抽');
+ok(S.gacha.noNew.standard === 0, '出角色后本窗口计数清零');
+// 窗口 2：第 1 抽礼物，第 2 抽必出
+E.pull('standard');
+ok(E.gachaPityLimit('standard') === 2 && S.gacha.noNew.standard === 1, '窗口 2：第 1 抽礼物，计数 1');
+const p2 = E.pull('standard');
+ok(p2.ok && p2.type === 'new' && p2.gen, '窗口 2：两次抽内必出角色');
 ok(!S.chars[p2.hero.id].e1, '随机普通角色没有社交恩赐');
-ok(S.gacha.pity.standard === 1 && E.gachaPityLimit('standard') === 2, '第 1 次保底后阈值升到 2');
-E.pull('standard'); E.pull('standard');   // 2 次礼物
+ok(S.gacha.pity.standard === 2 && E.gachaPityLimit('standard') === 3, '出角色后窗口升到 3 抽');
+// 窗口 3：前两抽礼物，第 3 抽必出
+E.pull('standard'); E.pull('standard');
+ok(S.gacha.noNew.standard === 2, '窗口 3：连续 2 抽没出角色');
 const p2b = E.pull('standard');
-ok(p2b.ok && p2b.type === 'new' && p2b.gen && p2b.hero.id !== p2.hero.id, '第 2 次保底又是一张新面孔');
-ok(S.gacha.pity.standard === 2 && E.gachaPityLimit('standard') === 3, '第 2 次保底后阈值升到 3');
-// 阈值封顶 10
+ok(p2b.ok && p2b.type === 'new' && p2b.gen && p2b.hero.id !== p2.hero.id, '窗口 3：第 3 抽必出角色，且是一张新面孔');
+ok(S.gacha.pity.standard === 3 && E.gachaPityLimit('standard') === 4, '出角色后窗口升到 4 抽');
+// 提前抽到角色（非保底）也推进窗口：窗口 4 第 1 抽就出 → 下一窗口 5
+S.gacha.noNew.standard = 0;
+Math.random = () => 0;               // 30% 角色判定必成功
+const early = E.pull('standard');
+ok(early.ok && early.type === 'new' && early.gen, '窗口 4：第 1 抽提前出角色');
+ok(S.gacha.pity.standard === 4 && E.gachaPityLimit('standard') === 5, '提前出角色同样推进窗口 → 5 抽');
+// 窗口封顶 10
 S.gacha.pity.standard = 9; S.gacha.noNew.standard = 0;
-for (let i = 0; i < 10; i++) E.pull('standard');   // 10 次礼物
-const pCap = E.pull('standard');
-ok(E.gachaPityLimit('standard') === 10, '阈值封顶 10');
-ok(pCap.type === 'new' && pCap.gen, '阈值 10：连续 10 抽没新角色后必出');
-ok(S.gacha.pity.standard === 10 && E.gachaPityLimit('standard') === 10, '封顶后不再增长');
+Math.random = () => 0.99;
+ok(E.gachaPityLimit('standard') === 10, '窗口封顶 10 抽');
+for (let i = 0; i < 9; i++) E.pull('standard');   // 前 9 抽礼物
+const pCap = E.pull('standard');                    // 第 10 抽必出
+ok(pCap.ok && pCap.type === 'new' && pCap.gen, '窗口 10：10 抽内必出角色');
+ok(S.gacha.pity.standard === 10 && E.gachaPityLimit('standard') === 10, '封顶后窗口不再增长');
+Math.random = rnd;
 S.gacha.pity.standard = 0; S.gacha.noNew.standard = 0;
 
-// 限定池：保底优先补该池还没拥有的有名英雄（阈值独立）
+// 限定池：第 1 抽必出有名英雄；保底优先补该池还没拥有的有名英雄（窗口分池独立）
 S.gacha.pity.limited = 0; S.gacha.noNew.limited = 0;
-E.pull('limited');                   // 礼物
-E.pull('limited');                   // 第 1 次保底 → 有名英雄
-ok(E.gachaPityLimit('standard') === 1, '保底阈值分池独立：限定池触发不影响常驻池');
+const l1 = E.pull('limited');
+ok(l1.ok && l1.type === 'new' && !l1.gen, '限定池第 1 抽必出有名英雄：' + (l1.hero && l1.hero.name));
+ok(E.gachaPityLimit('standard') === 1 && E.gachaPityLimit('limited') === 2, '保底窗口分池独立：限定池推进不影响常驻池');
 for (let i = 0; i < 2 && !['dashao', 'lare'].every(id => S.chars[id]); i++) {
-  S.gacha.noNew.limited = E.gachaPityLimit('limited');
+  S.gacha.noNew.limited = E.gachaPityLimit('limited') - 1;
   E.pull('limited');
 }
 ok(['dashao', 'lare'].every(id => S.chars[id]), '限定池保底补齐两名英雄');
-S.gacha.noNew.limited = E.gachaPityLimit('limited');
+S.gacha.noNew.limited = E.gachaPityLimit('limited') - 1;
 const p5 = E.pull('limited');
 ok(p5.ok && p5.type === 'new' && p5.gen, '英雄集齐后，限定池保底 = 全新随机普通角色（' + p5.type + '）');
+// 重复角色也算「抽出角色」：同样清零并推进窗口
+const limBefore = E.gachaPityLimit('limited');
+S.gacha.noNew.limited = 0;
+Math.random = () => 0;               // 出角色 → 有名英雄 → 已拥有 → 星尘
+const pd = E.pull('limited');
+ok(pd.ok && pd.type === 'dup' && pd.n === 10, '限定池抽到重复英雄给星尘 ×10');
+ok(E.gachaPityLimit('limited') === Math.min(10, limBefore + 1), '重复角色也推进保底窗口');
 Math.random = rnd;
 S.gacha.pity.limited = 0; S.gacha.noNew.limited = 0;
 
@@ -259,11 +283,11 @@ console.log('== 图鉴领取 ==');
 ok(E.codexClaimable('items', E.N2I('木材')), '已收录物品可领取');
 const shards0 = E.shardCount();
 const cr = E.codexClaim('items', E.N2I('木材'));
-ok(cr.ok && E.shardCount() === shards0 + E.CODEX_REWARD.items, '领取物品奖励 +' + E.CODEX_REWARD.items + ' 碎片');
+ok(cr.ok && E.shardCount() === shards0 + E.CODEX_REWARD.items, '领取物品奖励 +' + E.CODEX_REWARD.items + ' 张招募券');
 ok(!E.codexClaimable('items', E.N2I('木材')), '同一条目不能重复领取');
-ok(E.CODEX_REWARD.enemies === 3 && E.CODEX_REWARD.chars === 5, '敌人 3 / 角色 5 碎片');
+ok(E.CODEX_REWARD.enemies === 3 && E.CODEX_REWARD.chars === 5, '敌人 3 / 角色 5 张招募券');
 const allc = E.codexClaimAll();
-ok(E.codexUnclaimed().total === 0, '一键领取后没有待领：领取 ' + allc.count + ' 项 → ' + allc.n + ' 碎片');
+ok(E.codexUnclaimed().total === 0, '一键领取后没有待领：领取 ' + allc.count + ' 项 → ' + allc.n + ' 张招募券');
 
 console.log('== 商店 ==');
 E.refreshShop(true);
@@ -366,7 +390,7 @@ ok(shopHtml.includes('升星药水') && shopHtml.includes('精通 +10'), '升星
 ok(!shopHtml.includes('买入价 = 卖出价'), '商店不再写买入价规则说明');
 ok(U.itemTipHtml(E.N2I('升星药水')).includes('兑换价') && !U.itemTipHtml(E.N2I('升星药水')).includes('买入价'), '升星药水面板显示 3 星尘兑换价');
 const recHtml = U.pageRecruit();
-ok(recHtml.includes('使用英雄碎片概率获取到角色'), '招募页只留一句「使用英雄碎片概率获取到角色」');
+ok(recHtml.includes('使用招募券概率获取到角色'), '招募页只留一句「使用招募券概率获取到角色」');
 ok(!recHtml.includes('保底') && !recHtml.includes('每次都是新的') && !recHtml.includes('好感随送礼提升'), '招募页不显示保底、好感说明与「每次都是新的」');
 ok(U.pageHousing().includes('住房能提高角色上限'), '住所页描述精简为一句');
 ok(U.pageDefense().includes('每隔一段时间会有袭击发生'), '防御页描述精简为一句');
@@ -443,7 +467,7 @@ const ROOT = path.join(__dirname, '..');
 });
 const dashaoArt = U.avatar({ cid: 'dashao', kind: 'hero', name: '大少' }, 'lg');
 ok(dashaoArt.includes('assets/portraits/dashao.jpg') && dashaoArt.includes('<img'), '大少头像渲染为立绘图片');
-ok(dashaoArt.includes('?v=0.0.25'), '立绘 URL 带版本号缓存串');
+ok(dashaoArt.includes('?v=' + E.APP_VERSION.replace(/^v/, '')), '立绘 URL 带版本号缓存串');
 const randArt = U.avatar({ cid: 'gen9', gen: true, name: '林子墨' });
 ok(!randArt.includes('<img') && randArt.includes('林'), '随机普通角色仍是首字色块');
 const cssText = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');

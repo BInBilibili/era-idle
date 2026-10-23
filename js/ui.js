@@ -52,7 +52,7 @@ const ITEM_SLOT_NAME = {
   neck: '项链', belt: '腰带',
 };
 const ITEM_KIND_NAME = {
-  shard: '抽卡碎片', gift: '好感度礼物', stardust: '升星货币', starPotion: '升星道具',
+  shard: '招募券', gift: '好感度礼物', stardust: '升星货币', starPotion: '升星道具',
   soul: '黑魂材料', ember: '黑魂材料',
 };
 
@@ -338,7 +338,7 @@ const UI = {
     h += nav('shop', nv('shop'), '商店', E.fmt(S.gold) + ' 金');
     h += nav('characters', nv('characters'), '角色', Object.keys(S.chars).length + ' 人');
     h += nav('codex', nv('codex'), '图鉴', this.codexPct() + '%');
-    if (S.discoveredShard || E.shardCount() > 0) h += nav('recruit', nv('recruit'), '招募', E.fmt(E.shardCount()) + ' 碎片');
+    if (S.discoveredShard || E.shardCount() > 0) h += nav('recruit', nv('recruit'), '招募', E.fmt(E.shardCount()) + ' 招募券');
     h += nav('warehouse', nv('warehouse'), '仓库', E.warehouseUsed() + '/' + E.warehouseCap() + ' 格');
     // 工作
     h += `<div class="grp">工作</div>`;
@@ -1019,7 +1019,7 @@ const UI = {
       <span class="badge">物品 ${seenItems.length}/${itemIds.length}</span>
       <span class="badge">敌人 ${seenEnemies.length}/${enemyList.length}</span>
       <span class="badge">角色 ${ownedChars.length}/${charDefs.length}</span>
-      ${pending.total ? `<button class="gold" data-act="claimAllCodex">全部领取 · ${pending.total} 项（+${pending.shards} 碎片）</button>` : ''}</div>
+      ${pending.total ? `<button class="gold" data-act="claimAllCodex">全部领取 · ${pending.total} 项（+${pending.shards} 招募券）</button>` : ''}</div>
       <div class="tabs">
         <div class="tab ${tab === 'items' ? 'active' : ''}" data-act="tab" data-k="codex" data-v="items">物品</div>
         <div class="tab ${tab === 'enemies' ? 'active' : ''}" data-act="tab" data-k="codex" data-v="enemies">敌人</div>
@@ -1074,10 +1074,10 @@ const UI = {
     const cost = E.PULL_COST;
     const genOwned = S.order.filter(id => S.chars[id] && S.chars[id].gen).length;
     let h = `<div class="wrap"><div class="pagehead"><h2>招募</h2>
-      <span class="badge">英雄碎片 <b class="gold">${shards}</b></span>
+      <span class="badge">招募券 <b class="gold">${shards}</b></span>
       <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span>
       <span class="badge">随机普通角色 ${genOwned}</span></div>
-      <div class="hint">使用英雄碎片概率获取到角色</div>
+      <div class="hint">使用招募券概率获取到角色</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
     E.POOLS.forEach(p => {
       const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
@@ -1097,7 +1097,7 @@ const UI = {
           </div>
         </div>
         <div class="row" style="margin-top:10px;justify-content:flex-end">
-          <button class="gold" data-act="pull" data-id="${p.id}" ${shards < cost ? 'disabled' : ''}>抽一次（${cost} 碎片）</button>
+          <button class="gold" data-act="pull" data-id="${p.id}" ${shards < cost ? 'disabled' : ''}>抽一次（${cost} 招募券）</button>
         </div>
       </div>`;
     });

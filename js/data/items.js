@@ -251,7 +251,7 @@ window.ITEMS = {
   /* ============================================================
    * §十二 抽卡与恩赐新增物品（13 种）
    * ============================================================ */
-  hero_shard:  { name: '英雄碎片',       era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 667,  buy: 2000,  kind: 'shard',     src: '任意工作极低概率 / 商店第 6 格', note: '10 个 = 1 次抽卡' },
+  hero_shard:  { name: '招募券',         era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 667,  buy: 2000,  kind: 'shard',     src: '任意工作极低概率 / 商店第 6 格', note: '10 张 = 1 次抽卡' },
   sticky_note: { name: '好感度礼物·便利贴', era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 400,  buy: 1200,  kind: 'gift', gift: 2,  src: '抽卡 35.0%' },
   merch:       { name: '好感度礼物·周边',   era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 1200, buy: 3600,  kind: 'gift', gift: 6,  src: '抽卡 21.0%' },
   collector:   { name: '好感度礼物·典藏',   era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 3000, buy: 9000,  kind: 'gift', gift: 15, src: '抽卡 10.5%' },

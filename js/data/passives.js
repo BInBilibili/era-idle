@@ -184,10 +184,10 @@ window.PASSIVE_RULES = {
   /* --- §4 商店 --- */
   shopSlots: 6,               // 货架固定 6 格
   shopRandomSlots: 5,         // 1~5 格随机商品
-  shopShardSlot: 1,           // 第 6 格固定卖英雄碎片
+  shopShardSlot: 1,           // 第 6 格固定卖招募券
   shopRefreshSec: 60,         // 每 60 秒刷新一次
   shopPriceMul: 3,            // 买入价 = 卖出价 × 3
-  shardBuy: 2000,             // 英雄碎片单价（金币）
+  shardBuy: 2000,             // 招募券单价（金币）
   bookBuy: 24000,             // 精通技能书买入价
   bookSell: 8000,             // 精通技能书卖回价（24,000 ÷ 3）
   bookLevels: 10,             // 一本书 = 该角色该工作精通 +10 级
@@ -234,7 +234,7 @@ window.PASSIVE_RULES = {
     shop: "文字",
     characters: null,          // #角色 常驻，无解锁闸门
     codex: null,               // #图鉴 始终显示
-    recruit: "发现第一枚英雄碎片",
+    recruit: "发现第一张招募券",
     warehouse: null            // #仓库 开局即显示
   },
   defenseUnlockWealth: 5000,   // #防御 的解锁门槛：财富值 ≥ 5,000

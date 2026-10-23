@@ -282,12 +282,12 @@
       case 'pull': doPull(id); break;
       case 'claimCodex': {
         const r = E.codexClaim(k, id);
-        U.toast(r.ok ? '领取 ' + r.n + ' 个英雄碎片' : (r.why || '没有可领取的奖励'), r.ok ? 'good' : 'bad');
+        U.toast(r.ok ? '领取 ' + r.n + ' 张招募券' : (r.why || '没有可领取的奖励'), r.ok ? 'good' : 'bad');
         U.render(); break;
       }
       case 'claimAllCodex': {
         const r = E.codexClaimAll();
-        U.toast(r.count ? '一键领取 ' + r.count + ' 项，共 ' + r.n + ' 个英雄碎片' : '没有可领取的奖励', r.count ? 'good' : 'bad');
+        U.toast(r.count ? '一键领取 ' + r.count + ' 项，共 ' + r.n + ' 张招募券' : '没有可领取的奖励', r.count ? 'good' : 'bad');
         U.render(); break;
       }
       case 'buildgen': {
