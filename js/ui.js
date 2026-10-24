@@ -325,9 +325,9 @@ const UI = {
     const rows = list.map(a => {
       const def = E.HUSBANDRY_ANIMALS[a.name] || {};
       const outs = Object.keys(def.outputs || {}).length ? this.ioList(def.outputs) : '<span class="dim">无</span>';
-      return `<div class="ttRow"><span class="k">${esc(a.name)} <span class="dim">已产 ${a.done || 0} 次</span></span><span class="v">${outs}</span></div>`;
+      return `<div class="ttHubRow"><div class="nm"><b>${esc(a.name)}</b> <span class="dim">已产 ${a.done || 0} 次</span></div><div class="outs">${outs}</div></div>`;
     }).join('');
-    h += `<div class="ttSec">每只动物的产物</div><div class="ttRows">${rows}</div>`;
+    h += `<div class="ttSec">每只动物的产物</div><div class="ttHubList">${rows}</div>`;
     h += '<div class="ttDesc">动物自己的进度条满时才产出；「喂养畜群」进度条满只扣草料，不直接给物品。</div>';
     return h;
   },
