@@ -540,6 +540,23 @@ const card = U.recipeCard(inJob, E.S.jobs[inJob.id], E.jobRecipes(inJob)[0], 0);
 ok(card.includes('消耗：') && card.includes('<span class="red">'), '项目卡消耗行：缺料名称标红（' + inJob.name + '）');
 ok(!card.split('产出：')[1].split('<br>')[0].includes('class="red"'), '项目卡产出行不标红');
 
+console.log('== 界面：gacha 标签与页头提示（v0.0.31）==');
+E.S = E.newState('标签与提示');
+const gachaTip = U.itemTipHtml(E.N2I('升星药水'));
+ok(!gachaTip.includes('gacha'), '抽卡类物品不再露出 gacha 内部标签');
+ok(gachaTip.includes('抽卡') && gachaTip.includes('升星道具'), '升星药水只显示「抽卡」「升星道具」');
+E.S.techs['animal_husbandry'] = true;
+E.S.jobs.husbandry.up[0] = 1;
+const hintHubHtml = U.pageJob('husbandry');
+ok(!hintHubHtml.includes('把头像拖到下方') && !hintHubHtml.includes('每个项目独立入驻') &&
+   !hintHubHtml.includes('首次拥有 1 份所需资源后永久显示') && !hintHubHtml.includes('有人入驻、草料够时'),
+   '工作页右侧操作提示全部删除');
+ok(hintHubHtml.includes('喂养畜群') && hintHubHtml.includes('畜牧产物') && hintHubHtml.includes('可用角色'), '删除提示后内容区仍然完整');
+E.S.milestones.research_ready = true;
+const hintResHtml = U.pageJob('research');
+ok(!hintResHtml.includes('研究消耗科研点'), '科研页不再显示「研究消耗科研点」');
+ok(hintResHtml.includes('科技树'), '科研页标题与科技树仍在');
+
 console.log('== 袭击：时代基数 ×0.1（v0.0.20）==');
 const raidBase = Object.fromEntries(E.PR.raidEra.map(r => [r.id, r.base]));
 ok(raidBase.stone === 80 && raidBase.medieval === 300 && raidBase.industrial === 650 &&

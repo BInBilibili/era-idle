@@ -56,8 +56,9 @@ const ITEM_KIND_NAME = {
   shard: '招募券', gift: '好感度礼物', stardust: '升星货币', starPotion: '升星道具',
   soul: '黑魂材料', ember: '黑魂材料',
 };
-/* 时代徽章名：era:'cross' 表示跨时代通用物品（药品 / 地毯等），不该把内部字段直接露成 cross */
-const ERA_TAG_NAME = Object.assign({ cross: '通用' }, E.ERA_NAME || {});
+/* 时代徽章名：era:'cross' 是跨时代通用标记，显示为「通用」；era:'gacha' 是抽卡类内部标记，
+   分类徽章已经写「抽卡」，不再把内部字段露成英文徽章（未知 / 内部 era 一律不显示） */
+const ERA_TAG_NAME = Object.assign({ cross: '通用', gacha: '' }, E.ERA_NAME || {});
 
 const UI = {
   /* ---------------- 基础 ---------------- */
@@ -276,7 +277,7 @@ const UI = {
 
     let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
       <b>${esc(it.name)}</b>
-      <div class="ttTags">${it.era ? tag(ERA_TAG_NAME[it.era] || it.era) : ''}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
+      <div class="ttTags">${it.era && ERA_TAG_NAME[it.era] ? tag(ERA_TAG_NAME[it.era]) : ''}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
       ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}</div></div></div>`;
 
     if (info.gear) {
@@ -666,12 +667,11 @@ const UI = {
       </div>
 
       <div class="card" style="margin-top:12px">
-        <div class="row" style="justify-content:space-between"><span class="small muted">可用角色</span>
-        <span class="tiny dim">把头像拖到下方任意项目卡（整张卡都算拖入点）</span></div>
+        <div class="small muted">可用角色</div>
         <div style="margin-top:8px">${this.chips()}</div>
       </div>
 
-      <div class="row" style="justify-content:space-between;margin-top:16px"><h3 style="font-size:15px">项目</h3><span class="tiny dim">每个项目独立入驻、独立进度</span></div>
+      <h3 style="font-size:15px;margin-top:16px">项目</h3>
       <div class="grid recgrid" style="margin-top:8px">
         ${rows.map(({ r, i }) => this.recipeCard(job, js, r, i)).join('')}
       </div>
@@ -679,7 +679,7 @@ const UI = {
       ${job.id === 'husbandry' ? this.husbandrySection(job, js) : ''}
 
       <div style="margin-top:16px">
-        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">升级项</h3><span class="tiny dim">首次拥有 1 份所需资源后永久显示；未解锁或上一档未购的档位不显示</span></div>
+        <h3 style="font-size:15px">升级项</h3>
         <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-top:8px">
           ${(job.upgrades || []).map((u, i) => {
             const bought = js.up && js.up[i];
@@ -743,8 +743,7 @@ const UI = {
       </div>`;
     }).join('');
     return `<div style="margin-top:16px">
-      <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">畜牧</h3>
-        <span class="tiny dim">「喂养畜群」有人入驻、草料够时动物进度才推进；动物条满才产出物品</span></div>
+      <h3 style="font-size:15px">畜牧</h3>
       <div class="card" style="margin-top:8px">
         <div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
           <div class="row" style="gap:6px;flex-wrap:wrap;min-width:0">
@@ -1055,8 +1054,7 @@ const UI = {
     let h = `<div class="pagehead"><h2>科技树</h2>
       <span class="badge">已研究 ${E.techsDone()}/${E.TECHS.length}</span>
       <span class="badge blue">科研点 <b class="mono" data-live="researchval">${E.fmt(S.research)}</b></span>
-      <span class="badge">${E.eraName()}</span></div>
-      <div class="hint">研究消耗科研点。</div>`;
+      <span class="badge">${E.eraName()}</span></div>`;
     E.ERA_LIST.forEach(era => {
       const list = E.TECHS.filter(t => t.era === era.id);
       if (!list.length) return;
@@ -1383,7 +1381,7 @@ const UI = {
           return `<div class="card ${claimable ? 'claim' : ''}" style="padding:9px 10px;${seen ? '' : 'opacity:.45'}"${seen ? ` data-tip-item="${id}"` : ''}>
             ${claimable ? claimBtn('items', id, E.CODEX_REWARD.items) : ''}
             <div class="row" style="gap:8px">${seen ? this.itemIcon(it) : '❔'}<b class="small">${seen ? this.esc(it.name) : '？？？'}</b></div>
-            ${seen ? `<div class="tiny muted" style="margin-top:4px">${this.esc(it.era ? (E.ERA_NAME[it.era] || '') : '')}${it.price ? ' · ' + E.fmt(it.price) + ' 金' : ''}</div>` : ''}
+            ${seen ? `<div class="tiny muted" style="margin-top:4px">${[ERA_TAG_NAME[it.era] || '', it.price ? E.fmt(it.price) + ' 金' : ''].filter(Boolean).join(' · ')}</div>` : ''}
           </div>`;
         }).join('') + `</div>`;
     } else if (tab === 'enemies') {
