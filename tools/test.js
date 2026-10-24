@@ -558,10 +558,30 @@ ok(E.buyUpgrade('woodcutting', 1).ok, '石斧 + *金属冶炼 → 铜斧可买')
 ok(E.buyUpgrade('woodcutting', 2).ok, '铜斧之后 → 铁斧可买');
 const woodBonus = E.JOB_BY_ID.woodcutting.upgrades.reduce((a, u, i) => a + (E.S.jobs.woodcutting.up[i] ? u.bonusPct : 0), 0);
 ok(woodBonus === 50, '石斧不再加产出；铜斧 + 铁斧合计 +50%：' + woodBonus);
-ok(E.JOB_BY_ID.woodcutting.upgrades[0].bonusPct === 0 && E.JOB_BY_ID.woodcutting.upgrades[0].note === '解锁伐木项目',
-  '石斧描述 = 解锁伐木项目、不加产出');
-ok(E.JOB_BY_ID.mining.upgrades[0].bonusPct === 0 && E.JOB_BY_ID.mining.upgrades[0].note === '解锁采石项目',
-  '石镐描述 = 解锁采石项目、不加产出');
+ok(E.JOB_BY_ID.woodcutting.upgrades[0].bonusPct === 0 && E.upgradeDesc(E.JOB_BY_ID.woodcutting, 0) === '解锁伐木项目',
+  '石斧描述 = 解锁伐木项目（代码生成）、不加产出');
+ok(E.JOB_BY_ID.mining.upgrades[0].bonusPct === 0 && E.upgradeDesc(E.JOB_BY_ID.mining, 0) === '解锁采石项目',
+  '石镐描述 = 解锁采石项目（代码生成）、不加产出');
+ok(E.upgradeDesc(E.JOB_BY_ID.research, 0) === '解锁科研项目', '基础研究桌描述 = 解锁科研项目');
+ok(E.upgradeDesc(E.JOB_BY_ID.husbandry, 0).indexOf('解锁加工草料、畜牧项目') === 0, '畜牧门槛档列出两个项目');
+const badGate = [];
+E.JOBS.forEach(j => {
+  const gate = E.jobRecipeGate(j);
+  if (gate == null) return;
+  const u = j.upgrades && j.upgrades[gate];
+  const desc = E.upgradeDesc(j, gate);
+  if (!u || u.bonusPct !== 0 || E.upgradeBonus(j, gate, u) !== 0 || desc.indexOf('解锁') !== 0) {
+    badGate.push(j.name + ' → ' + desc);
+  }
+});
+ok(badGate.length === 0, '所有门槛档 0 产出、说明由项目名生成：' + (badGate.join('；') || '无'));
+const hardcodedUnlock = [];
+E.JOBS.forEach(j => {
+  const gate = E.jobRecipeGate(j);
+  const u = gate == null ? null : (j.upgrades || [])[gate];
+  if (u && u.note && u.note.indexOf('解锁') === 0) hardcodedUnlock.push(j.name);
+});
+ok(hardcodedUnlock.length === 0, '门槛档不再手写「解锁…」说明：' + (hardcodedUnlock.join('、') || '无'));
 ['woodcutting', 'mining', 'gathering'].forEach(jid => {
   const u = E.JOB_BY_ID[jid].upgrades.find(x => x.name.endsWith('小屋'));
   ok(!!u && u.cost['石材'] === 150 && !u.cost['石头'], jid + ' 小屋改用石材：' + JSON.stringify(u && u.cost));
@@ -586,6 +606,10 @@ ok(!stillLocked.includes('铜斧'), '科技有了但石斧没买：铜斧仍不�
 E.buyUpgrade('woodcutting', 0);
 const chainHtml = U.pageJob('woodcutting');
 ok(chainHtml.includes('铜斧'), '石斧买完：铜斧出现');
+ok(chainHtml.includes('解锁伐木项目'), '升级卡显示代码生成的解锁说明');
+E.S.milestones.research_ready = true;
+const researchUpHtml = U.pageJob('research');
+ok(researchUpHtml.includes('解锁科研项目') && !researchUpHtml.includes('产出 +25%'), '科研升级卡显示「解锁科研项目」而不是产出加成');
 
 console.log('== 升级项：首次拥有 1 份资源后永久显示（v0.0.27）==');
 E.S = E.newState('升级显示');

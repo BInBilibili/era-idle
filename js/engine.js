@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.30';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.31';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -714,6 +714,40 @@ function jobRecipeGate(job) {
   if (job.id === 'gathering') return null;
   return job.recipeUpgrade != null ? job.recipeUpgrade : 0;
 }
+/* v0.0.31：门槛档只负责「解锁第一批项目」，不提供产出加成。
+   这一条写在引擎里，数据里即使误填 bonusPct 也不会再生效。 */
+function upgradeBonus(job, idx, u) {
+  const up = u || (job && job.upgrades && job.upgrades[idx]) || {};
+  if (!job || !up) return 0;
+  if (jobRecipeGate(job) === idx) return 0;
+  return up.bonusPct || 0;
+}
+/* 门槛档的说明不手写，由项目名推导：
+   1 个项目 → 用它；2 个项目 → 用「A、B」；3 个以上（含装备制造）→ 用工作名。
+   采矿有 12 种矿，固定叫「采石」，不把矿名列成一长串。 */
+function jobProjectLabel(job) {
+  if (!job) return '';
+  if (job.special === 'mining') return '采石';
+  const names = [];
+  jobRecipes(job).forEach(r => {
+    const n = (r && r.name) || job.name;
+    if (n && names.indexOf(n) < 0) names.push(n);
+  });
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return names.join('、');
+  return job.name;
+}
+/* 升级项描述 = 解锁内容 + 产出加成 + 数据备注；「解锁 X 项目」由代码生成，不写进数据。 */
+function upgradeDesc(job, idx) {
+  const u = job && job.upgrades && job.upgrades[idx];
+  if (!u) return '';
+  const parts = [];
+  if (jobRecipeGate(job) === idx) parts.push('解锁' + jobProjectLabel(job) + '项目');
+  const bonus = upgradeBonus(job, idx, u);
+  if (bonus) parts.push('产出 +' + bonus + '%');
+  if (u.note) parts.push(String(u.note));
+  return parts.join(' · ');
+}
 function recipeVisible(r, job) {
   if (!r) return true;
   if (r.milestone && !(S.milestones && S.milestones[r.milestone])) return false;
@@ -816,7 +850,7 @@ function canMake(r, mult) {
 function jobSpeed(jobId, slotIdx) {
   const js = S.jobs[jobId], job = JOB_BY_ID[jobId], c = slotChar(js, slotIdx || 0);
   let m = 1;
-  if (js.up) js.up.forEach((u, k) => { if (u && job.upgrades && job.upgrades[k]) m += (job.upgrades[k].bonusPct || 0) / 100; });
+  if (js.up) js.up.forEach((u, k) => { if (u && job.upgrades && job.upgrades[k]) m += upgradeBonus(job, k, job.upgrades[k]) / 100; });
   m *= comfortMult();
   // v0.0.30：供电不足只拖慢「耗电工作」，不该让畜牧 / 伐木这些不耗电的工作一起停摆
   if (POWERED_JOBS.includes(jobId)) m *= powerEfficiency();
@@ -2048,6 +2082,7 @@ window.Engine = {
   masteryOf, masteryLvl, masteryPct, masteryNext, charBonusFor, charName,
   comfortValue, comfortMult, fortPower, fortWatts, fortReduce, powerProduced, powerDemand, powerEfficiency, powerNow,
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
+  jobRecipeGate, upgradeBonus, jobProjectLabel, upgradeDesc,
   recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
   addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandrySpeed,

@@ -73,8 +73,10 @@ const UI = {
   /* ---------------- 获得物品消息框（底部） ----------------
      所有物品产出都走这里：工作产出 / 采集资源包拆出的植物纤维与种子 / 狩猎掉落 /
      抽卡礼物 / 图鉴领取 / 商店购买。同一种物品连续获得只累加数量；
-     最后一次获得后 4.5 秒没有新物品，整框淡出。离线结算不逐条弹（走离线弹窗汇总）。 */
+     每一行各自在「最后一次获得该物品」后 4.5 秒淡出，互不影响（不再整框共用计时）。
+     离线结算不逐条弹（走离线弹窗汇总）。 */
   LOOT_TTL: 4500,
+  LOOT_FADE: 320,      // 与 .lootrow 的 opacity 过渡一致；淡出结束后再摘掉 DOM
   loot(id, qty) {
     if (typeof document === 'undefined') return;   // node 无头冒烟测试
     qty = Number(qty) || 0;
@@ -82,9 +84,6 @@ const UI = {
     const it = E.ITEMS[id];
     const feed = document.getElementById('lootFeed');
     if (!it || !feed) return;
-    clearTimeout(this._lootTimer);
-    clearTimeout(this._lootFadeTimer);
-    feed.classList.remove('fade');
     if (!this._lootRows || !this._lootBox || !this._lootBox.isConnected) {
       feed.innerHTML = '';
       this._lootBox = document.createElement('div');
@@ -106,25 +105,39 @@ const UI = {
       el.querySelector('.ic').innerHTML = this.itemIcon(it);
       el.querySelector('.n').textContent = it.name;
       this._lootBox.appendChild(el);
-      row = { el, n: 0, q: el.querySelector('.q') };
+      row = { el, n: 0, q: el.querySelector('.q'), exp: 0, fading: false, removeAt: 0 };
       this._lootRows.set(id, row);
+    } else if (row.fading) {
+      // 这一行正在淡出时又拿到了同种物品：拉回来继续累计，4.5 秒重新计起
+      row.fading = false; row.removeAt = 0;
+      row.el.classList.remove('fade');
     }
     row.n += qty;
     row.q.textContent = '+' + E.fmt(row.n);
     row.q.classList.remove('bump');
     void row.q.offsetWidth;
     row.q.classList.add('bump');
-    this._lootTimer = setTimeout(() => this._hideLoot(), this.LOOT_TTL);
+    row.exp = Date.now() + this.LOOT_TTL;
   },
-  _hideLoot() {
-    const feed = document.getElementById('lootFeed');
-    if (!feed) return;
-    feed.classList.add('fade');
-    this._lootFadeTimer = setTimeout(() => {
-      feed.innerHTML = '';
-      feed.classList.remove('fade');
+  /* 逐行到期检查（UI.tick 每 200ms 跑一次）：每行只看自己的 exp，到点单独淡出 */
+  _sweepLoot() {
+    const rows = this._lootRows;
+    if (!rows || !rows.size) return;
+    const now = Date.now();
+    rows.forEach((row, id) => {
+      if (row.fading) {
+        if (now >= row.removeAt) { row.el.remove(); rows.delete(id); }
+      } else if (now >= row.exp) {
+        row.fading = true;
+        row.removeAt = now + this.LOOT_FADE;
+        row.el.classList.add('fade');
+      }
+    });
+    if (!rows.size) {
+      const feed = document.getElementById('lootFeed');
+      if (feed) feed.innerHTML = '';
       this._lootRows = null; this._lootBox = null;
-    }, 320);
+    }
   },
   modal(html) {
     document.getElementById('modalBox').innerHTML = html;
@@ -609,9 +622,10 @@ const UI = {
             const locked = (u.req != null && !(js.up && js.up[u.req])) || !!(u.tech && !E.researched(u.tech));
             const ever = E.everOwnedAll(u.cost);
             if (!bought && (locked || !ever)) return '';
+            const desc = E.upgradeDesc(job, i);
             return `<div class="card upg ${bought ? 'done' : ''}">
               <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b>${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</div>
-              <div class="tiny muted" style="margin-top:4px">${u.bonusPct ? '产出 +' + u.bonusPct + '%' : ''}${u.note ? (u.bonusPct ? ' · ' + this.esc(u.note) : this.esc(u.note)) : ''}</div>
+              ${desc ? `<div class="tiny muted" style="margin-top:4px">${this.esc(desc)}</div>` : ''}
               ${bought ? '' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>`}
               ${bought ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="upg" data-id="${job.id}" data-i="${i}" ${E.affordCost(u.cost) ? '' : 'disabled'}>购买</button>`}
             </div>`;
@@ -1441,6 +1455,7 @@ const UI = {
   /* ---------------- 每帧轻量更新 ---------------- */
   tick() {
     const S = E.S;
+    this._sweepLoot();
     this.renderHud();
     const page = S.ui.page;
     if (page && page.startsWith('job:')) {

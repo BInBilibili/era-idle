@@ -9,7 +9,7 @@
  * 精通：角色 × 工作 各一份，产出基数不因精通改变。
  *
  * 升级项 4 档阶梯（工作表 §1.1）：
- *   1 档 +25%：100 主材 + 50 辅材        2 档 +50%：300 主材 + 150 辅材
+ *   1 档 0%（只解锁项目；采集例外 +25%）：100 主材 + 50 辅材    2 档 +50%：300 主材 + 150 辅材
  *   3 档 +75%：800 主材 + 400 辅材        4 档 +75%~100%：2,000 主材 + 500 机械零件，⚡ 耗电 +1 瓦
  *   主材按时代：石器 木材 / 中世纪 铁锭 / 工业 钢铁 / 信息 钛合金 / 太空 外星合金
  *   4 档按时代：石器·中世纪 2,000 铁锭 + 500 机械零件；工业 2,000 钢铁 + 500 机械零件；
@@ -45,7 +45,7 @@ window.JOBS = [
     outputs: { "木材": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "石斧", watt: 0, bonusPct: 0, cost: { "木材": 2, "石头": 2 }, note: "解锁伐木项目" },
+      { name: "石斧", watt: 0, bonusPct: 0, cost: { "木材": 2, "石头": 2 } },
       { name: "铜斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "铜锭": 50 }, tech: "金属冶炼", req: 0, note: "" },
       { name: "铁斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "铁锭": 50 }, tech: "金属冶炼", req: 1, note: "" },
       { name: "伐木小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石材": 150 }, note: "" },
@@ -84,7 +84,7 @@ window.JOBS = [
       { name: "铀矿", weight: 3, tech: "核能" }
     ],
     upgrades: [
-      { name: "石镐", watt: 0, bonusPct: 0, cost: { "木材": 2, "石头": 2 }, note: "解锁采石项目" },
+      { name: "石镐", watt: 0, bonusPct: 0, cost: { "木材": 2, "石头": 2 } },
       { name: "铜镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "铜锭": 50 }, tech: "金属冶炼", req: 0, note: "" },
       { name: "铁镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "铁锭": 50 }, tech: "金属冶炼", req: 1, note: "" },
       { name: "采矿小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石材": 150 }, note: "" },
@@ -167,7 +167,7 @@ window.JOBS = [
         note: "不消耗种子 / 食材，纯粹晒制草料；畜牧的保底饲料来源" }
     ],
     upgrades: [
-      { name: "石锄", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "石锄 / 铜锄 二选一，各 +25%（各 100 木材 + 50 石头 / 铜锭）" },
+      { name: "石锄", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "石锄 / 铜锄 二选一（启动档用木材 + 石头，不卡种子）" },
       { name: "灌溉", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
       { name: "温室", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "不受季节影响，耗电 +1 瓦（第 3 档就是 ⚡，不是第 4 档）" },
       { name: "化肥", watt: 0, bonusPct: 100, cost: { "堆肥": 1 }, note: "每次消耗 1 堆肥（持续消耗，不是一次性造价）" }
@@ -216,8 +216,8 @@ window.JOBS = [
     recipes: [
       { name: "加工草料", inputs: { "素食食材": 2 }, outputs: { "草料": 1 }, era: "stone", unlockTech: null, duration: 4,
         note: "把 2 份素食食材加工成 1 草料" },
-      { name: "畜牧", inputs: {}, outputs: {}, era: "stone", unlockTech: null, duration: 0,
-        note: "派驻角色后，畜牧网格里的每只动物都会推进自己的产出进度" }
+      { name: "喂养畜群", feed: true, inputs: {}, outputs: {}, era: "stone", unlockTech: null, duration: 24,
+        note: "派驻角色后按周期消耗「所有动物草料消耗之和」；进度条填满只扣草料，动物产物由「畜牧」区各自的进度条产出" }
     ],
     upgrades: [
       { name: "圈舍", watt: 0, bonusPct: 0, cap: 5, cost: { "木材": 100, "石材": 50 }, note: "畜牧容量 +5（用木材 + 石材启动，草料留给加工草料项目）" },
@@ -226,7 +226,7 @@ window.JOBS = [
       { name: "自动喂食机", watt: 1, bonusPct: 50, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "前置：该敌人的图鉴认知度满 100 —— 认知度是狩猎解锁畜牧的唯一路径。项目一「加工草料」消耗食材产出草料；项目二「畜牧」派驻角色后推进所有动物的产出进度条，畜牧速度加成对所有动物同时生效。网格按「畜牧容量」排布：初始 5，圈舍 +5、大型牧场 +15；体型占用 极小 0.5 / 小 1 / 中 2 / 大 3 / 极大 5。每只动物消耗 1 草料 / 天（1 天 = 24 秒），草料不足时全部动物停产。机械兽、硅基生物不能畜牧。零风险纯周期，离线同伐木规则。"
+    note: "前置：该敌人的图鉴认知度满 100 —— 认知度是狩猎解锁畜牧的唯一路径。项目一「加工草料」消耗食材产出草料；项目二「喂养畜群」派驻角色后，每 24 秒（受畜牧速度影响）扣一次「所有动物草料消耗之和」，只有它有人入驻且草料充足时，下方「畜牧」区各动物的进度条才推进、进度条满才产出。畜牧速度加成同时作用于喂养与所有动物。网格按「畜牧容量」排布：初始 5，圈舍 +5、大型牧场 +15；体型占用 极小 0.5 / 小 1 / 中 2 / 大 3 / 极大 5。每只动物消耗 1 草料 / 天（1 天 = 24 秒）。机械兽、硅基生物不能畜牧。零风险纯周期，离线同伐木规则。"
   },
   {
     id: "cooking",
@@ -246,7 +246,7 @@ window.JOBS = [
       { name: "均衡餐", inputs: { "素食食材": 2, "肉食食材": 2 }, outputs: { "均衡餐": 8 }, era: "stone", unlockTech: null, duration: 2 }
     ],
     upgrades: [
-      { name: "灶台", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
+      { name: "灶台", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "" },
       { name: "厨房", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
       { name: "大厨房", watt: 0, bonusPct: 75, cost: { "木材": 800, "石材": 400 }, note: "" },
       { name: "自动厨房", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -266,7 +266,7 @@ window.JOBS = [
     equipment: true,
     powerUse: 0,
     upgrades: [
-      { name: "工作台", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
+      { name: "工作台", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "" },
       { name: "工匠坊", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
       { name: "骨器工艺", watt: 0, bonusPct: 0, cost: { "木材": 800, "骨 / 角": 400 }, note: "解锁骨器系装备（不是产出加成）" },
       { name: "电动工具", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -289,13 +289,13 @@ window.JOBS = [
     outputs: { "科研点": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "基础研究桌", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
+      { name: "基础研究桌", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "" },
       { name: "图书馆", watt: 0, bonusPct: 50, cost: { "木材": 300, "纸张": 150 }, note: "" },
       { name: "网络", watt: 0, bonusPct: 100, cost: { "钛合金": 2000, "精密零件": 500 }, note: "第 3 档反而 +100%" },
       { name: "实验室", watt: 1, bonusPct: 50, cost: { "铁锭": 2000, "机械零件": 500 }, note: "只有 +50%，耗电 +1 瓦" }
     ],
     special: "research",
-    note: "v0.0.27：曾经攒到「基础研究桌」30% 所需资源（30 木材 + 15 石头）后永久显示；先买基础研究桌，才出现「科研点」项目。5 秒 1 科研点（= 720 点/小时）；喂 纸张 → ×1.5。科研点喂 42 个科技，合计 44,280 点。科研加成全叠满（科技 *文字 +25% / *网络 +100%，升级项 基础研究桌 +25% / 图书馆 +50% / 网络 +100% / 实验室 +50%，纸张 +50%）约 ×21，单人可达 ≈15,000 点/小时。"
+    note: "v0.0.27：曾经攒到「基础研究桌」30% 所需资源（30 木材 + 15 石头）后永久显示；先买基础研究桌，才出现「科研点」项目。5 秒 1 科研点（= 720 点/小时）；喂 纸张 → ×1.5。科研点喂 42 个科技，合计 44,280 点。科研加成全叠满（科技 *文字 +25% / *网络 +100%，升级项 图书馆 +50% / 网络 +100% / 实验室 +50%，纸张 +50%）约 ×19.5，单人可达 ≈14,000 点/小时。"
   },
   {
     id: "stonecutting",
@@ -310,7 +310,7 @@ window.JOBS = [
     outputs: { "石材": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "碎石锤", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
+      { name: "碎石锤", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "" },
       { name: "水力切石", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
       { name: "大型石场", watt: 0, bonusPct: 75, cost: { "木材": 800, "石材": 400 }, note: "" },
       { name: "电锯切石", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -331,7 +331,7 @@ window.JOBS = [
     outputs: { "陶器": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "陶轮", watt: 0, bonusPct: 25, cost: { "木材": 100, "沙": 50 }, note: "" },
+      { name: "陶轮", watt: 0, bonusPct: 0, cost: { "木材": 100, "沙": 50 }, note: "" },
       { name: "陶窑", watt: 0, bonusPct: 50, cost: { "木材": 300, "沙": 150 }, note: "" },
       { name: "大型陶窑", watt: 0, bonusPct: 75, cost: { "木材": 800, "石材": 400 }, note: "" },
       { name: "电窑", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -360,7 +360,7 @@ window.JOBS = [
     ],
     powerUse: 0,
     upgrades: [
-      { name: "研钵", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "用木材 + 石头启动，受伤后立刻可以买，不卡药草" },
+      { name: "研钵", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "用木材 + 石头启动，受伤后立刻可以买，不卡药草" },
       { name: "药剂实验室", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "银锭": 150 }, note: "" },
       { name: "医院", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "玻璃": 400 }, note: "需工业科技「公共卫生」（医疗 → 200）解锁" },
       { name: "自动医疗床", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "需工业科技「公共卫生」解锁；耗电 +1 瓦" }
@@ -394,7 +394,7 @@ window.JOBS = [
       { name: "钢铁", inputs: { "铁锭": 1, "木材": 1 }, outputs: { "钢铁": 1 }, era: "medieval", unlockTech: "钢铁", duration: 4, note: "二级精炼：铁锭 → 钢铁。工作表原文「投料比例写实现时回填」，此处取 1 铁锭 + 1 木材 / 4 秒（价格规则：钢铁 27 = 铁锭 18 × 1.5）。" }
     ],
     upgrades: [
-      { name: "风箱", watt: 0, bonusPct: 25, cost: { "铜矿": 100, "木材": 50 }, note: "启动档用铜矿 —— 铁锭要熔炼自己产，不能拿本工作的产物当门票" },
+      { name: "风箱", watt: 0, bonusPct: 0, cost: { "铜矿": 100, "木材": 50 }, note: "启动档用铜矿 —— 铁锭要熔炼自己产，不能拿本工作的产物当门票" },
       { name: "高炉", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "石头": 150 }, note: "" },
       { name: "大型熔炉", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "电弧炉", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -414,7 +414,7 @@ window.JOBS = [
     equipment: true,
     powerUse: 0,
     upgrades: [
-      { name: "铁砧", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "" },
+      { name: "铁砧", watt: 0, bonusPct: 0, cost: { "铁锭": 100, "木材": 50 }, note: "" },
       { name: "锻造坊", watt: 0, bonusPct: 50, cost: { "铁锭": 450 }, note: "工作表原文「300 铁锭 + 150 铁锭」= 450 铁锭（同一个键，故合并）" },
       { name: "大型锻炉", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "蒸汽锤", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -435,7 +435,7 @@ window.JOBS = [
     outputs: { "木板": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "手锯", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "" },
+      { name: "手锯", watt: 0, bonusPct: 0, cost: { "铁锭": 100, "木材": 50 }, note: "" },
       { name: "锯木厂", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "木材": 150 }, note: "" },
       { name: "大型锯木厂", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "电锯", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦（中世纪没有电，仍按阶梯配 ⚡ 价格）" }
@@ -461,7 +461,7 @@ window.JOBS = [
       { name: "布料（毛料）", inputs: { "毛料": 2 }, outputs: { "布料": 1 }, era: "medieval", unlockTech: null, duration: 4 }
     ],
     upgrades: [
-      { name: "纺锤", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "启动档用木材 —— 毛料要畜牧产，不能拿本工作的输入当门票" },
+      { name: "纺锤", watt: 0, bonusPct: 0, cost: { "铁锭": 100, "木材": 50 }, note: "启动档用木材 —— 毛料要畜牧产，不能拿本工作的输入当门票" },
       { name: "织布机", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "毛料": 150 }, note: "" },
       { name: "大型织坊", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "电动织机", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -481,7 +481,7 @@ window.JOBS = [
     equipment: true,
     powerUse: 0,
     upgrades: [
-      { name: "缝纫针", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "启动档用木材 —— 布料要纺织产，不能拿本工作的输入当门票" },
+      { name: "缝纫针", watt: 0, bonusPct: 0, cost: { "铁锭": 100, "木材": 50 }, note: "启动档用木材 —— 布料要纺织产，不能拿本工作的输入当门票" },
       { name: "裁缝铺", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "布料": 150 }, note: "" },
       { name: "大型裁缝铺", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "缝纫机", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -502,7 +502,7 @@ window.JOBS = [
     outputs: { "地毯": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "编织架", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "植物纤维": 50 }, note: "" },
+      { name: "编织架", watt: 0, bonusPct: 0, cost: { "铁锭": 100, "植物纤维": 50 }, note: "" },
       { name: "编织坊", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "植物纤维": 150 }, note: "" },
       { name: "大型编织坊", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "布料": 400 }, note: "" }
     ],
@@ -522,7 +522,7 @@ window.JOBS = [
     outputs: { "纸张": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "打浆机", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "" },
+      { name: "打浆机", watt: 0, bonusPct: 0, cost: { "铁锭": 100, "木材": 50 }, note: "" },
       { name: "造纸厂", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "木材": 150 }, note: "" },
       { name: "大型造纸厂", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "自动造纸线", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -576,7 +576,7 @@ window.JOBS = [
     outputs: { "石油": 2 },
     powerUse: 0.4,
     upgrades: [
-      { name: "井架", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "木材": 50 }, note: "解锁石油项目" },
+      { name: "井架", watt: 0, bonusPct: 0, cost: { "钢铁": 100, "木材": 50 } },
       { name: "抽油机", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "石材": 150 }, note: "" },
       { name: "大型油井", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "自动化钻井", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -605,7 +605,7 @@ window.JOBS = [
       { name: "核燃料", inputs: { "铀矿": 1 }, outputs: { "核燃料": 1 }, era: "info", unlockTech: "核能", duration: 5 }
     ],
     upgrades: [
-      { name: "车床", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "铜锭": 50 }, note: "解锁机械加工项目" },
+      { name: "车床", watt: 0, bonusPct: 0, cost: { "钢铁": 100, "铜锭": 50 } },
       { name: "机械车间", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "铜锭": 150 }, note: "" },
       { name: "大型车间", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "自动化产线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦；工作表 §6.2 明写 +75%" }
@@ -630,7 +630,7 @@ window.JOBS = [
       { name: "塑料", inputs: { "石油": 3 }, outputs: { "塑料": 1 }, era: "industrial", unlockTech: "火药", duration: 6 }
     ],
     upgrades: [
-      { name: "蒸馏器", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "石油": 50 }, note: "" },
+      { name: "蒸馏器", watt: 0, bonusPct: 0, cost: { "钢铁": 100, "石油": 50 }, note: "" },
       { name: "精炼塔", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "石油": 150 }, note: "" },
       { name: "催化裂化", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "自动化精炼线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -655,7 +655,7 @@ window.JOBS = [
       { name: "光纤", inputs: { "玻璃": 2 }, outputs: { "光纤": 1 }, era: "industrial", unlockTech: null, duration: 4 }
     ],
     upgrades: [
-      { name: "坩埚", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "沙": 50 }, note: "" },
+      { name: "坩埚", watt: 0, bonusPct: 0, cost: { "钢铁": 100, "沙": 50 }, note: "" },
       { name: "玻璃坊", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "沙": 150 }, note: "" },
       { name: "工业熔炉", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "自动玻璃线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -676,7 +676,7 @@ window.JOBS = [
     outputs: { "火药": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "混合机", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "硝酸": 50 }, note: "" },
+      { name: "混合机", watt: 0, bonusPct: 0, cost: { "钢铁": 100, "硝酸": 50 }, note: "" },
       { name: "火药坊", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "硝酸": 150 }, note: "" },
       { name: "大型火药坊", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "自动化火药线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦（工作本身不耗电）" }
@@ -705,7 +705,7 @@ window.JOBS = [
       { name: "芯片", inputs: { "硅片": 2, "稀土": 1, "机械零件": 1 }, outputs: { "芯片": 1 }, era: "info", unlockTech: null, duration: 8 }
     ],
     upgrades: [
-      { name: "光刻机", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "稀土": 50 }, note: "硅片要本工作自己产，启动档改用钛合金 + 稀土" },
+      { name: "光刻机", watt: 0, bonusPct: 0, cost: { "钛合金": 100, "稀土": 50 }, note: "硅片要本工作自己产，启动档改用钛合金 + 稀土" },
       { name: "无尘车间", watt: 0, bonusPct: 100, cost: { "钛合金": 300, "精密零件": 150 }, note: "" },
       { name: "全自动晶圆厂", watt: 1, bonusPct: 150, cost: { "钛合金": 2000, "精密零件": 500 }, note: "耗电 +1 瓦；+150% 是全表最高一档" }
     ],
@@ -725,7 +725,7 @@ window.JOBS = [
     outputs: { "精密零件": 1 },
     powerUse: 0.8,
     upgrades: [
-      { name: "机械臂", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "芯片": 50 }, note: "" },
+      { name: "机械臂", watt: 0, bonusPct: 0, cost: { "钛合金": 100, "芯片": 50 }, note: "" },
       { name: "全自动产线", watt: 1, bonusPct: 100, cost: { "钛合金": 2000, "精密零件": 500 }, note: "耗电 +1 瓦（此工作只有 2 档）" }
     ],
     special: null,
@@ -748,7 +748,7 @@ window.JOBS = [
     outputs: { "外星合金": 1, "硅片": 1 },
     powerUse: 1.25,
     upgrades: [
-      { name: "等离子钻", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "芯片": 50 }, note: "外星合金要本工作自己产，启动档用钛合金 + 芯片" },
+      { name: "等离子钻", watt: 0, bonusPct: 0, cost: { "钛合金": 100, "芯片": 50 }, note: "外星合金要本工作自己产，启动档用钛合金 + 芯片" },
       { name: "自动采矿站", watt: 1, bonusPct: 100, cost: { "外星合金": 2000, "反物质": 500 }, note: "耗电 +1 瓦（此工作只有 2 档）" }
     ],
     special: null,
@@ -767,7 +767,7 @@ window.JOBS = [
     outputs: { "反物质": 1 },
     powerUse: 2,
     upgrades: [
-      { name: "环形加速器", watt: 0, bonusPct: 50, cost: { "外星合金": 100, "芯片": 50 }, note: "反物质要本工作自己产，启动档用外星合金 + 芯片" },
+      { name: "环形加速器", watt: 0, bonusPct: 0, cost: { "外星合金": 100, "芯片": 50 }, note: "反物质要本工作自己产，启动档用外星合金 + 芯片" },
       { name: "超级对撞机", watt: 1, bonusPct: 100, cost: { "外星合金": 2000, "反物质": 500 }, note: "耗电 +1 瓦（此工作只有 2 档）" }
     ],
     special: null,
@@ -791,7 +791,7 @@ window.JOBS = [
       { name: "生命维持单元", inputs: { "外星合金": 5, "反物质": 2, "精密零件": 2 }, outputs: { "生命维持单元": 1 }, era: "space", unlockTech: "反物质", duration: 15 }
     ],
     upgrades: [
-      { name: "纳米装配", watt: 0, bonusPct: 50, cost: { "外星合金": 100, "反物质": 50 }, note: "" },
+      { name: "纳米装配", watt: 0, bonusPct: 0, cost: { "外星合金": 100, "反物质": 50 }, note: "" },
       { name: "分子组装", watt: 1, bonusPct: 100, cost: { "外星合金": 2000, "反物质": 500 }, note: "耗电 +1 瓦（此工作只有 2 档）" }
     ],
     special: null,

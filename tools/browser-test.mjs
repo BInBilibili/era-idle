@@ -48,6 +48,14 @@ async function js(expr) {
 }
 try {
   await call('Runtime.enable');
+  // 无头 Edge 有时把页面标成 hidden，app.js 的主循环会因此暂停（真实前台标签页不会）。
+  // 测试必须模拟「页面可见」，否则依赖 realtime tick 的用例会随机失败。
+  await js(`(function(){
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    } catch (e) {}
+  })()`);
   await sleep(1600);
   await js('UI.closeModal()');
   await sleep(200);
@@ -521,11 +529,10 @@ try {
   const tsAfter = JSON.parse(await js(`JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), id:UI._tipId})`));
   ok(tsAfter.show && tsAfter.id === 'stone_axe', '2.4 秒整页重绘 + 滚动还原后面板仍显示：' + JSON.stringify(tsAfter));
 
-  console.log('== 获得物品消息框：累加 / 超时消失（v0.0.29）==');
+  console.log('== 获得物品消息框：累加 / 逐行 4.5 秒消失（v0.0.31）==');
   const loot = await js(`(function(){
     Engine.S = Engine.newState('消息框测试');   // 干净存档：没有入驻项目，避免挂机产出干扰计时
     UI.render();
-    clearTimeout(UI._lootTimer); clearTimeout(UI._lootFadeTimer);
     document.getElementById('lootFeed').innerHTML=''; UI._lootRows=null; UI._lootBox=null;
     UI.loot('wood',3); UI.loot('wood',4); UI.loot('stone',1);
     const box=document.getElementById('lootFeed');
@@ -535,8 +542,16 @@ try {
   })()`);
   const lt = JSON.parse(loot);
   ok(lt.rows === 2 && lt.wood.includes('+7') && lt.stone, '同一物品累加数量（木材 +7），不同物品各一行：' + JSON.stringify(lt));
-  await sleep(4900);
-  ok(await js(`document.getElementById('lootFeed').textContent.trim().length === 0`), '4.5 秒没有新物品后消息框自动清空');
+  await sleep(2700);
+  await js(`UI.loot('stone',1)`);               // 石头重新计时
+  await sleep(2800);                            // 约 5.5 秒：木材已到期，石头还没到
+  const perRow = JSON.parse(await js(`JSON.stringify({
+    wood: document.getElementById('lootFeed').textContent.includes('木材'),
+    stone: document.getElementById('lootFeed').textContent.includes('石头')
+  })`));
+  ok(!perRow.wood && perRow.stone, '逐行倒计时：木材先到期消失，石头因为刚又获得而保留：' + JSON.stringify(perRow));
+  await sleep(3000);
+  ok(await js(`document.getElementById('lootFeed').textContent.trim().length === 0`), '石头也在自己的 4.5 秒后消失，消息框清空');
 
   console.log('== 获得物品消息框：工作产出 / 资源包拆包（v0.0.30）==');
   const prodLoot = await js(`(function(){
@@ -688,7 +703,12 @@ try {
   const hb = JSON.parse(hub);
   ok(hb.pens >= 2 && hb.add && hb.plus, '畜牧网格 = 动物格 + 末尾大＋虚线框：' + hub);
   ok(hb.cap && hb.name, '显示畜牧容量与动物名称');
-  await sleep(2200);
+  // 等到进度真的推进（而不是赌固定 sleep 够长；无头浏览器首帧可能晚到）
+  for (let i = 0; i < 14; i++) {
+    await sleep(400);
+    const w = await js(`(function(){const p=document.querySelector('[data-live="hprog"] > i');return p?p.style.width:null;})()`);
+    if (w !== hb.prog) break;
+  }
   const hub2 = await js(`(function(){
     const prog=document.querySelector('[data-live="hprog"] > i');
     document.querySelector('[data-act="hubPanel"]').click();
