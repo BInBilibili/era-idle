@@ -45,10 +45,10 @@ window.JOBS = [
     outputs: { "木材": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "石斧", watt: 0, bonusPct: 25, cost: { "木材": 2, "石头": 2 }, note: "开局第一把工具：2 木材 + 2 石头" },
+      { name: "石斧", watt: 0, bonusPct: 0, cost: { "木材": 2, "石头": 2 }, note: "解锁伐木项目" },
       { name: "铜斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "铜锭": 50 }, tech: "金属冶炼", req: 0, note: "" },
       { name: "铁斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "铁锭": 50 }, tech: "金属冶炼", req: 1, note: "" },
-      { name: "伐木小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
+      { name: "伐木小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石材": 150 }, note: "" },
       { name: "伐木场", watt: 0, bonusPct: 75, cost: { "木材": 800, "石材": 400 }, note: "" },
       { name: "蒸汽锯", watt: 1, bonusPct: 100, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
@@ -85,10 +85,10 @@ window.JOBS = [
       { name: "铀矿", weight: 3, tech: "核能" }
     ],
     upgrades: [
-      { name: "石镐", watt: 0, bonusPct: 25, cost: { "木材": 2, "石头": 2 }, note: "开局第一把工具：2 木材 + 2 石头" },
+      { name: "石镐", watt: 0, bonusPct: 0, cost: { "木材": 2, "石头": 2 }, note: "解锁采石项目" },
       { name: "铜镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "铜锭": 50 }, tech: "金属冶炼", req: 0, note: "" },
       { name: "铁镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "铁锭": 50 }, tech: "金属冶炼", req: 1, note: "" },
-      { name: "采矿小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
+      { name: "采矿小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石材": 150 }, note: "" },
       { name: "采矿场", watt: 0, bonusPct: 75, cost: { "木材": 800, "石材": 400 }, note: "" },
       { name: "爆破", watt: 0, bonusPct: 0, cost: { "火药": 500, "铁锭": 1000 }, note: "解锁深层矿（银矿 / 金矿 权重 ×2）；开启后每次开采另耗 1 火药；可随时退回表层矿" },
       { name: "选矿厂", watt: 0, bonusPct: 0, cost: { "铁锭": 3000, "机械零件": 800 }, note: "铁矿 / 银矿 / 金矿 / 稀土 / 铀矿 权重 ×2，石头 ÷2" },
@@ -139,7 +139,7 @@ window.JOBS = [
     powerUse: 0,
     upgrades: [
       { name: "采集篮", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
-      { name: "采集小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
+      { name: "采集小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石材": 150 }, note: "" },
       { name: "晾晒架", watt: 0, bonusPct: 75, cost: { "木材": 800, "石材": 400 }, note: "" },
       { name: "温室采集", watt: 1, bonusPct: 100, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],

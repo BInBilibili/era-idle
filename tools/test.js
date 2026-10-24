@@ -288,6 +288,18 @@ ok(E.gachaPityLimit('limited') === Math.min(10, limBefore + 1), '重复角色也
 Math.random = rnd;
 S.gacha.pity.limited = 0; S.gacha.noNew.limited = 0;
 
+// v0.0.29：礼物必须落到真实物品上（旧版 addItem('gift1') 会补出无图标占位物品）
+ok(E.GIFTS.every(g => E.ITEMS[g.id] && E.ITEMS[g.id].kind === 'gift'), '4 档礼物 id 都是真实物品 id');
+ok(E.GIFTS.map(g => g.id).join('/') === 'sticky_note/merch/collector/heirloom', '礼物 id = 便利贴/周边/典藏/传家宝');
+S.gacha.pity.standard = 9; S.gacha.noNew.standard = 0;
+Math.random = () => 0.999;           // 不出角色；礼物档位 roll=99.9 → 传家宝
+const gp = E.pull('standard');
+Math.random = rnd;
+ok(gp.ok && gp.type === 'gift' && gp.gift.id === 'heirloom', '抽到传家宝：' + (gp.gift && gp.gift.name));
+ok((S.items.heirloom || 0) > 0 && !S.items.gift1 && !S.items.gift2 && !S.items.gift3 && !S.items.gift4,
+  '礼物进仓库的是真实物品，不再出现 gift1~gift4');
+S.gacha.noNew.standard = 0;
+
 console.log('== 开除随机普通角色 ==');
 const gcId = Object.keys(S.chars).find(id => S.chars[id].gen);
 ok(!!gcId, '存在随机普通角色：' + gcId);
@@ -335,6 +347,16 @@ twoH.chars.player.eq.mainhand = 'short_bow';
 twoH.chars.player.eq.offhand = 'wood_shield';
 const migTwo = E.migrate(twoH);
 ok(!migTwo.chars.player.eq.offhand && (migTwo.items.wood_shield || 0) === 1, '旧存档双手武器 + 副手 → 副手退回仓库');
+// v0.0.29：旧礼物 gift1~gift4 → 真实物品 id
+const giftOld = E.newState('礼物迁移');
+giftOld.items = { gift1: 3, gift2: 2, gift3: 1 };
+giftOld.seen.items = { gift1: true };
+giftOld.ever = { gift1: 1 };
+const migGift = E.migrate(giftOld);
+ok(migGift.items.sticky_note === 3 && migGift.items.merch === 2 && migGift.items.collector === 1,
+  '旧礼物 gift1~3 → 便利贴 / 周边 / 典藏：' + JSON.stringify(migGift.items));
+ok(!migGift.items.gift1 && !migGift.items.gift2 && migGift.seen.items.sticky_note && migGift.ever.sticky_note,
+  '旧礼物不在仓库/图鉴/曾经拥有里残留 gift1');
 
 console.log('== 袭击 ==');
 S.forts[0] = true;
@@ -418,7 +440,28 @@ ok(U.itemTipHtml(E.N2I('升星药水')).includes('兑换价') && !U.itemTipHtml(
 const recHtml = U.pageRecruit();
 ok(recHtml.includes('使用招募券概率获取到角色'), '招募页只留一句「使用招募券概率获取到角色」');
 ok(!recHtml.includes('保底') && !recHtml.includes('每次都是新的') && !recHtml.includes('好感随送礼提升'), '招募页不显示保底、好感说明与「每次都是新的」');
-ok(U.pageHousing().includes('住房能提高角色上限'), '住所页描述精简为一句');
+ok(recHtml.includes('出角色 <b class="green">30%</b>') && recHtml.includes('礼物 <b>70%</b>'), '招募页显示 30% 角色 / 70% 礼物概率');
+ok(recHtml.includes('便利贴 35.0%') && recHtml.includes('传家宝 3.5%'), '招募页列出礼物档位概率');
+ok(recHtml.includes('随机普通角色 100%'), '常驻池说明：出角色时 100% 是随机普通角色');
+ok(!recHtml.includes('gift1'), '招募页不出现 gift1 占位 id');
+ok(recHtml.includes('av md'), '卡池角色头像改用 56px 的 md 尺寸（不再缩成 32px）');
+const housingHtml = U.pageHousing();
+ok(housingHtml.includes('住房能提高角色上限'), '住所页描述精简为一句');
+ok(!housingHtml.includes('茅草棚') && !housingHtml.includes('陶罐装饰'), '没拥有过所需资源时，住房 / 舒适度升级项不显示');
+E.addItem('木材', 1); E.addItem('石头', 1);
+ok(U.pageHousing().includes('茅草棚'), '拥有过 1 木材 + 1 石头后，茅草棚出现');
+E.addItem('陶器', 1);
+ok(U.pageHousing().includes('陶罐装饰') && !U.pageHousing().includes('木床'), '有陶器 → 陶罐装饰出现；缺石材时木床仍不显示');
+E.addItem('石材', 1);
+ok(U.pageHousing().includes('木床'), '木材 + 石材都拥有过 → 木床出现');
+E.ITEMS.__noera = { name: '无时代物品', cat: 'material', storage: 'warehouse', price: 1 };
+const noEraTip = U.itemTipHtml('__noera');
+ok(!!noEraTip && !noEraTip.includes('未标时代'), '没有 era 的物品不显示时代标签');
+delete E.ITEMS.__noera;
+E.S = E.newState('防御显示');
+ok(!U.pageDefense().includes('尖木陷阱'), '没拥有过木材 + 石头时，防御工事不显示');
+E.addItem('木材', 1); E.addItem('石头', 1);
+ok(U.pageDefense().includes('尖木陷阱'), '拥有过所需资源后，尖木陷阱出现');
 ok(U.pageDefense().includes('每隔一段时间会有袭击发生'), '防御页描述精简为一句');
 delete E.S.techs.writing;
 ok(!U.ioList({ '木材': 2 }).includes('<span class="red">'), '产出行不检查库存（不标红）');
@@ -463,7 +506,15 @@ E.S.techs[metalTech] = 1;
 ok(E.buyUpgrade('woodcutting', 1).ok, '石斧 + *金属冶炼 → 铜斧可买');
 ok(E.buyUpgrade('woodcutting', 2).ok, '铜斧之后 → 铁斧可买');
 const woodBonus = E.JOB_BY_ID.woodcutting.upgrades.reduce((a, u, i) => a + (E.S.jobs.woodcutting.up[i] ? u.bonusPct : 0), 0);
-ok(woodBonus === 75, '三档工具合计 +75%：' + woodBonus);
+ok(woodBonus === 50, '石斧不再加产出；铜斧 + 铁斧合计 +50%：' + woodBonus);
+ok(E.JOB_BY_ID.woodcutting.upgrades[0].bonusPct === 0 && E.JOB_BY_ID.woodcutting.upgrades[0].note === '解锁伐木项目',
+  '石斧描述 = 解锁伐木项目、不加产出');
+ok(E.JOB_BY_ID.mining.upgrades[0].bonusPct === 0 && E.JOB_BY_ID.mining.upgrades[0].note === '解锁采石项目',
+  '石镐描述 = 解锁采石项目、不加产出');
+['woodcutting', 'mining', 'gathering'].forEach(jid => {
+  const u = E.JOB_BY_ID[jid].upgrades.find(x => x.name.endsWith('小屋'));
+  ok(!!u && u.cost['石材'] === 150 && !u.cost['石头'], jid + ' 小屋改用石材：' + JSON.stringify(u && u.cost));
+});
 ok(E.S.jobs.woodcutting.up.length === E.JOB_BY_ID.woodcutting.upgrades.length, 'up 数组长度跟随档位数');
 // 旧存档迁移：旧下标 [石斧, 小屋] / [石镐, 采矿场, 电动矿钻]
 const oldSave = E.newState('旧档');
@@ -493,7 +544,7 @@ ok(upHtml1.includes('石斧'), '拿到 1 木材 + 1 石头后石斧升级项出�
 E.S.items = {};   // 花光资源
 const upHtml2 = U.pageJob('woodcutting');
 ok(upHtml2.includes('石斧'), '资源花光后石斧升级项仍然显示（永久）');
-ok(upHtml1.includes('先购买升级项') && !upHtml1.includes('木材 ×1'), '没买石斧时木材项目不出现，只显示提示');
+ok(!upHtml1.includes('先购买升级项') && !upHtml1.includes('木材 ×1'), '没买石斧时不再显示「先购买升级项」提示');
 // 科研 30% 门槛
 E.S = E.newState('科研门槛');
 E.addItem('木材', 30); E.addItem('石头', 15);

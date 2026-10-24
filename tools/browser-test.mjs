@@ -498,6 +498,109 @@ try {
   const bv = JSON.parse(bundleRevealed);
   ok(bv.show && bv.fiber && bv.pct && bv.q === 5, '草地上抽到植物纤维后，只揭示这一项：' + JSON.stringify(bv));
 
+  console.log('== 角色页装备悬浮面板：重绘 / 滚动不消失（v0.0.29）==');
+  const tipStay = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='characters'; S.ui.charSel='player';
+    Engine.addItem('石斧',2); S.chars.player.eq.mainhand='stone_axe';
+    UI.render();
+    const p=document.getElementById('page'); p.scrollTop=200;
+    const slot=document.querySelector('[data-act="eqslot"][data-slot="mainhand"]');
+    if(!slot) return JSON.stringify({miss:'没有主手槽'});
+    const r=slot.getBoundingClientRect();
+    const x=Math.round(r.left+r.width/2), y=Math.round(r.top+r.height/2);
+    slot.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:x,clientY:y}));
+    return JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), scroll:p.scrollTop, x, y});
+  })()`);
+  const ts = JSON.parse(tipStay);
+  ok(!ts.miss && ts.show, '角色页悬停主手装备弹出面板：' + (ts.miss || JSON.stringify({show:ts.show})));
+  await sleep(2400);
+  const tsAfter = JSON.parse(await js(`JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), id:UI._tipId})`));
+  ok(tsAfter.show && tsAfter.id === 'stone_axe', '2.4 秒整页重绘 + 滚动还原后面板仍显示：' + JSON.stringify(tsAfter));
+
+  console.log('== 获得物品消息框：累加 / 超时消失（v0.0.29）==');
+  const loot = await js(`(function(){
+    UI.loot('wood',3); UI.loot('wood',4); UI.loot('stone',1);
+    const box=document.getElementById('lootFeed');
+    const rows=[...box.querySelectorAll('.lootrow')];
+    const wood=rows.find(r=>r.textContent.includes('木材'));
+    return JSON.stringify({rows:rows.length, wood:wood?wood.textContent.trim():'', stone:box.textContent.includes('石头')});
+  })()`);
+  const lt = JSON.parse(loot);
+  ok(lt.rows === 2 && lt.wood.includes('+7') && lt.stone, '同一物品累加数量（木材 +7），不同物品各一行：' + JSON.stringify(lt));
+  await sleep(4900);
+  ok(await js(`document.getElementById('lootFeed').textContent.trim().length === 0`), '4.5 秒没有新物品后消息框自动清空');
+
+  console.log('== 招募页：概率 / 头像尺寸 / 结果框头像（v0.0.29）==');
+  const rec = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='recruit';
+    ['dashao','lare'].forEach(id=>{
+      if(S.chars[id]) return;
+      const h=Engine.heroDef(id);
+      const c=Engine.newChar(id,{name:h.name,kind:'hero',pool:'limited',job:h.job,hp:h.hp,atk:h.atk,str:h.str,def:h.def});
+      c.hpNow=Engine.charStats(c).maxHp;
+      S.chars[id]=c; S.order.push(id);
+    });
+    UI.render();
+    const av=document.querySelector('#mainWrap .chip.poolchip .av');
+    const r=av?av.getBoundingClientRect():{width:0};
+    const txt=document.getElementById('mainWrap').textContent;
+    return JSON.stringify({w:Math.round(r.width), rates:txt.includes('出角色')&&txt.includes('70%'),
+      noGift:txt.indexOf('gift1')<0, standard:txt.includes('常驻池没有有名英雄')});
+  })()`);
+  const recInfo = JSON.parse(rec);
+  ok(recInfo.w >= 54, '卡池角色头像 56px 立绘：' + recInfo.w + 'px');
+  ok(recInfo.rates && recInfo.noGift && recInfo.standard, '招募页显示概率、常驻池说明，且没有 gift1 字样：' + JSON.stringify(recInfo));
+
+  const pullRes = await js(`(function(){
+    const S=Engine.S, rnd=Math.random;
+    Engine.addItem('hero_shard',100);
+    S.ui.page='recruit'; UI.render();
+    S.gacha.pity.standard=0; S.gacha.noNew.standard=0;
+    Math.random=()=>0.1;                       // 出角色
+    document.querySelector('[data-act="pull"][data-id="standard"]').click();
+    const av=document.querySelector('#modalBox .drawArt .av');
+    const out={av:!!av, w:av?Math.round(av.getBoundingClientRect().width):0, gift:false};
+    UI.closeModal();
+    S.gacha.pity.standard=9; S.gacha.noNew.standard=0;
+    Math.random=()=>0.999;                     // 出礼物（传家宝）
+    document.querySelector('[data-act="pull"][data-id="standard"]').click();
+    out.gift=!!document.querySelector('#modalBox .drawArt .icSvg');
+    out.giftName=(document.getElementById('modalBox').textContent||'').includes('传家宝');
+    Math.random=rnd; UI.closeModal();
+    return JSON.stringify(out);
+  })()`);
+  const pr = JSON.parse(pullRes);
+  ok(pr.av && pr.w >= 80, '抽到角色：结果框直接显示角色头像：' + pr.w + 'px');
+  ok(pr.gift && pr.giftName, '抽到礼物：结果框显示礼物图标与真实名字（传家宝）');
+
+  console.log('== 文案清理 / 卡池头像（v0.0.29）==');
+  const copy = await js(`(function(){
+    const S=Engine.S;
+    S.milestones.wood_stone=true; S.jobs.woodcutting.up[0]=0;
+    S.ui.page='job:woodcutting'; S.ui.scroll=0; UI.render();
+    const jobTxt=document.getElementById('mainWrap').textContent;
+    S.ui.page='job:gathering'; UI.render();
+    const gatherTxt=document.getElementById('mainWrap').textContent;
+    const slot=document.querySelector('[data-act="recslot"]');
+    let menuTxt='';
+    if(slot){ slot.click(); const m=document.getElementById('slotMenu'); menuTxt=m?m.textContent:''; if(m) m.remove(); }
+    S.ui.page='characters'; UI.render();
+    const charTxt=document.getElementById('mainWrap').textContent;
+    return JSON.stringify({
+      noHint: jobTxt.indexOf('先购买升级项')<0,
+      noCapJob: gatherTxt.indexOf('前 5 名可上场')<0 && gatherTxt.indexOf('可用角色')>=0,
+      noCapMenu: menuTxt.indexOf('名角色可上场')<0,
+      noCapChar: charTxt.indexOf('名上场')<0
+    });
+  })()`);
+  const cp = JSON.parse(copy);
+  ok(cp.noHint, '没买石斧时不再显示「先购买升级项」提示');
+  ok(cp.noCapJob, '工作页「可用角色」不再带「（前 5 名可上场）」');
+  ok(cp.noCapMenu, '入驻槽弹层不再显示「前 5 名角色可上场」');
+  ok(cp.noCapChar, '角色列表不再显示「前 5 名上场」');
+
   console.log('== 开发者模式后门 ==');
   const dev = await js(`(function(){
     Engine.S.dev=true;

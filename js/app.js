@@ -169,7 +169,13 @@
     document.addEventListener('mouseover', e => U.onHover(e));
     document.addEventListener('mousemove', e => U.onHoverMove(e), { passive: true });
     document.documentElement.addEventListener('mouseleave', () => U.hideTip());
-    window.addEventListener('scroll', () => U.hideTip(), true);
+    window.addEventListener('scroll', e => {
+      // 整页重绘会先清空再还原滚动位置，这个 scroll 事件不是用户在滚动：别把物品面板关掉
+      if (Date.now() < (U._scrollLock || 0)) return;
+      // 面板自己有滚动条：在面板里滚轮查看长说明时不应该关闭
+      if (e.target && e.target.closest && e.target.closest('#itemTip')) return;
+      U.hideTip();
+    }, true);
     document.addEventListener('dragover', e => {
       const card = e.target.closest('[data-drop-job]');
       if (card && dragData && dragData.kind === 'char') {
@@ -409,7 +415,7 @@
     menu.className = 'slotmenu';
     menu.innerHTML = `
       <div class="pmh">入驻 · ${U.esc(job.name)}${E.jobRecipes(job).length > 1 ? ' · ' + U.esc(recipe.name) : ''}</div>
-      <div class="pms">前 ${E.onFieldCap()} 名角色可上场${curId ? ' · 当前：' + U.esc(E.charName(S.chars[curId])) : ' · 当前：空'}</div>
+      <div class="pms">${curId ? '当前：' + U.esc(E.charName(S.chars[curId])) : '当前：空'}</div>
       <div class="pmlist">${list.length ? list.map(c => {
         let ok = true, why = '';
         if (job.special === 'blackSoul' && c.cid !== 'yuki') { ok = false; why = '仅星见由岐'; }
@@ -664,14 +670,11 @@
   function openGift(cid) {
     const S = E.S, c = S.chars[cid];
     if (!c) return;
-    const gifts = E.GIFTS.map(g => {
-      const id = Object.values(E.ITEMS).find(x => x.kind === 'gift' && x.gift === g.favor);
-      return { g, id, n: id ? (S.items[id] || 0) : 0 };
-    });
+    const gifts = E.GIFTS.map(g => ({ g, it: E.ITEMS[g.id], id: g.id, n: E.count(g.id) }));
     U.modal(`<h3>送礼物 · ${U.esc(E.charName(c))}</h3>
       <div class="sub" style="margin-bottom:10px">当前好感度 ${c.favor}/100。50 解锁一级恩赐，100 解锁二级。</div>
-      ${gifts.map(({ g, id, n }) => `<div class="card" style="margin-bottom:8px"><div class="row" style="justify-content:space-between">
-        <span>${U.esc(g.name)} <span class="tiny muted">+${g.favor} 好感</span></span>
+      ${gifts.map(({ g, it, id, n }) => `<div class="card" style="margin-bottom:8px"><div class="row" style="justify-content:space-between">
+        <span>${it ? U.itemIcon(it) : ''} ${U.esc(g.name)} <span class="tiny muted">+${g.favor} 好感</span></span>
         <span class="row"><span class="tiny ${n ? 'green' : 'dim'}">持有 ${n}</span><button data-gift="${id}" ${n ? '' : 'disabled'}>赠送</button></span>
       </div></div>`).join('')}
       <div class="acts"><button data-act="closeModal">关闭</button></div>`);
@@ -685,10 +688,27 @@
     const r = E.pull(poolId);
     if (!r.ok) { U.toast(r.why || '抽卡失败', 'bad'); return; }
     let html = '<h3>抽卡结果</h3>';
-    if (r.type === 'new') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:44px">🌟</div><h2 class="gold">${U.esc(r.hero.name)}</h2><div class="sub">${r.gen ? '随机普通角色加入！' : '新角色加入！'}</div></div>`;
-    else if (r.type === 'dup') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:40px">✨</div><h2>${U.esc(r.hero.name)}</h2><div class="sub">重复角色 → 星尘 ×${r.n}</div></div>`;
-    else if (r.type === 'stardust') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:40px">✨</div><h2>星尘 ×${r.n}</h2><div class="sub">该池已集齐，保底转为星尘</div></div>`;
-    else if (r.type === 'gift') html += `<div class="card" style="text-align:center;padding:22px"><div style="font-size:40px">🎁</div><h2>${U.esc(r.gift.name)}</h2><div class="sub">好感度礼物 +${r.gift.favor}</div></div>`;
+    if (r.type === 'new') {
+      const ch = E.S.chars[r.hero.id];
+      html += `<div class="card" style="text-align:center;padding:22px">
+        <div class="drawArt">${ch ? U.avatar(ch, 'lg') : ''}</div>
+        <h2 class="gold">${U.esc(r.hero.name)}</h2><div class="sub">${r.gen ? '随机普通角色加入！' : '新角色加入！'}</div></div>`;
+    } else if (r.type === 'dup') {
+      const ch = E.S.chars[r.hero.id];
+      html += `<div class="card" style="text-align:center;padding:22px">
+        <div class="drawArt">${ch ? U.avatar(ch, 'lg') : ''}</div>
+        <h2>${U.esc(r.hero.name)}</h2><div class="sub">重复角色 → 星尘 ×${r.n}</div></div>`;
+    } else if (r.type === 'stardust') {
+      const it = E.ITEMS[E.N2I('星尘')];
+      html += `<div class="card" style="text-align:center;padding:22px">
+        <div class="drawArt">${it ? U.itemIcon(it) : ''}</div>
+        <h2>星尘 ×${r.n}</h2><div class="sub">该池已集齐，保底转为星尘</div></div>`;
+    } else if (r.type === 'gift') {
+      const it = E.ITEMS[r.gift.id];
+      html += `<div class="card" style="text-align:center;padding:22px">
+        <div class="drawArt">${it ? U.itemIcon(it) : ''}</div>
+        <h2>${U.esc(it ? it.name : r.gift.name)}</h2><div class="sub">好感度礼物 +${r.gift.favor}</div></div>`;
+    }
     html += `<div class="acts"><button class="gold" id="againBtn">再抽一次</button><button data-act="closeModal">收下</button></div>`;
     U.modal(html);
     const again = document.getElementById('againBtn');

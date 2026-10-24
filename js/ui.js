@@ -70,6 +70,61 @@ const UI = {
     setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .35s'; }, 2200);
     setTimeout(() => d.remove(), 2700);
   },
+  /* ---------------- 获得物品消息框（底部） ----------------
+     同一种物品连续获得只累加数量；最后一次获得后 4.5 秒没有新物品，整框淡出。
+     只在「主动获得」时调用（战斗掉落 / 抽卡礼物 / 图鉴领取 / 商店购买），
+     工作持续产出不弹，避免挂机时一直挂在屏幕下方。 */
+  LOOT_TTL: 4500,
+  loot(id, qty) {
+    qty = Number(qty) || 0;
+    if (!id || qty <= 0) return;
+    const it = E.ITEMS[id];
+    const feed = document.getElementById('lootFeed');
+    if (!it || !feed) return;
+    clearTimeout(this._lootTimer);
+    clearTimeout(this._lootFadeTimer);
+    feed.classList.remove('fade');
+    if (!this._lootRows || !this._lootBox || !this._lootBox.isConnected) {
+      feed.innerHTML = '';
+      this._lootBox = document.createElement('div');
+      this._lootBox.className = 'lootbox';
+      feed.appendChild(this._lootBox);
+      this._lootRows = new Map();
+    }
+    let row = this._lootRows.get(id);
+    if (!row) {
+      if (this._lootRows.size >= 6) {
+        const oldest = this._lootRows.keys().next().value;
+        const old = this._lootRows.get(oldest);
+        if (old) old.el.remove();
+        this._lootRows.delete(oldest);
+      }
+      const el = document.createElement('div');
+      el.className = 'lootrow';
+      el.innerHTML = '<span class="ic"></span><span class="n"></span><span class="q mono"></span>';
+      el.querySelector('.ic').innerHTML = this.itemIcon(it);
+      el.querySelector('.n').textContent = it.name;
+      this._lootBox.appendChild(el);
+      row = { el, n: 0, q: el.querySelector('.q') };
+      this._lootRows.set(id, row);
+    }
+    row.n += qty;
+    row.q.textContent = '+' + E.fmt(row.n);
+    row.q.classList.remove('bump');
+    void row.q.offsetWidth;
+    row.q.classList.add('bump');
+    this._lootTimer = setTimeout(() => this._hideLoot(), this.LOOT_TTL);
+  },
+  _hideLoot() {
+    const feed = document.getElementById('lootFeed');
+    if (!feed) return;
+    feed.classList.add('fade');
+    this._lootFadeTimer = setTimeout(() => {
+      feed.innerHTML = '';
+      feed.classList.remove('fade');
+      this._lootRows = null; this._lootBox = null;
+    }, 320);
+  },
   modal(html) {
     document.getElementById('modalBox').innerHTML = html;
     document.getElementById('modal').classList.add('show');
@@ -199,7 +254,7 @@ const UI = {
 
     let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
       <b>${esc(it.name)}</b>
-      <div class="ttTags">${tag(E.ERA_NAME[it.era] || '未标时代')}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
+      <div class="ttTags">${it.era ? tag(E.ERA_NAME[it.era] || it.era) : ''}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
       ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}</div></div></div>`;
 
     if (info.gear) {
@@ -411,6 +466,7 @@ const UI = {
     const pageScroll = pageEl ? pageEl.scrollTop : 0;
     const scrolls = this._saveScroll();
     const selection = samePage ? this._saveSelection(wrap) : null;
+    this._scrollLock = Date.now() + 260;   // 还原滚动位置时触发 scroll 事件，别把物品悬浮面板误关
     wrap.innerHTML = html;
     wrap.dataset.page = page;
     // 整页重绘（工作页 0.2s / 其它页 1.5s）不能把用户正在看的位置或选中文本冲掉
@@ -524,14 +580,6 @@ const UI = {
       return `<span class="${have >= q ? 'ok' : 'no'}">${this.esc(n)} ${E.fmt(have)}/${E.fmt(q)}</span>`;
     }).join('');
   },
-  has30(cost) {
-    for (const n in (cost || {})) {
-      const id = E.iid(n);
-      if (!id || E.count(id) < (cost[n] || 0) * 0.3) return false;
-    }
-    return true;
-  },
-
   /* ---------------- 工作页 ---------------- */
   pageJob(jobId) {
     const S = E.S, job = E.JOB_BY_ID[jobId];
@@ -548,7 +596,6 @@ const UI = {
     if (job.era) badges.push(`<span class="badge">${E.ERA_NAME[job.era] || ''}</span>`);
     const staffed = E.assignedCount(job);
     const rows = rs.map((r, i) => ({ r, i })).filter(x => E.recipeVisible(x.r, job));
-    const reqUp = job.recipeUpgrade != null ? (job.upgrades || [])[job.recipeUpgrade] : null;
 
     let h = `<div class="wrap">
       <div class="jobhead">
@@ -560,13 +607,12 @@ const UI = {
       </div>
 
       <div class="card" style="margin-top:12px">
-        <div class="row" style="justify-content:space-between"><span class="small muted">可用角色（前 ${E.onFieldCap()} 名可上场）</span>
+        <div class="row" style="justify-content:space-between"><span class="small muted">可用角色</span>
         <span class="tiny dim">把头像拖到下方任意项目卡（整张卡都算拖入点）</span></div>
         <div style="margin-top:8px">${this.chips()}</div>
       </div>
 
       <div class="row" style="justify-content:space-between;margin-top:16px"><h3 style="font-size:15px">项目</h3><span class="tiny dim">每个项目独立入驻、独立进度</span></div>
-      ${!rows.length && reqUp ? `<div class="card hint" style="margin-top:8px">先购买升级项「<b>${this.esc(reqUp.name)}</b>」，项目才会出现。${E.everOwnedAll(reqUp.cost) ? '' : '<span class="tiny dim"> 继续采集 / 攒材料，首次拿到所需材料后这张升级项会永久显示。</span>'}</div>` : ''}
       <div class="grid recgrid" style="margin-top:8px">
         ${rows.map(({ r, i }) => this.recipeCard(job, js, r, i)).join('')}
       </div>
@@ -581,7 +627,7 @@ const UI = {
             if (!bought && (locked || !ever)) return '';
             return `<div class="card upg ${bought ? 'done' : ''}">
               <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b>${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</div>
-              <div class="tiny muted" style="margin-top:4px">产出 +${u.bonusPct || 0}%${u.note ? ' · ' + this.esc(u.note) : ''}</div>
+              <div class="tiny muted" style="margin-top:4px">${u.bonusPct ? '产出 +' + u.bonusPct + '%' : ''}${u.note ? (u.bonusPct ? ' · ' + this.esc(u.note) : this.esc(u.note)) : ''}</div>
               ${bought ? '' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>`}
               ${bought ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="upg" data-id="${job.id}" data-i="${i}" ${E.affordCost(u.cost) ? '' : 'disabled'}>购买</button>`}
             </div>`;
@@ -883,7 +929,7 @@ const UI = {
     h += `<div style="margin-top:14px"><h3 style="font-size:15px">仓库扩容</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:8px">`;
     E.WH_UPG.forEach((u, i) => {
       const done = i < S.whUpg, cur = i === S.whUpg;
-      if (!done && !cur) return;
+      if (!done && (!cur || !E.everOwnedAll(u.cost))) return;
       h += `<div class="card upg ${done ? 'done' : ''}">
         <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name)}</b><span class="badge ${done ? 'on' : ''}">${u.slots} 格</span></div>
         <div class="tiny muted">共 ${u.slots} 格</div>
@@ -911,7 +957,7 @@ const UI = {
     <div style="margin-top:14px"><h3 style="font-size:15px">粮仓升级</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:8px">`;
     E.GR_UPG.forEach((u, i) => {
       const done = i < S.granary, cur = i === S.granary;
-      if (!done && !cur) return;
+      if (!done && (!cur || !E.everOwnedAll(u.cost))) return;
       h += `<div class="card upg ${done ? 'done' : ''}">
         <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name)}</b><span class="badge ${done ? 'on' : ''}">${u.capMul ? '×' + u.capMul + ' 容量' : ''}</span></div>
         ${done ? '<div class="tiny green" style="margin-top:6px">✓ 已建成</div>' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>
@@ -1098,7 +1144,7 @@ const UI = {
         </div>
       </div>
       <div style="margin-top:14px">
-        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">角色列表</h3><span class="tiny dim">拖拽排序决定上场顺位；前 ${E.onFieldCap()} 名上场</span></div>
+        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">角色列表</h3><span class="tiny dim">拖拽排序决定上场顺位</span></div>
         <div class="charlist">
           ${S.order.map((cid, i) => {
             const ch = S.chars[cid]; if (!ch) return '';
@@ -1192,22 +1238,34 @@ const UI = {
       <span class="badge">随机普通角色 ${genOwned}</span></div>
       <div class="hint">使用招募券概率获取到角色</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
+    const giftOdds = E.GIFTS.map(g => this.esc(g.name) + ' ' + (g.w / 100 * 70).toFixed(1) + '%').join(' / ');
     E.POOLS.forEach(p => {
       const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
       const namedOwned = named.filter(hero => E.ownsHero(hero.id)).length;
       const complete = named.length > 0 && namedOwned === named.length;
+      const noNew = E.gachaPity(p.id), window = E.gachaPityLimit(p.id);
+      const left = Math.max(1, window - noNew);
+      const charOdds = named.length
+        ? '出角色时：有名英雄 90.9%（每人 45.5%）/ 随机普通角色 9.1%'
+        : '出角色时：随机普通角色 100%（常驻池没有有名英雄）';
       h += `<div class="card">
         <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${named.length ? '英雄 ' + namedOwned + '/' + named.length : '随机角色'}</span></div>
-        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
           ${named.map(hero => {
             const own = E.ownsHero(hero.id);
-            return `<div class="chip" style="min-width:56px;${own ? '' : 'opacity:.42'}" title="${own ? this.esc(hero.name) : '未拥有'}">
-              ${own ? this.avatar(S.chars[hero.id], 'sm') : '<div class="av sm empty">？</div>'}
+            return `<div class="chip poolchip" style="${own ? '' : 'opacity:.42'}" title="${own ? this.esc(hero.name) : '未拥有'}">
+              ${own ? this.avatar(S.chars[hero.id], 'md') : '<div class="av md empty">？</div>'}
               <div class="cn tiny">${own ? this.esc(hero.name) : '？？？'}</div></div>`;
           }).join('')}
-          <div class="chip" style="min-width:76px">
-            <div class="av sm empty">？</div><div class="cn tiny" style="max-width:none">随机普通角色</div>
+          <div class="chip poolchip">
+            <div class="av md empty">？</div><div class="cn tiny">随机普通角色</div>
           </div>
+        </div>
+        <div class="tiny muted" style="margin-top:10px;line-height:1.6">
+          <div>出角色 <b class="green">30%</b> · 礼物 <b>70%</b></div>
+          <div>礼物档位：${giftOdds}</div>
+          <div>当前窗口 ${noNew}/${window} 抽，再抽 <b class="gold">${left}</b> 次内必出角色</div>
+          <div>${charOdds}</div>
         </div>
         <div class="row" style="margin-top:10px;justify-content:flex-end">
           <button class="gold" data-act="pull" data-id="${p.id}" ${shards < cost ? 'disabled' : ''}>抽一次（${cost} 招募券）</button>
@@ -1239,7 +1297,7 @@ const UI = {
           <div class="hr"></div>
           ${E.HOUSING.map((t, i) => {
             const done = i < S.housing, cur = i === S.housing;
-            if (!done && !cur) return '';
+            if (!done && (!cur || !E.everOwnedAll(t.cost))) return '';
             return `<div class="card upg ${done ? 'done' : ''}" style="margin-bottom:8px">
               <div class="row" style="justify-content:space-between">${this.passIcon(t.name)}<b class="small" style="flex:1">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">可上场 ${t.cap} 人</span></div>
               ${done ? '<div class="tiny green">✓ 已建成</div>' : `<div class="price" style="margin-top:4px">${this.priceLine(t.cost)}</div>
@@ -1254,7 +1312,7 @@ const UI = {
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px">
           ${E.COMFORT.map((t, i) => {
             const done = !!S.comfort[i];
-            if (!done && !this.has30(t.cost)) return '';
+            if (!done && !E.everOwnedAll(t.cost)) return '';
             return `<div class="card upg ${done ? 'done' : ''}" style="padding:8px 10px">
               <div class="row" style="justify-content:space-between">${this.passIcon(t.name, true)}<b class="tiny" style="flex:1">${this.esc(t.name)}</b><span class="badge ${done ? 'on' : ''}">+${t.value}</span></div>
               ${done ? '' : `<div class="price" style="margin-top:4px">${this.priceLine(t.cost)}</div>
@@ -1299,6 +1357,7 @@ const UI = {
         const done = !!S.forts[i];
         const builtCount = S.forts.filter(Boolean).length;
         if (!done && i > builtCount) return '';
+        if (!done && !E.everOwnedAll(f.cost)) return '';
         return `<div class="card upg ${done ? 'done' : ''}">
           <div class="row" style="justify-content:space-between">${this.passIcon(f.name)}<b class="small" style="flex:1">${this.esc(f.name)}</b><span class="badge ${done ? 'on' : ''}">战力 ${E.fmt(f.power)}</span></div>
           <div class="tiny muted">${f.reduce ? '袭击强度 -' + Math.round(f.reduce * 100) + '% ' : ''}${f.watt ? '⚡ ' + f.watt + ' 瓦' : ''}</div>

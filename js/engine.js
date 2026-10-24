@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.28';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.29';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -42,12 +42,16 @@ const POOLS = [
   { id:'limited',  name:'限定', heroes:['dashao','lare'], normal:true, namedW:10, normalW:1 },
   { id:'standard', name:'常驻', heroes:[],                normal:true, namedW:0,  normalW:1 },
 ];
+/* 礼物 id 必须直接复用 items.js 里的物品 id：v0.0.28 及以前用 gift1~gift4 当 id，
+   addItem 找不到物品 → 自动补出一条名为「gift1」的占位物品（无图标、名字错）。
+   v0.0.29 修正为真实 id；旧存档在 migrate() 里按 LEGACY_GIFT 迁移。 */
 const GIFTS = [
-  { id:'gift1', name:'便利贴', favor:2,  w:50, price:400  },
-  { id:'gift2', name:'周边',   favor:6,  w:30, price:1200 },
-  { id:'gift3', name:'典藏',   favor:15, w:15, price:3000 },
-  { id:'gift4', name:'传家宝', favor:30, w:5,  price:6000 },
+  { id:'sticky_note', name:'便利贴', favor:2,  w:50, price:400  },
+  { id:'merch',       name:'周边',   favor:6,  w:30, price:1200 },
+  { id:'collector',   name:'典藏',   favor:15, w:15, price:3000 },
+  { id:'heirloom',    name:'传家宝', favor:30, w:5,  price:6000 },
 ];
+const LEGACY_GIFT = { gift1:'sticky_note', gift2:'merch', gift3:'collector', gift4:'heirloom' };
 const ERA_LIST = (window.ERAS || [
   { id:'stone', name:'石器时代' }, { id:'medieval', name:'中世纪' },
   { id:'industrial', name:'工业时代' }, { id:'info', name:'信息时代' }, { id:'space', name:'太空时代' },
@@ -275,6 +279,12 @@ function addItem(idOrName, qty) {
   if (ITEMS[id] && ITEMS[id].kind === 'shard') S.discoveredShard = true;
   refreshMilestones();
   return qty;
+}
+/* 底部「获得物品」消息框：只在主动获得时弹出（战斗掉落 / 抽卡礼物 / 图鉴领取 / 商店购买），
+   工作持续产出不弹，否则挂机时会一直挡在屏幕下方。 */
+function lootItem(id, n) {
+  if (!id || !(n > 0)) return;
+  if (window.UI && window.UI.loot) window.UI.loot(id, n);
 }
 function removeItem(idOrName, qty) {
   const id = ITEMS[idOrName] ? idOrName : N2I(idOrName);
@@ -1010,13 +1020,13 @@ function onKill(job, c, cs) {
     const nn = normName(l.name);
     const min = l.min || 1, max = l.max || min;
     const n = min + Math.floor(Math.random() * (max - min + 1));
-    if (n > 0) addItem(nn, n);
+    if (n > 0) { const lid = iid(nn); addItem(lid, n); lootItem(lid, n); }
   });
   if (job.special === 'eraSim') {
     const pool = materialPool();
     for (let i = 0; i < 2; i++) if (pool.length) {
       const pick = weightedPick(pool);
-      if (pick) addItem(pick.id, 1);
+      if (pick) { addItem(pick.id, 1); lootItem(pick.id, 1); }
     }
   }
   xpGain(c, 'str', 8); xpGain(c, 'atk', 6);
@@ -1093,7 +1103,14 @@ function buyShopSlot(i) {
   if (S.gold < price) return { ok:false, why:'金币不足' };
   if (ITEMS[s.id].storage !== 'granary' && warehouseFull() && !S.items[s.id]) return { ok:false, why:'仓库已满' };
   S.gold -= price;
-  if (ITEMS[s.id].storage === 'granary') addFood(s.id, s.qty); else addItem(s.id, s.qty);
+  if (ITEMS[s.id].storage === 'granary') {
+    const before = S.items[s.id] || 0;
+    addFood(s.id, s.qty);
+    lootItem(s.id, (S.items[s.id] || 0) - before);
+  } else {
+    addItem(s.id, s.qty);
+    lootItem(s.id, s.qty);
+  }
   S.shop.slots[i] = null;
   S.seen.items[s.id] = true;
   return { ok:true, price };
@@ -1138,6 +1155,7 @@ function pull(poolId) {
     let acc = 0, tier = GIFTS[0];
     for (const g of GIFTS) { acc += g.w; if (roll <= acc) { tier = g; break; } }
     addItem(tier.id, 1);
+    lootItem(tier.id, 1);
     S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出角色」
     return { ok:true, type:'gift', gift: tier };
   }
@@ -1221,6 +1239,7 @@ function codexClaim(kind, id) {
   const n = CODEX_REWARD[kind] || 0;
   S.codex[kind][id] = true;
   addItem(SHARD_ITEM, n);
+  lootItem(SHARD_ITEM, n);
   S.discoveredShard = true;
   return { ok:true, n };
 }
@@ -1728,6 +1747,17 @@ function migrate(st) {
   merged.milestones = Object.assign({}, st.milestones || {});
   merged.dev = !!(st.dev || merged.dev);
   merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
+  // v0.0.29：旧抽卡礼物 id（gift1~gift4）→ 真实物品 id；数量、发现记录、曾经拥有一起迁移
+  Object.keys(LEGACY_GIFT).forEach(oldId => {
+    const newId = LEGACY_GIFT[oldId];
+    if (oldId in merged.items) {
+      const n = merged.items[oldId] || 0;
+      if (n > 0) merged.items[newId] = (merged.items[newId] || 0) + n;
+      delete merged.items[oldId];
+    }
+    if (merged.seen.items[oldId]) { merged.seen.items[newId] = true; delete merged.seen.items[oldId]; }
+    if (merged.ever[oldId]) { merged.ever[newId] = 1; delete merged.ever[oldId]; }
+  });
   Object.keys(merged.seen.items || {}).forEach(id => { if (merged.seen.items[id]) merged.ever[id] = 1; });
   Object.keys(merged.items).forEach(id => { if ((merged.items[id] || 0) > 0) merged.ever[id] = 1; });
   Object.keys(merged.chars).forEach(cid => {
@@ -1818,7 +1848,7 @@ function importSave(str) {
 
 window.Engine = {
   APP_VERSION,
-  GAME, HEROES, POOLS, GIFTS, ERA_LIST, ERA_KEYS, ERA_NAME,
+  GAME, HEROES, POOLS, GIFTS, LEGACY_GIFT, ERA_LIST, ERA_KEYS, ERA_NAME,
   ITEMS, ITEM_ORDER, JOBS, TECHS, ENEMIES, REGIONS, WEAPON_COMBAT, CC,
   HOUSING, COMFORT, FORTS, WH_UPG, GR_UPG, PR,
   get S() { return S; }, set S(v) { S = v; },
