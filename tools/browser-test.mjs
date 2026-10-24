@@ -472,18 +472,31 @@ try {
   const warehouseAfter = await js(`window.getSelection().toString()`);
   ok(warehouseAfter === warehouseSel, '1.5 秒整页重绘后选中文本仍保持：' + warehouseAfter);
 
-  console.log('== 资源包悬浮显示产物概率 ==');
-  const bundleTip = await js(`(function(){
+  console.log('== 资源包：极简提示 + 逐项揭示 ==');
+  const bundleHidden = await js(`(function(){
     const S=Engine.S;
-    S.ui.page='job:gathering'; S.ui.scroll=0; UI.render();
-    const card=document.querySelector('#mainWrap .card.recipe[data-tip-item]');
+    S.bundleSeen={}; S.ui.page='job:gathering'; S.ui.scroll=0; UI.render();
+    let card=document.querySelector('#mainWrap .card.recipe[data-tip-item]');
     if(!card) return JSON.stringify({miss:'没有采集项目卡'});
     card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:320,clientY:320}));
-    const txt=document.getElementById('itemTip').textContent;
-    return JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), list:txt.includes('产物列表'), pct:txt.includes('%'), fiber:txt.includes('植物纤维')});
+    const tip=document.getElementById('itemTip'), txt=tip.textContent;
+    const q=(txt.match(/？/g)||[]).length;
+    return JSON.stringify({show:tip.classList.contains('show'), q:q, pct:txt.includes('90%'), clean:!txt.includes('经济')&&!txt.includes('获取')&&!txt.includes('产物列表')&&!txt.includes('资源包'), fiber:txt.includes('植物纤维')});
   })()`);
-  const bt = JSON.parse(bundleTip);
-  ok(!bt.miss && bt.show && bt.list && bt.pct && bt.fiber, '资源包悬停：产物列表 + 概率 + 物品名：' + (bt.miss || JSON.stringify(bt)));
+  const bh = JSON.parse(bundleHidden);
+  ok(!bh.miss && bh.show && bh.q === 6 && bh.pct && bh.clean && !bh.fiber, '未发现时只显示 ？ + 概率，无图标 / 标签 / 经济 / 获取：' + (bh.miss || JSON.stringify(bh)));
+
+  const bundleRevealed = await js(`(function(){
+    const S=Engine.S;
+    S.bundleSeen={grass_resource:{plant_fiber:true}};
+    UI.render();
+    const card=document.querySelector('#mainWrap .card.recipe[data-tip-item]');
+    card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:320,clientY:320}));
+    const txt=document.getElementById('itemTip').textContent;
+    return JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), fiber:txt.includes('植物纤维'), pct:txt.includes('90%'), q:(txt.match(/？/g)||[]).length});
+  })()`);
+  const bv = JSON.parse(bundleRevealed);
+  ok(bv.show && bv.fiber && bv.pct && bv.q === 5, '草地上抽到植物纤维后，只揭示这一项：' + JSON.stringify(bv));
 
   console.log('== 开发者模式后门 ==');
   const dev = await js(`(function(){

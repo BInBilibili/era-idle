@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.27';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.28';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -204,6 +204,7 @@ function newState(name) {
     gold: 0, research: 0,
     items: {}, seen: { items:{}, enemies:{}, chars:{} },
     ever: {},          // 物品「曾经拥有过」记录：升级项 / 工作永久解锁只看它
+    bundleSeen: {},    // 资源包逐项发现：S.bundleSeen[包id][产物id] = true
     milestones: {},    // 永久解锁进度：wood_stone / research_ready / injured
     dev: false,        // 开发者模式（?dev=1 或连点版本号 5 次）
     chars: {}, order: [],
@@ -879,20 +880,32 @@ function weightedPick(arr) {
   for (const it of arr) { r -= (it.weight||0); if (r <= 0) return it; }
   return arr[arr.length-1];
 }
+/* 资源包逐项发现：只认「通过这个包实际拿到过」的产物，别处获得不解锁 */
+function bundleItemSeen(bundleId, itemId) {
+  return !!(S && S.bundleSeen && S.bundleSeen[bundleId] && S.bundleSeen[bundleId][itemId]);
+}
+function markBundleSeen(bundleId, itemId) {
+  if (!S.bundleSeen) S.bundleSeen = {};
+  if (!S.bundleSeen[bundleId]) S.bundleSeen[bundleId] = {};
+  S.bundleSeen[bundleId][itemId] = true;
+}
 /* 产出结算：资源包（草地 / 平原 / 沼泽）每次随机抽其中 1 种，不会把资源包本身塞进仓库 */
 function addProducedItem(id, n) {
-  if (!id || !(n > 0)) return;
+  if (!id || !(n > 0)) return 0;
   const it = ITEMS[id];
   if (it && it.bundle && Array.isArray(it.pool) && it.pool.length) {
-    let left = Math.floor(n);
+    let left = Math.floor(n), got = 0;
     while (left-- > 0) {
       const pick = weightedPick(it.pool);
-      if (pick && pick.id) addProducedItem(pick.id, 1);
+      if (!pick || !pick.id) continue;
+      const sub = addProducedItem(pick.id, 1);
+      // 仓库 / 粮仓满导致没拿到时，不揭示该产物
+      if (sub > 0) { markBundleSeen(id, pick.id); got += sub; }
     }
-    return;
+    return got;
   }
-  if (it && it.storage === 'granary') addFood(id, n);
-  else addItem(id, n);
+  const got = it && it.storage === 'granary' ? addFood(id, n) : addItem(id, n);
+  return got || 0;
 }
 function gainMastery(c, jobId, sec) {
   const m = masteryOf(c, jobId);
@@ -1711,6 +1724,7 @@ function migrate(st) {
   merged.order = st.order || [];
   // v0.0.27：补给栏 / 永久解锁进度 / 曾经拥有记录
   merged.ever = Object.assign({}, base.ever || {}, st.ever || {});
+  merged.bundleSeen = Object.assign({}, st.bundleSeen || {});
   merged.milestones = Object.assign({}, st.milestones || {});
   merged.dev = !!(st.dev || merged.dev);
   merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
@@ -1810,7 +1824,7 @@ window.Engine = {
   get S() { return S; }, set S(v) { S = v; },
   newState, newChar, load, save, exportSave, importSave, migrate,
   fmt, fmtTime, count, addItem, removeItem, itemName, sellPrice, buyPrice, iid, N2I,
-  itemEver, everOwnedAll, refreshMilestones, markInjured, addProducedItem,
+  itemEver, everOwnedAll, refreshMilestones, markInjured, addProducedItem, bundleItemSeen, markBundleSeen,
   isFoodItem, activeFoodId, foodXpMult, foodSpeedMult, foodAtkStrBonus, foodEffectText, activeMedDef, healChar,
   warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood,
   currentEra, eraName, eraProgress, techDone, techAvailable, researched, techsDone, researchTech,

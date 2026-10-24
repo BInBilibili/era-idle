@@ -181,6 +181,22 @@ const UI = {
     const row = (k, v, cls) => `<div class="ttRow"><span class="k">${k}</span><span class="v mono ${cls || ''}">${v}</span></div>`;
     const tag = (txt, cls) => `<span class="badge ${cls || ''}">${esc(txt)}</span>`;
 
+    // 资源包只显示「产物 + 概率」：不显示包图标 / 标签 / 经济 / 获取。
+    // 每个产物必须曾经从「这个包」里抽到过才显示名字，否则用 ？ 遮住。
+    if (it.bundle && Array.isArray(it.pool) && it.pool.length) {
+      const total = it.pool.reduce((a, p) => a + (p.weight || 0), 0) || 1;
+      const drops = it.pool.map(p => {
+        const drop = E.ITEMS[p.id] || E.ITEMS[E.N2I(p.id)];
+        const pct = (p.weight || 0) / total * 100;
+        const known = E.bundleItemSeen(it.id, p.id);
+        const label = known
+          ? `${drop ? this.itemIcon(drop) + ' ' : ''}${esc(drop ? drop.name : p.id)}`
+          : '<span class="qmark">？</span>';
+        return row(label, pct.toFixed(pct < 1 ? 1 : 0) + '%');
+      }).join('');
+      return `<div class="ttRows ttBundleRows">${drops}</div>`;
+    }
+
     let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
       <b>${esc(it.name)}</b>
       <div class="ttTags">${tag(E.ERA_NAME[it.era] || '未标时代')}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
@@ -213,16 +229,6 @@ const UI = {
       + row('持有', q ? E.fmt(q) + ' 件' : '<span class="dim">没有</span>')
       + row('总价值', E.fmt(q * (it.price || 0)) + ' 金') + '</div>';
 
-    // 资源包：悬停时列出「产物 + 概率」（不只显示一个笼统名字）
-    if (it.bundle && Array.isArray(it.pool) && it.pool.length) {
-      const total = it.pool.reduce((a, p) => a + (p.weight || 0), 0) || 1;
-      const drops = it.pool.map(p => {
-        const drop = E.ITEMS[p.id] || E.ITEMS[E.N2I(p.id)];
-        const pct = (p.weight || 0) / total * 100;
-        return row(`${drop ? this.itemIcon(drop) + ' ' : ''}${esc(drop ? drop.name : p.id)}`, pct.toFixed(pct < 1 ? 1 : 0) + '%');
-      }).join('');
-      h += `<div class="ttSec">产物列表（每次随机 1 种）</div><div class="ttRows">${drops}</div>`;
-    }
     if (it.med) {
       h += `<div class="ttSec">医物效果</div><div class="ttRows">`
         + row('回血速度', '×' + (it.med.healMul || 1), 'green')

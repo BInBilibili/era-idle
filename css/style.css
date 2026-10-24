@@ -230,7 +230,9 @@ table.t td.c,table.t th.c{text-align:center}
 #itemTip .ttTags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 #itemTip .ttSec{margin-top:9px;padding-top:6px;border-top:1px dashed var(--line);font-size:11px;color:var(--gold)}
 #itemTip .ttRows{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;row-gap:2px;margin-top:4px}
+#itemTip .ttBundleRows{margin-top:0}
 #itemTip .ttRow{display:flex;justify-content:space-between;gap:8px;color:var(--muted);min-width:0}
+#itemTip .qmark{color:var(--dim);font-weight:600}
 #itemTip .ttRows .ttRow{margin-top:0}
 #itemTip .ttRow .v{color:var(--text);white-space:nowrap}
 #itemTip .ttDesc{margin-top:4px;font-size:11.5px;color:var(--muted)}

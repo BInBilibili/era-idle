@@ -530,8 +530,22 @@ ok(E.jobVisible(E.JOB_BY_ID.medicine), '有人受伤后医疗永久显示');
 ok(E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[2], E.JOB_BY_ID.gathering), '有人受伤后沼泽项目永久显示');
 const medTip = U.itemTipHtml(E.N2I('草药'));
 ok(medTip.includes('医物效果') && medTip.includes('×2'), '草药悬浮面板显示医物 ×2 回血');
-const bundleTip = U.itemTipHtml(E.N2I('草地资源'));
-ok(bundleTip.includes('产物列表') && bundleTip.includes('植物纤维') && bundleTip.includes('90%'), '资源包悬浮面板显示产物 + 概率');
+console.log('== 资源包：极简提示 + 逐项揭示 ==');
+const ES = E.S;
+const grassId = E.N2I('草地资源');
+ES.bundleSeen = {};
+E.addItem('谷物种子', 1);                 // 别处获得种子，不代表在草地上见过
+let grassTip = U.itemTipHtml(grassId);
+ok(!grassTip.includes('ttHead') && !grassTip.includes('经济') && !grassTip.includes('获取') && !grassTip.includes('产物列表') && !grassTip.includes('资源包'), '资源包提示不再显示图标 / 标签 / 经济 / 获取');
+ok(!grassTip.includes('谷物种子') && !grassTip.includes('植物纤维'), '未在该包抽到过的产物全部遮住');
+ok((grassTip.match(/？/g) || []).length === 6 && grassTip.includes('90%') && grassTip.includes('2%'), '六项全部显示 ？ + 概率：' + grassTip);
+const oldRandom = Math.random;
+Math.random = () => 0;                    // 草地第一个产物 = 植物纤维
+const grassGot = E.addProducedItem(grassId, 1);
+Math.random = oldRandom;
+ok(grassGot === 1 && ES.bundleSeen[grassId] && ES.bundleSeen[grassId].plant_fiber, '实际抽到后才记录该包已发现植物纤维：' + grassGot + '/' + JSON.stringify(ES.bundleSeen));
+grassTip = U.itemTipHtml(grassId);
+ok(grassTip.includes('植物纤维') && grassTip.includes('90%') && (grassTip.match(/？/g) || []).length === 5, '揭示植物纤维，其余仍为 ？：' + grassTip);
 
 console.log('== 英雄立绘（v0.0.25）==');
 const fs = require('fs'), path = require('path');
