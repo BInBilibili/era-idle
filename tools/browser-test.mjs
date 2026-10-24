@@ -77,6 +77,15 @@ try {
   ok(navNames.includes('采集'), '开局有采集：' + navNames.join('/'));
   ok(!navNames.includes('科研') && !navNames.includes('伐木') && !navNames.includes('采矿') && !navNames.includes('医疗'), '开局不显示科研 / 伐木 / 采矿 / 医疗');
 
+  console.log('== 里程碑：停在工作页也会出现 ==');
+  const milestoneGain = await js(`(function(){
+    Engine.addItem('木材',1); Engine.addItem('石头',1);
+    return JSON.stringify(Engine.S.milestones);
+  })()`);
+  await sleep(700);
+  const navAfter = JSON.parse(await js(`JSON.stringify([...document.querySelectorAll('#side .nav .nm')].map(n=>n.textContent))`));
+  ok(milestoneGain.includes('wood_stone') && navAfter.includes('伐木') && navAfter.includes('采矿'), '拿到 1 木材 + 1 石头后，伐木 / 采矿立刻出现在导航：' + navAfter.join('/'));
+
   console.log('== 点击入驻槽：下拉菜单 ==');
   const dropdown = await js(`(function(){
     const slot=document.querySelector('[data-act="recslot"]');

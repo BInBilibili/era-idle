@@ -1346,6 +1346,18 @@ const UI = {
           if (t) btn.disabled = !E.techAvailable(t) || S.research < t.cost;
         });
       }
+      // 工作页不逐帧整页重绘；但里程碑 / 新工作 / 升级项可见性变化时要立刻刷新，
+      // 否则玩家停在采集页时，伐木 / 采矿 / 科研 / 医疗出现后左侧导航不会更新。
+      const sig = [
+        E.jobVisible(job) ? 1 : 0,
+        (js.up || []).join(''),
+        (js.slots || []).join(','),
+        (js.blocked || []).join(','),
+        Object.keys(S.ever || {}).length,
+        ['wood_stone', 'research_ready', 'injured'].map(k => (S.milestones && S.milestones[k]) ? 1 : 0).join(''),
+      ].join('|');
+      if (!this._jobSigs) this._jobSigs = {};
+      if (this._jobSigs[jobId] !== sig) { this._jobSigs[jobId] = sig; this.render(); }
     }
     if (page === 'codex') {
       // 图鉴没有实时数字：只在「收录 / 领取 / 切换页签」变化时重绘，
