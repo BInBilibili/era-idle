@@ -412,7 +412,7 @@
     book_carpentry: ['book', 'bookMedieval', 'plane'],
     book_textile: ['book', 'bookMedieval', 'needle'],
     book_tailoring: ['book', 'bookMedieval', 'scissors'],
-    book_alchemy: ['book', 'bookMedieval', 'alembic'],
+    book_oil_extraction: ['book', 'bookIndustrial', 'barrel'],
     book_weaving: ['book', 'bookMedieval', 'loom'],
     book_papermaking: ['book', 'bookMedieval', 'scroll'],
     book_power: ['book', 'bookIndustrial', 'bolt'],
@@ -2676,16 +2676,21 @@
       ci(33, 34, 1.4, w.l);
   };
 
-  /* 药剂：研钵 + 药杵 */
-  JOB_SH.pharmacy = function () {
-    const g = PAL.glass, liq = PAL.potionGreen, st = PAL.steel;
-    return gsh(13) +
-      sil('M10 22 H38 L34 36 Q24 41 14 36 Z', g.m) +
-      det('M10 22 H38 V25 H10 Z', g.l) +
-      det('M13 31 Q24 35 35 31 Q32 37 24 38 Q16 37 13 31 Z', liq.m) +
-      ln('M10 22 H38 L34 36 Q24 41 14 36 Z', OUT, 1.5) +
-      ln('M31 22 L38 8', st.m, 3.2) + ci(38.6, 7, 2.4, st.l) +
-      ci(18, 18, 2.2, liq.l) + ci(28, 16, 1.6, liq.m) + ci(23, 13, 1.2, liq.l);
+  /* 石油开采：井架 + 油桶（v0.0.30） */
+  JOB_SH.oil_extraction = function () {
+    const st = PAL.steel, w = PAL.wood, o = PAL.oil;
+    return gsh(14) +
+      ln('M11 41 L20 7 M27 41 L36 7', st.m, 2.4) +
+      ln('M15 41 L23 9 M31 41 L23 9', st.d, 1.5) +
+      ln('M16 27 H32 M14 33 H34 M12 39 H36', st.l, 1.4) +
+      ci(23, 6, 2.4, st.l) + ci(23, 6, 1, '#241b13') +
+      ln('M23 12 L34 17 L40 15.4', w.m, 2.3) +
+      sil('M5 30 H18 V41 H5 Z', w.m) +
+      det('M5 30 H18 V33 H5 Z', w.l) +
+      det('M5 38 H18 V41 H5 Z', w.d) +
+      ln('M5 30 H18 V41 H5 Z', OUT, 1.3) +
+      ci(11.5, 35.5, 2.6, o.m) + ci(11.5, 35.5, 1.1, o.l) +
+      ln('M37 15 Q42 20 40 27', o.m, 1.8);
   };
 
   /* 编织：挂毯 + 织机 */

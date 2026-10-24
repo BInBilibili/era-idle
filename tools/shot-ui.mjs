@@ -51,6 +51,18 @@ try {
     Object.keys(Engine.ITEMS).forEach(id => Engine.S.seen.items[id] = 1);
     const cids = Object.keys(Engine.S.chars);
     (Engine.TECHS || []).forEach(t => { Engine.S.techs[t.id] = 1; });
+    // v0.0.30：项目要买第 1 档才出现，截图前把所有升级项拉满
+    Object.keys(Engine.S.jobs).forEach(k => {
+      const j = Engine.JOB_BY_ID[k];
+      if (j) Engine.S.jobs[k].up = new Array((j.upgrades || []).length).fill(1);
+    });
+    if (Engine.S.jobs.husbandry) {
+      Engine.S.chars[cids[0]].know = { '兔子': 100, '鹿': 100, '熊': 100 };
+      Engine.S.jobs.husbandry.animals = [{ name: '兔子', prog: .35, done: 3 }, { name: '鹿', prog: .7, done: 1 }, { name: '熊', prog: .15, done: 0 }];
+      Engine.ensureSlots(Engine.S.jobs.husbandry, 2);
+      Engine.S.jobs.husbandry.slots[1] = cids[0];
+      Engine.S.items[Engine.N2I('草料')] = 999;
+    }
     if (Engine.S.jobs.hunting) {
       const js = Engine.S.jobs.hunting;
       Engine.ensureSlots(js, 1);

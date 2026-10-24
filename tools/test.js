@@ -130,6 +130,9 @@ ok(!E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[2], E.JOB_BY_ID.gatherin
 E.addItem('浆果', 40);
 S.research = 500;
 E.researchTech('fire');
+// v0.0.30：除采集外，所有工作都要先买第一个升级项才出现项目
+E.addItem('木材', 100); E.addItem('石头', 50);
+ok(E.buyUpgrade('cooking', 0).ok, '购买灶台（烹饪第一个升级项）');
 E.clearSlot('gathering', 0);
 E.assignSlot('cooking', 0, 'player');
 for (let i = 0; i < 800; i++) E.tick(0.2);
@@ -152,7 +155,7 @@ ok(r1.ok, '研究 石器工艺：' + JSON.stringify(r1));
 console.log('== 采矿：每种矿石一条配方 ==');
 const mining = E.JOB_BY_ID.mining;
 const mrs = E.jobRecipes(mining);
-ok(mrs.length === 13, '采矿配方 13 条：' + mrs.length);
+ok(mrs.length === 12, '采矿配方 12 条（石油已拆到石油开采）：' + mrs.length);
 const stoneR = mrs.find(r => r.name === '石头');
 const goldR = mrs.find(r => r.name === '金矿');
 ok(stoneR.duration === 3, '石头时长 3 秒（权重 100）');
@@ -177,17 +180,20 @@ E.assignSlot('mining', mrs.indexOf(sandR), 'player');
 ok(E.assignedCount(mining) === 1, '同一角色只占一条配方（沙），石头被顶掉');
 
 console.log('== 装备制造：三份工作的完整配方 ==');
-const craftJob = E.JOB_BY_ID.crafting, forgeJob = E.JOB_BY_ID.forging, tailorJob = E.JOB_BY_ID.tailoring;
-const craftRs = E.jobRecipes(craftJob), forgeRs = E.jobRecipes(forgeJob), tailorRs = E.jobRecipes(tailorJob);
+const craftJob = E.JOB_BY_ID.crafting, forgeJob = E.JOB_BY_ID.forging, tailorJob = E.JOB_BY_ID.tailoring, machJob = E.JOB_BY_ID.machining;
+const craftRs = E.jobRecipes(craftJob), forgeRs = E.jobRecipes(forgeJob), tailorRs = E.jobRecipes(tailorJob), machRs = E.jobRecipes(machJob);
+const isGearR = r => { const id = E.N2I(r.name); return id && ['equip', 'weapon'].includes(E.ITEMS[id].cat); };
+const machGear = machRs.filter(isGearR);
 ok(craftRs.length === 17, '加工 17 件：' + craftRs.length);
-ok(forgeRs.length === 51, '锻造 51 件：' + forgeRs.length);
-ok(tailorRs.length === 17, '裁缝 17 件：' + tailorRs.length);
+ok(forgeRs.length === 16, '锻造 16 件（工业后装备已移到机械加工）：' + forgeRs.length);
+ok(tailorRs.length === 5, '裁缝 5 件（工业后装备已移到机械加工）：' + tailorRs.length);
+ok(machGear.length === 47, '机械加工新增 47 件工业 / 信息 / 太空装备：' + machGear.length);
 ok(craftRs.some(r => r.name === '石斧') && craftRs.some(r => r.name === '皮甲'), '加工包含石器时代装备');
 ok(!craftRs.some(r => r.name === '硅片') && !craftRs.some(r => r.name === '光纤'), '硅片 / 光纤已移出加工');
 ok(E.jobRecipes(E.JOB_BY_ID.glassmaking).some(r => r.name === '光纤'), '光纤移到玻璃制造');
 ok(E.jobRecipes(E.JOB_BY_ID.semiconductors).some(r => r.name === '硅片'), '硅片移到半导体制造');
 let badRecipe = 0;
-for (const r of [...craftRs, ...forgeRs, ...tailorRs]) {
+for (const r of [...craftRs, ...forgeRs, ...tailorRs, ...machGear]) {
   if (Object.keys(E.recipeInputs(r)).length !== Object.keys(r.inputs).length) badRecipe++;
   if (Object.keys(E.recipeOutputs(r)).length !== 1) badRecipe++;
 }
@@ -195,6 +201,8 @@ ok(badRecipe === 0, '85 件装备的投料 / 产出都能映射到物品');
 ok(!E.recipeVisible(craftRs.find(r => r.name === '长弓')), '长弓锁在 *缝制');
 S.techs['tailoring'] = true;
 ok(E.recipeVisible(craftRs.find(r => r.name === '长弓')), '研究 *缝制 后长弓可见');
+E.addItem('木材', 100); E.addItem('石头', 50);
+ok(E.buyUpgrade('crafting', 0).ok, '购买工作台（加工第一个升级项）');
 E.assignSlot('crafting', craftRs.findIndex(r => r.name === '石斧'), 'player');
 S.items[E.N2I('木材')] = 100; S.items[E.N2I('石头')] = 100;
 for (let i = 0; i < 40; i++) E.tick(0.2);
@@ -373,8 +381,29 @@ ok(migGift.items.sticky_note === 3 && migGift.items.merch === 2 && migGift.items
   '旧礼物 gift1~3 → 便利贴 / 周边 / 典藏：' + JSON.stringify(migGift.items));
 ok(!migGift.items.gift1 && !migGift.items.gift2 && migGift.seen.items.sticky_note && migGift.ever.sticky_note,
   '旧礼物不在仓库/图鉴/曾经拥有里残留 gift1');
+// v0.0.30：药剂工作 / 药剂精通书 → 医疗
+const pharmOld = E.newState('药剂迁移');
+pharmOld.items = { book_alchemy: 2 };
+pharmOld.seen.items = { book_alchemy: true };
+pharmOld.ever = { book_alchemy: 1 };
+pharmOld.jobs.pharmacy = { slots: [], prog: [], blocked: [], up: [1, 1, 0, 0], upVer: 2 };
+pharmOld.jobs.husbandry = { slots: [null, 'player'], prog: [0, 0], blocked: [null, null], up: [1, 0, 0, 0], upVer: 2 };
+const migPharm = E.migrate(pharmOld);
+ok(!migPharm.jobs.pharmacy && migPharm.items.book_medicine === 2, '药剂工作删除、药剂精通书并入医疗精通书');
+ok(migPharm.seen.items.book_medicine && migPharm.ever.book_medicine && !migPharm.seen.items.book_alchemy, '药剂精通书的图鉴 / 曾经拥有同步迁移');
+ok(Array.isArray(migPharm.jobs.husbandry.animals) && migPharm.jobs.husbandry.animals.length === 0, '旧档畜牧自动补齐 animals 数组');
+// v0.0.30：锻造 / 裁缝配方变短，旧存档里指向已移走装备的幽灵槽要清掉
+const ghostOld = E.newState('幽灵槽迁移');
+ghostOld.jobs.forging.slots = new Array(51).fill(null);
+ghostOld.jobs.forging.slots[40] = 'player';
+ghostOld.jobs.forging.prog = new Array(51).fill(0.5);
+const migGhost = E.migrate(ghostOld);
+ok(migGhost.jobs.forging.slots.length === 16 && migGhost.jobs.forging.slots[40] === undefined, '旧锻造槽 40 → 裁掉（16 件配方）');
+E.S = migGhost;
+ok(E.assignedCount(E.JOB_BY_ID.forging) === 0, '幽灵槽不再被算作「N 人在工作」');
 
 console.log('== 袭击 ==');
+E.S = S;   // 回到主测试存档（前面的迁移用例换过 E.S）
 S.forts[0] = true;
 const raid = E.doRaid();
 ok(typeof raid.strength === 'number' && raid.strength > 0, '袭击强度 ' + raid.strength + ' vs ' + raid.defense + ' → ' + (raid.win ? '击退' : '失守'));
@@ -619,6 +648,141 @@ Math.random = oldRandom;
 ok(grassGot === 1 && ES.bundleSeen[grassId] && ES.bundleSeen[grassId].plant_fiber, '实际抽到后才记录该包已发现植物纤维：' + grassGot + '/' + JSON.stringify(ES.bundleSeen));
 grassTip = U.itemTipHtml(grassId);
 ok(grassTip.includes('植物纤维') && grassTip.includes('90%') && (grassTip.match(/？/g) || []).length === 5, '揭示植物纤维，其余仍为 ？：' + grassTip);
+
+console.log('== v0.0.30：项目门槛 / 石油 / 种植 / 医疗 / 畜牧 / 武器特性 ==');
+E.S = E.newState('新内容测试');
+const NS = E.S;
+ok(!E.JOB_BY_ID.pharmacy && !!E.JOB_BY_ID.oil_extraction, '药剂工作删除，新增石油开采');
+ok(E.JOB_BY_ID.oil_extraction.tech === '蒸汽机', '石油开采由 *蒸汽机 解锁');
+ok(E.jobRecipes(E.JOB_BY_ID.mining).every(r => r.name !== '石油'), '采矿不再产出石油');
+ok(!!E.N2I('石油开采精通书') && !E.N2I('药剂精通书'), '精通书：新增石油开采、删除药剂');
+const techSteam = E.TECHS.find(t => t.name === '蒸汽机');
+const techMed = E.TECHS.find(t => t.name === '医疗');
+ok(techSteam.unlocks.some(u => u.includes('石油开采')), '科技树：蒸汽机点亮石油开采');
+ok(techMed.unlocks.some(u => u.includes('医疗')), '科技树：医疗科技改为点亮医疗的药剂配方');
+
+// 项目门槛：所有常规工作（采集除外）都要先买第一个升级项
+const forging = E.JOB_BY_ID.forging;
+E.S.techs['forging'] = true;
+const forgeFirst = E.jobRecipes(forging)[0];
+ok(!E.recipeVisible(forgeFirst, forging), '没买铁砧时锻造项目隐藏');
+E.S.jobs.forging.up[0] = 1;
+ok(E.recipeVisible(forgeFirst, forging), '买完铁砧后锻造项目出现');
+const gatedJobs = E.JOBS.filter(j => {
+  if (j.special || j.id === 'gathering') return false;
+  const js = E.S.jobs[j.id], u = (j.upgrades || [])[0];
+  return !!u && !(js.up && js.up[0]);
+});
+const visibleGated = gatedJobs.filter(j => E.recipeVisible(E.jobRecipes(j)[0], j));
+ok(visibleGated.length === 0, '除采集外全部工作未买第一档时都没有项目：' + visibleGated.map(j => j.name).join('、'));
+
+// 矛盾审计：第一档升级不能依赖本工作自己的产物（若有其它来源则允许）
+const JOB_NAMES = E.JOBS.map(j => j.name);
+const selfRef = [];
+E.JOBS.forEach(j => {
+  if (j.special || j.id === 'gathering') return;
+  const u = (j.upgrades || [])[0];
+  if (!u) return;
+  Object.keys(u.cost || {}).forEach(name => {
+    const it = E.ITEMS[E.N2I(name)];
+    if (!it || !it.src || it.src.indexOf(j.name) < 0) return;
+    const other = JOB_NAMES.some(n => n !== j.name && it.src.indexOf(n) >= 0);
+    if (!other) selfRef.push(j.name + ' 依赖 ' + name);
+  });
+});
+ok(selfRef.length === 0, '第一档升级项没有「自己产自己」的矛盾：' + (selfRef.join('；') || '无'));
+
+// 种植：按种子拆项目 + 干草
+const farmRs = E.jobRecipes(E.JOB_BY_ID.farming);
+ok(farmRs.length === 6 && farmRs.map(r => r.name).join('/') === '谷物/豆类/蔬菜/甜菜/药草/干草', '种植 6 个项目：5 种种子 + 干草');
+ok(Object.keys(farmRs.find(r => r.name === '甜菜').inputs).join(',') === '甜菜种子', '甜菜项目吃甜菜种子');
+ok(Object.keys(farmRs.find(r => r.name === '干草').inputs).length === 0 && farmRs.find(r => r.name === '干草').outputs['草料'] === 1, '干草不消耗、产出草料');
+
+// 医疗：药剂工作合并
+const medRs = E.jobRecipes(E.JOB_BY_ID.medicine);
+ok(medRs.length === 4 && medRs.some(r => r.name === '草药药剂') && medRs.some(r => r.name === '医药') && medRs.some(r => r.name === '闪耀医药'), '医疗合并了药剂 3 个配方');
+const medJob = E.JOB_BY_ID.medicine;
+ok(medJob.upgrades[0].name === '研钵' && medJob.upgrades[1].name === '药剂实验室', '医疗床→研钵，医疗设备→药剂实验室');
+
+// 畜牧：容量 / 动物 / 产出
+ok(Object.keys(E.HUSBANDRY_ANIMALS).length === 16 && !E.HUSBANDRY_ANIMALS['机械兽'] && !E.HUSBANDRY_ANIMALS['硅基生物'], '16 种可畜牧动物，机械兽 / 硅基生物除外');
+ok(E.HUSBANDRY_ANIMALS['野山羊'].outputs['毛料'] === 1, '野山羊提供毛料（纺织 / 裁缝的羊毛来源）');
+ok(E.JOB_BY_ID.husbandry.upgrades[0].cost['石材'] && !E.JOB_BY_ID.husbandry.upgrades[0].cost['草料'], '圈舍用木材 + 石材启动，不卡草料');
+ok(E.JOB_BY_ID.medicine.upgrades[0].cost['石头'] && !E.JOB_BY_ID.medicine.upgrades[0].cost['药草'], '研钵用木材 + 石头启动，不卡药草');
+ok(E.husbandryCapacity() === 5, '初始畜牧容量 5');
+NS.jobs.husbandry.up[0] = 1;
+ok(E.husbandryCapacity() === 10, '圈舍 +5 → 10');
+NS.jobs.husbandry.up[2] = 1;
+ok(E.husbandryCapacity() === 25, '大型牧场 +15 → 25');
+ok(!E.addHusbandryAnimal('兔子').ok, '认知度未满 100 不能圈养');
+NS.chars.player.know = { '兔子': 100, '熊': 100 };
+E.S.techs['animal_husbandry'] = true;
+ok(E.addHusbandryAnimal('兔子').ok && E.husbandryUsed() === 0.5, '兔子占 0.5 容量');
+ok(E.addHusbandryAnimal('熊').ok && E.husbandryUsed() === 3.5, '熊占 3 容量');
+E.addItem('草料', 200);
+E.assignSlot('husbandry', 1, 'player');
+const meatBefore = E.count('肉类食材');
+const leatherBefore = E.count('小型皮革');
+for (let i = 0; i < 300; i++) E.produceJob('husbandry', 0.2);
+ok(E.count('肉类食材') > meatBefore && E.count('小型皮革') > leatherBefore, '畜牧产出肉与副产物：肉 +' + (E.count('肉类食材') - meatBefore).toFixed(0));
+ok(E.count('草料') < 200, '畜牧按 1 草料/只/天 消耗：' + E.count('草料').toFixed(1));
+NS.items[E.N2I('草料')] = 0;
+const progAt0 = E.husbandryAnimals()[0].prog;
+for (let i = 0; i < 10; i++) E.produceJob('husbandry', 0.2);
+ok(Math.abs(E.husbandryAnimals()[0].prog - progAt0) < 1e-9 && NS.jobs.husbandry.blocked[1] === 'input', '草料不足时全部动物停产');
+const animalN = E.husbandryAnimals().length;
+E.removeHusbandryAnimal(0);
+ok(E.husbandryAnimals().length === animalN - 1, '可以移除畜牧格里的动物');
+E.S.techs['animal_husbandry'] = true;
+const hubHtml = U.pageJob('husbandry');
+ok(hubHtml.includes('penGrid') && hubHtml.includes('bigplus') && hubHtml.includes('畜牧容量'), '畜牧页渲染网格 + 大＋虚线框 + 畜牧容量');
+const hubPick = U.ioList(E.HUSBANDRY_ANIMALS['兔子'].outputs);
+ok(hubPick.includes('肉类食材'), '动物列表面板能显示产出');
+
+// 随机普通角色名字：加入其它国家 / 地区译名
+const genNames = [];
+for (let i = 0; i < 300; i++) genNames.push(E.makeNormal().name);
+ok(genNames.some(n => n.indexOf('·') >= 0), '随机名字包含其它国家 / 地区译名：' + genNames.filter(n => n.indexOf('·') >= 0).slice(0, 3).join('、'));
+ok(new Set(genNames).size > 100, '随机名字组合足够多：' + new Set(genNames).size + ' 种');
+
+// 种植：甜菜项目按种子产出甜菜
+E.S = E.newState('种植测试');
+E.S.techs['crop_farming'] = true;
+E.S.jobs.farming.up[0] = 1;
+E.addItem('甜菜种子', 10);
+const beetIdx = E.jobRecipes(E.JOB_BY_ID.farming).findIndex(r => r.name === '甜菜');
+E.assignSlot('farming', beetIdx, 'player');
+for (let i = 0; i < 100; i++) E.produceJob('farming', 0.2);
+ok(E.count('甜菜') > 0 && E.count('甜菜种子') < 10, '甜菜项目消耗甜菜种子、产出甜菜：' + E.count('甜菜'));
+
+// 石油开采：独立工作产出石油，采矿不再出石油
+E.S = E.newState('石油测试');
+E.S.techs['steam_engine'] = true;
+E.S.power.built.steam = true;          // 石油开采耗电 0.4 瓦：先有电才转
+E.S.jobs.oil_extraction.up[0] = 1;
+E.assignSlot('oil_extraction', 0, 'player');
+for (let i = 0; i < 100; i++) E.produceJob('oil_extraction', 0.2);
+ok(E.count('石油') > 0, '石油开采产出石油：' + E.count('石油'));
+
+// 武器特性描述已删除
+ok(Object.keys(E.WEAPON_COMBAT).every(k => !('special' in E.WEAPON_COMBAT[k])), 'WEAPON_COMBAT 不再有特性文本');
+require('../js/ui.js');
+const U2 = window.UI;
+ok(!U2.itemTipHtml(E.N2I('石斧')).includes('特性'), '武器悬浮面板不再显示特性行');
+
+// 战斗日志：双方伤害 / 攻击间隔
+E.S = E.newState('战斗日志测试');
+E.S.techs['bow'] = true;
+Object.assign(E.S.chars.player.lv, { hp: 50, atk: 50, str: 50, def: 50 });
+E.S.chars.player.hpNow = 500;
+E.assignSlot('hunting', 0, 'player');
+const csLog = E.combatState('hunting');
+csLog.logs = [];
+for (let i = 0; i < 200; i++) E.tick(0.2);
+ok(csLog.logs.some(l => l.kind === 'hit' && l.msg.includes('造成')), '战斗日志记录我方造成的伤害');
+ok(csLog.logs.some(l => l.msg.includes('攻击') && (l.kind === 'taken' || l.kind === 'miss')), '战斗日志记录敌方攻击 / 未命中');
+ok(csLog.logs.some(l => l.kind === 'kill'), '战斗日志记录击杀与掉落');
+ok(typeof csLog.tP === 'number' && csLog.tP >= 0 && typeof csLog.tE === 'number' && csLog.tE >= 0, '攻击间隔进度保存在战斗状态里：tP=' + csLog.tP.toFixed(2) + ' / tE=' + csLog.tE.toFixed(2));
 
 console.log('== 英雄立绘（v0.0.25）==');
 const fs = require('fs'), path = require('path');

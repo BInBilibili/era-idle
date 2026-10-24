@@ -316,18 +316,21 @@ try {
     const tip=document.getElementById('itemTip');
     const txt=tip.textContent;
     return JSON.stringify({show:tip.classList.contains('show'), name:txt.includes('石斧'), str:txt.includes('+18'),
-      pen:txt.includes('破甲'), price:txt.includes('90'), power:txt.includes('+36'), rows:tip.querySelectorAll('.ttRow').length});
+      pen:txt.includes('破甲'), price:txt.includes('90'), power:txt.includes('+36'), noTrait:!txt.includes('特性'), rows:tip.querySelectorAll('.ttRow').length});
   })()`);
   const tc = JSON.parse(tipCodex);
   ok(!tc.miss, '图鉴物品卡挂上悬浮锚点：' + (tc.miss || '有 data-tip-item'));
   ok(tc.show && tc.name && tc.str, '面板显示名称与力量：show=' + tc.show + ' 力量+' + tc.str + ' 行数=' + tc.rows);
-  ok(tc.pen && tc.power && tc.price, '武器专属行出现：破甲=' + tc.pen + ' 战力=' + tc.power + ' 卖价=' + tc.price);
+  ok(tc.pen && tc.power && tc.price && tc.noTrait, '武器专属行出现、没有「特性」行：破甲=' + tc.pen + ' 战力=' + tc.power + ' 卖价=' + tc.price);
 
   const tipJob = await js(`(function(){
     const S=Engine.S;
+    S.techs['stonecraft']=true;
+    Engine.addItem('木材',100); Engine.addItem('石头',50);
+    Engine.buyUpgrade('crafting',0);           // v0.0.30：先买工作台才会出现加工项目
     S.ui.page='job:crafting'; UI.render();
     const card=document.querySelector('#mainWrap .card.recipe[data-tip-item]');
-    if(!card) return JSON.stringify({miss:'加工页没有物品卡片'});
+    if(!card) return JSON.stringify({miss:'加工页没有物品卡片', badges:0, noIcon:[]});
     card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:300,clientY:300}));
     const tip=document.getElementById('itemTip');
     const badges=[...document.querySelectorAll('#mainWrap .badge.io')];
@@ -622,6 +625,94 @@ try {
   ok(cp.noCapJob, '工作页「可用角色」不再带「（前 5 名可上场）」');
   ok(cp.noCapMenu, '入驻槽弹层不再显示「前 5 名角色可上场」');
   ok(cp.noCapChar, '角色列表不再显示「前 5 名上场」');
+
+  console.log('== 战斗页：敌我血条 / 攻击间隔 / 伤害日志（v0.0.30）==');
+  await js(`(function(){
+    Engine.S = Engine.newState('战斗界面测试');
+    const S=Engine.S;
+    S.techs['bow']=true;
+    Object.assign(S.chars.player.lv,{hp:50,atk:80,str:80,def:60});
+    S.chars.player.hpNow=500;
+    S.jobs.hunting.slots[0]='player';
+    const e0=Engine.ENEMIES.find(x=>x.name==='变异巨兽');
+    const e=Object.assign({},e0,{def:0,dr:0,maxHit:10});
+    S.combat.hunting={enemy:e,ehp:e.hp,tP:0,tE:0,respawn:0,region:0,logs:[]};
+    Engine.log('战斗界面测试');
+    S.ui.page='job:hunting'; UI.render();
+  })()`);
+  await sleep(1200);
+  const fight1 = await js(`(function(){
+    const ehp=document.querySelector('[data-live="ehp"] > i');
+    const php=document.querySelector('[data-live="php"] > i');
+    const pap=document.querySelector('[data-live="pap"] > i');
+    const eap=document.querySelector('[data-live="eap"] > i');
+    const log=document.querySelector('[data-live="clog"]');
+    return JSON.stringify({ehp:ehp?ehp.style.width:null, php:php?php.style.width:null,
+      pap:pap?pap.style.width:null, eap:eap?eap.style.width:null, log:log?log.textContent:''});
+  })()`);
+  const f1 = JSON.parse(fight1);
+  ok(f1.ehp && f1.php && f1.pap && f1.eap, '战场显示敌方血条 / 我方血条 / 双方攻击间隔条：' + fight1);
+  await sleep(3600);
+  const fight2 = await js(`(function(){
+    const ehp=document.querySelector('[data-live="ehp"] > i');
+    const pap=document.querySelector('[data-live="pap"] > i');
+    const eap=document.querySelector('[data-live="eap"] > i');
+    const log=document.querySelector('[data-live="clog"]');
+    return JSON.stringify({ehp:ehp?ehp.style.width:null, pap:pap?pap.style.width:null,
+      eap:eap?eap.style.width:null, log:log?log.textContent:''});
+  })()`);
+  const f2 = JSON.parse(fight2);
+  ok(f1.ehp !== f2.ehp, '敌方血条会随伤害变化：' + f1.ehp + ' → ' + f2.ehp);
+  ok(f1.pap !== f2.pap || f1.eap !== f2.eap, '攻击间隔进度条会推进：我方 ' + f1.pap + ' → ' + f2.pap + ' / 敌方 ' + f1.eap + ' → ' + f2.eap);
+  ok(f2.log.includes('造成') && f2.log.includes('攻击'), '战斗日志显示双方造成的伤害：' + f2.log.slice(0, 120));
+
+  console.log('== 畜牧页：网格 / 大＋ / 动物面板（v0.0.30）==');
+  const hub = await js(`(function(){
+    const S=Engine.S;
+    S.techs['animal_husbandry']=true;
+    S.jobs.husbandry.up[0]=1;
+    S.chars.player.know={ '兔子':100 };
+    Engine.addHusbandryAnimal('兔子');
+    Engine.assignSlot('husbandry',1,'player');
+    Engine.addItem('草料',100);
+    S.ui.page='job:husbandry'; UI.render();
+    const pens=[...document.querySelectorAll('.penGrid .pen')];
+    const add=document.querySelector('.pen.penAdd');
+    const prog=document.querySelector('[data-live="hprog"] > i');
+    return JSON.stringify({pens:pens.length, add:!!add, plus:add?add.textContent.includes('＋'):false,
+      cap:document.getElementById('mainWrap').textContent.includes('畜牧容量'),
+      name:document.getElementById('mainWrap').textContent.includes('兔子'),
+      prog:prog?prog.style.width:null,
+      modalBefore:document.getElementById('modal').classList.contains('show')});
+  })()`);
+  const hb = JSON.parse(hub);
+  ok(hb.pens >= 2 && hb.add && hb.plus, '畜牧网格 = 动物格 + 末尾大＋虚线框：' + hub);
+  ok(hb.cap && hb.name, '显示畜牧容量与动物名称');
+  await sleep(2200);
+  const hub2 = await js(`(function(){
+    const prog=document.querySelector('[data-live="hprog"] > i');
+    document.querySelector('[data-act="hubPanel"]').click();
+    const txt=document.getElementById('modalBox').textContent;
+    return JSON.stringify({prog:prog?prog.style.width:null,
+      open:document.getElementById('modal').classList.contains('show'),
+      hasConsume:txt.includes('消耗')&&txt.includes('草料'), hasOutput:txt.includes('产出'),
+      hasTime:txt.includes('秒 / 次'), hasCap:txt.includes('占用')});
+  })()`);
+  const hb2 = JSON.parse(hub2);
+  ok(hb2.prog !== hb.prog, '畜牧进度条会推进：' + hb.prog + ' → ' + hb2.prog);
+  ok(hb2.open && hb2.hasConsume && hb2.hasOutput && hb2.hasTime && hb2.hasCap, '点大＋打开动物面板（消耗 / 产出 / 时间 / 占用容量）');
+  const hubAdd = await js(`(function(){
+    const before = Engine.husbandryAnimals().length;
+    const btn = document.querySelector('[data-hubadd="兔子"]');
+    if (!btn) return JSON.stringify({miss: true});
+    btn.click();
+    return JSON.stringify({before, after: Engine.husbandryAnimals().length,
+      closed: !document.getElementById('modal').classList.contains('show'),
+      pens: document.querySelectorAll('.penGrid .pen').length});
+  })()`);
+  const ha = JSON.parse(hubAdd);
+  ok(!ha.miss && ha.after === ha.before + 1 && ha.closed, '点击动物面板后该格变成动物、面板关闭：' + hubAdd);
+  ok(ha.pens === ha.after + 1, '末尾继续追加一个＋格：' + ha.pens + ' 格（动物 ' + ha.after + ' + 1）');
 
   console.log('== 开发者模式后门 ==');
   const dev = await js(`(function(){

@@ -470,3 +470,36 @@ html[data-theme="light"] .foeArt{background:radial-gradient(circle at 50% 64%,#e
 .pickrow .pn b{font-size:12.5px}
 .pickrow .pc{font-size:11px;white-space:nowrap}
 html[data-theme="light"] .pickrow.on{background:#eaf8f0;border-color:#8ec7aa}
+
+/* ===== v0.0.30 畜牧网格 / 战斗进度条 ===== */
+.penCard{grid-column:1/-1}
+.penGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.pen{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 8px;min-width:0}
+.pen.stall{border-color:#7a3a42}
+.pen .penx{margin-left:2px;padding:0 6px;line-height:1.4;font-size:14px;background:transparent;border-color:transparent;color:var(--dim)}
+.pen .penx:hover:not(:disabled){color:var(--red);background:transparent;border-color:transparent}
+.pen .penic{display:inline-flex;flex:none}
+.pen .penout{line-height:1.5;margin-top:2px}
+.pen .penout .badge{font-size:10px;padding:0 4px;margin:1px 1px 0 0}
+.pen.penAdd{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:108px;border:1.5px dashed #3d556d;background:transparent;color:var(--muted);border-radius:9px;cursor:pointer}
+.pen.penAdd:hover:not(:disabled){border-color:var(--green);color:var(--green);background:#12281d}
+.pen.penAdd .bigplus{font-size:34px;line-height:1;font-weight:300}
+.pen.penAdd.full{cursor:default;opacity:.55}
+.atkline{display:grid;grid-template-columns:auto 1fr 46px;align-items:center;gap:7px;margin-top:5px}
+.atkline .k{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.atkline .v{font-size:10.5px;color:var(--muted);text-align:right}
+.bar.foe>i{background:linear-gradient(90deg,#6b3f1d,#d98b45)}
+.bar.atk>i{background:linear-gradient(90deg,#2b527d,#68a9e6)}
+.battlelog{max-height:240px}
+.battlelog .l{display:flex;gap:7px;line-height:1.45}
+.battlelog .l .lt{color:var(--dim);font-size:10px;flex:none;padding-top:2px}
+.battlelog .l.hit{color:#8fd0a6}
+.battlelog .l.taken{color:#e28b93}
+.battlelog .l.miss{color:#8b98a8}
+.battlelog .l.kill{color:#e9c46a}
+.battlelog .l.bad{color:#e2636d;font-weight:600}
+html[data-theme="light"] .pen{background:#f6f8fb;border-color:#d7dfea}
+html[data-theme="light"] .pen.penAdd:hover:not(:disabled){background:#eef9f3}
+html[data-theme="light"] .battlelog .l.hit{color:#1f7a4f}
+html[data-theme="light"] .battlelog .l.taken{color:#a52a35}
+html[data-theme="light"] .battlelog .l.kill{color:#8a5a00}

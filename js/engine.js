@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.29';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.30';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -69,6 +69,7 @@ const ENEMIES = window.ENEMIES || [];
 const REGIONS = window.REGIONS || [];
 const WEAPON_COMBAT = window.WEAPON_COMBAT || {};
 const CC = window.COMBAT_CONST || {};
+const HUSBANDRY_ANIMALS = window.HUSBANDRY_ANIMALS || {};
 const HOUSING = window.HOUSING || [];
 const COMFORT = window.COMFORT || [];
 const FORTS = window.FORTS || [];
@@ -118,8 +119,27 @@ const SHARD_ITEM = 'hero_shard';  // 招募券的物品 id（旧存档按 id 存
    v0.0.12 起改为【完全无限】：不预生成、不设上限，每次「抽到随机普通角色」时现造一个，
    开除后永久消失，下次抽到的又是新面孔。 */
 const NORMAL = {
-  sur: ['林','陈','周','许','沈','顾','苏','何','罗','唐','宋','韩','叶','程','陆','温','夏','江','白','严'],
-  given: ['子墨','清和','南星','知秋','砚青','小满','听雨','若川','行舟','望舒','星野','一鸣','怀瑾','停云','衔月','拾光','长庚','临川'],
+  sur: ['林','陈','周','许','沈','顾','苏','何','罗','唐','宋','韩','叶','程','陆','温','夏','江','白','严',
+        '赵','钱','孙','李','吴','郑','王','冯','褚','卫','蒋','杨','朱','秦','尤','吕',
+        '施','张','孔','曹','金','魏','陶','姜','戚','谢','邹','喻','柏','水','窦','章','云','潘','葛'],
+  given: ['子墨','清和','南星','知秋','砚青','小满','听雨','若川','行舟','望舒','星野','一鸣','怀瑾','停云','衔月','拾光','长庚','临川',
+          '云归','疏影','青崖','远山','江晚','明月','松声','竹隐','雪舟','鹤鸣','书白','念安','初晴','微澜','庭深','向晚','之遥','以宁'],
+  /* 其它国家 / 地区的常见译名（v0.0.30：随机普通角色名字不再只有中文） */
+  foreign: [
+    '藤原·隼人','九条·千鹤','佐藤·悠真','小野·结衣','高桥·龙之介','北条·凛','源·时雨','织田·雪乃',
+    '金·泰宇','朴·智恩','李·承宇','崔·美娜','郑·道允','姜·书妍',
+    '亚瑟·布莱克','艾米丽·沃森','奥利弗·格林','索菲亚·米勒','杰克·哈里森','露西·卡特','亨利·福斯特','艾拉·汤普森',
+    '让·杜邦','玛丽·洛朗','皮埃尔·莫雷','伊莎贝尔·勒鲁',
+    '汉斯·穆勒','克拉拉·施密特','弗里德里希·韦伯','莉娜·霍夫曼',
+    '伊万·彼得罗夫','安娜·索科洛娃','德米特里·沃尔科夫','叶莲娜·斯米尔诺娃',
+    '迭戈·罗德里格斯','卡门·埃斯皮诺萨','马可·罗西','朱莉娅·费拉拉','卢卡·贝内蒂','索菲亚·孔蒂',
+    '比约恩·埃里克森','英格丽·拉尔森','奥拉夫·斯文松','西格丽德·哈根',
+    '哈桑·本·萨利姆','莱拉·哈桑','阿里·礼萨','努尔·阿尔丁',
+    '阿琼·辛格','普里娅·夏尔马','拉维·帕特尔','米拉·奈尔',
+    '阿玛拉·奥卡福','科菲·门萨','齐迪·恩迪亚耶',
+    '圣地亚哥·莫拉莱斯','伊莎贝拉·克鲁兹','马特奥·席尔瓦','瓦伦蒂娜·罗哈斯',
+    '尼科斯·帕帕多普洛斯','索菲亚·康斯坦丁','穆斯塔法·耶尔马兹','艾拉·德米尔',
+  ],
   hp: [6, 12], atk: [5, 11], str: [5, 12], def: [5, 12],
 };
 function rndInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
@@ -127,7 +147,10 @@ function normalName() {
   const used = {};
   Object.keys(S.chars).forEach(id => { used[S.chars[id].name] = 1; });
   for (let guard = 0; guard < 400; guard++) {
-    const name = NORMAL.sur[rndInt(0, NORMAL.sur.length - 1)] + NORMAL.given[rndInt(0, NORMAL.given.length - 1)];
+    // 一半左右用其它国家 / 地区的译名，其余仍是中文姓名，避免随机角色全是同一套名字
+    const name = Math.random() < 0.5
+      ? NORMAL.foreign[rndInt(0, NORMAL.foreign.length - 1)]
+      : NORMAL.sur[rndInt(0, NORMAL.sur.length - 1)] + NORMAL.given[rndInt(0, NORMAL.given.length - 1)];
     if (!used[name]) return name;
   }
   return '无名' + (S.gacha.genSeq || 0);
@@ -229,6 +252,7 @@ function newState(name) {
   JOBS.forEach(j => {
     st.jobs[j.id] = { slots: [], prog: [], blocked: [], up: new Array((j.upgrades || []).length).fill(0), upVer: 2 };
   });
+  st.jobs.husbandry.animals = [];
   const pc = newChar('player', { name: st.name, kind:'player', hp:1, atk:1, str:1, def:1 });
   st.chars.player = pc; st.order.push('player');
   st.seen.chars.player = true;
@@ -597,7 +621,7 @@ function comfortMult() { return 1 + comfortValue() * 0.0035; }
 function fortPower() { let p = 0; S.forts.forEach((b,i)=>{ if (b) p += FORTS[i].power || 0; }); return p; }
 function fortWatts() { let w = 0; S.forts.forEach((b,i)=>{ if (b) w += FORTS[i].watt || 0; }); return w; }
 function fortReduce() { let r = 0; S.forts.forEach((b,i)=>{ if (b) r += FORTS[i].reduce || 0; }); return Math.min(r, 0.9); }
-const POWERED_JOBS = ['power','machining','chemistry','glassmaking','gunpowder','semiconductors','precision_assembly','alien_mining','particle_collider','synthesis','warp_core'];
+const POWERED_JOBS = ['machining','chemistry','oil_extraction','glassmaking','gunpowder','semiconductors','precision_assembly','alien_mining','particle_collider','synthesis','warp_core'];
 function powerProduced() {
   let p = 0;
   const g = window.JOB_POWER_GENERATORS || {};
@@ -611,7 +635,7 @@ function powerDemand() {
   for (const id in S.jobs) {
     const js = S.jobs[id];
     if (!js.slots || !js.slots.some(Boolean)) continue;
-    if (POWERED_JOBS.includes(id)) d += 1;
+    if (POWERED_JOBS.includes(id)) d += (JOB_BY_ID[id] && JOB_BY_ID[id].powerUse) || 1;
     if (js.up) js.up.forEach((u, k) => { const job = JOB_BY_ID[id]; if (u && job && job.upgrades && job.upgrades[k] && job.upgrades[k].watt) d += job.upgrades[k].watt; });
   }
   d += fortWatts();
@@ -649,6 +673,8 @@ const EQUIP_RECIPE_CACHE = {};
 function equipmentJobId(it) {
   if (it.era === 'stone') return 'crafting';
   if (it.name === '长弓' || it.name === '弩') return 'crafting';
+  // v0.0.30：工业时代后的装备制造统一挪到机械加工
+  if (it.era === 'industrial' || it.era === 'info' || it.era === 'space') return 'machining';
   return TAILORING_ITEMS.has(it.name) ? 'tailoring' : 'forging';
 }
 function equipmentRecipes(job) {
@@ -675,19 +701,28 @@ function equipmentRecipes(job) {
 function jobRecipes(job) {
   if (job.special === 'mining') return miningRecipes(job);
   if (job.equipment) return equipmentRecipes(job);
+  if (job.equipmentMixed) return (job.recipes || []).concat(equipmentRecipes(job));
   if (job.recipes && job.recipes.length) return job.recipes;
   return [{ name: job.name, inputs: job.inputs || {}, outputs: job.outputs || {}, era: job.era, duration: job.duration || 2 }];
 }
 function jobRecipe(job, idx) { const l = jobRecipes(job); return l[clamp(idx, 0, l.length - 1)]; }
+/* v0.0.30：除「采集」外，所有常规工作都要先买第一个升级项才会出现第一批项目。
+   （伐木的石斧 / 采矿的石镐 / 科研的基础研究桌沿用同一条规则。）特殊工作不走项目卡，不设门槛。 */
+function jobRecipeGate(job) {
+  if (!job) return null;
+  if (job.special === 'hunting' || job.special === 'blackSoul' || job.special === 'eraSim' || job.special === 'power') return null;
+  if (job.id === 'gathering') return null;
+  return job.recipeUpgrade != null ? job.recipeUpgrade : 0;
+}
 function recipeVisible(r, job) {
   if (!r) return true;
   if (r.milestone && !(S.milestones && S.milestones[r.milestone])) return false;
   const tech = r.unlockTech || r.tech;
   if (tech && !researched(tech)) return false;
-  // v0.0.27：最基础的项目要先买对应工具 / 研究桌
-  if (job && job.recipeUpgrade != null) {
+  const gate = jobRecipeGate(job);
+  if (gate != null) {
     const js = S.jobs[job.id];
-    if (!(js && Array.isArray(js.up) && js.up[job.recipeUpgrade])) return false;
+    if (!(js && Array.isArray(js.up) && js.up[gate])) return false;
   }
   return true;
 }
@@ -706,7 +741,7 @@ function assignedCount(job) {
   const js = S.jobs[job.id];
   if (!js || !js.slots) return 0;
   const rs = jobRecipes(job);
-  return js.slots.filter((id, i) => id && S.chars[id] && recipeVisible(rs[i], job)).length;
+  return js.slots.filter((id, i) => i < rs.length && id && S.chars[id] && recipeVisible(rs[i], job)).length;
 }
 function isWorking(cid) {
   for (const id in S.jobs) {
@@ -783,7 +818,8 @@ function jobSpeed(jobId, slotIdx) {
   let m = 1;
   if (js.up) js.up.forEach((u, k) => { if (u && job.upgrades && job.upgrades[k]) m += (job.upgrades[k].bonusPct || 0) / 100; });
   m *= comfortMult();
-  m *= powerEfficiency();
+  // v0.0.30：供电不足只拖慢「耗电工作」，不该让畜牧 / 伐木这些不耗电的工作一起停摆
+  if (POWERED_JOBS.includes(jobId)) m *= powerEfficiency();
   if (c) {
     m *= masteryPct(c, jobId);
     m *= 1 + charBonusFor(c, job);
@@ -799,6 +835,109 @@ function jobSpeed(jobId, slotIdx) {
   if (S._hungry) m *= 0.5;
   return m;
 }
+/* ---------- 畜牧（v0.0.30） ---------- */
+const HUSBANDRY_UNLOCK_KNOW = 100;   // 图鉴认知度满级才能圈养
+function husbandryAnimals() {
+  const js = S.jobs.husbandry;
+  if (!js) return [];
+  if (!Array.isArray(js.animals)) js.animals = [];
+  return js.animals;
+}
+function husbandryAnimalDef(name) { return HUSBANDRY_ANIMALS[name] || null; }
+function husbandrySizeCost(name) {
+  const d = husbandryAnimalDef(name);
+  const table = (CC.husbandry && CC.husbandry.sizeCost) || { '极小': 0.5, '小': 1, '中': 2, '大': 3, '极大': 5 };
+  return d ? (table[d.size] || 1) : 1;
+}
+function husbandryUsed() {
+  return husbandryAnimals().reduce((a, x) => a + husbandrySizeCost(x.name), 0);
+}
+function husbandryCapacity() {
+  const job = JOB_BY_ID.husbandry, js = S.jobs.husbandry;
+  let cap = (CC.husbandry && CC.husbandry.initialCapacity) || 5;
+  if (job && js && Array.isArray(js.up)) {
+    (job.upgrades || []).forEach((u, i) => { if (js.up[i] && u.cap) cap += u.cap; });
+  }
+  return cap;
+}
+function animalKnown(name) {
+  let best = 0;
+  Object.keys(S.chars).forEach(id => {
+    const c = S.chars[id];
+    if (c && c.know && c.know[name]) best = Math.max(best, c.know[name]);
+  });
+  return Math.min(HUSBANDRY_UNLOCK_KNOW, best);
+}
+function husbandryAnimalList() {
+  return Object.keys(HUSBANDRY_ANIMALS).map(name => {
+    const d = HUSBANDRY_ANIMALS[name];
+    const know = animalKnown(name);
+    return {
+      name, size: d.size, duration: d.duration, consume: d.consume || 1,
+      outputs: d.outputs || {}, sizeCost: husbandrySizeCost(name),
+      know, unlocked: know >= HUSBANDRY_UNLOCK_KNOW,
+    };
+  });
+}
+function addHusbandryAnimal(name) {
+  const job = JOB_BY_ID.husbandry, js = S.jobs.husbandry;
+  const def = husbandryAnimalDef(name);
+  if (!job || !js) return { ok: false, why: '畜牧工作不存在' };
+  if (!def) return { ok: false, why: '这种动物不能畜牧' };
+  if (animalKnown(name) < HUSBANDRY_UNLOCK_KNOW) return { ok: false, why: '图鉴认知度未满 ' + HUSBANDRY_UNLOCK_KNOW };
+  const used = husbandryUsed(), cap = husbandryCapacity();
+  if (used + husbandrySizeCost(name) > cap + 1e-9) return { ok: false, why: '畜牧容量不足（' + fmt(used) + ' / ' + fmt(cap) + '）' };
+  husbandryAnimals().push({ name, prog: 0, done: 0 });
+  return { ok: true, used: husbandryUsed(), cap: husbandryCapacity(), name };
+}
+function removeHusbandryAnimal(idx) {
+  const list = husbandryAnimals();
+  if (idx < 0 || idx >= list.length) return { ok: false, why: '没有这只动物' };
+  const [a] = list.splice(idx, 1);
+  return { ok: true, name: a ? a.name : '' };
+}
+function husbandrySpeed() { return jobSpeed('husbandry', 1); }
+function husbandryFeedPerSec() {
+  const n = husbandryAnimals().reduce((a, x) => a + ((husbandryAnimalDef(x.name) || {}).consume || 1), 0);
+  return n * husbandrySpeed() / GAME.secPerDay;
+}
+/* 由「畜牧」项目推进：所有动物共用同一个派驻角色 / 同一套加速 */
+function husbandryAdvance(dt, slotIdx) {
+  const job = JOB_BY_ID.husbandry, js = S.jobs.husbandry;
+  if (!job || !js) return;
+  ensureSlots(js, jobRecipes(job).length);
+  const list = husbandryAnimals();
+  const idx = slotIdx == null ? 1 : slotIdx;
+  if (!list.length) { js.blocked[idx] = null; js.prog[idx] = 0; return; }
+  const cid = js.slots[idx];
+  const c = cid ? S.chars[cid] : null;
+  if (!c) { js.blocked[idx] = 'worker'; return; }
+  if (c.injured) { js.blocked[idx] = 'injury'; return; }
+  const speed = jobSpeed('husbandry', idx);
+  // 1 草料 / 只 / 天，按机型速度折算：动物产出越快，吃得也越快
+  const feed = list.reduce((a, x) => a + ((husbandryAnimalDef(x.name) || {}).consume || 1), 0) * dt * speed / GAME.secPerDay;
+  const fodderId = N2I('草料');
+  if (!fodderId || (S.items[fodderId] || 0) < feed) { js.blocked[idx] = 'input'; return; }
+  if (feed > 0) removeItem(fodderId, feed);
+  let total = 0;
+  list.forEach(a => {
+    const def = husbandryAnimalDef(a.name);
+    if (!def) return;
+    a.prog = (a.prog || 0) + dt * speed / Math.max(0.4, def.duration || 10);
+    while (a.prog >= 1) {
+      a.prog -= 1;
+      for (const nm in (def.outputs || {})) {
+        const id = iid(normName(nm));
+        if (id) addProducedItem(id, def.outputs[nm]);
+      }
+      a.done = (a.done || 0) + 1;
+      gainMastery(c, 'husbandry', def.duration || 10);
+    }
+    total += a.prog || 0;
+  });
+  js.prog[idx] = total / list.length;
+  js.blocked[idx] = null;
+}
 function produceJob(jobId, dt) {
   const js = S.jobs[jobId], job = JOB_BY_ID[jobId];
   if (!job) return;
@@ -813,6 +952,7 @@ function produceJob(jobId, dt) {
     const c = S.chars[cid];
     if (!c) { js.slots[i] = null; continue; }
     if (!recipeVisible(r, job)) { js.slots[i] = null; js.prog[i] = 0; continue; }
+    if (job.id === 'husbandry' && r.name === '畜牧') { husbandryAdvance(dt, i); continue; }
     if (c.injured) { js.blocked[i] = 'injury'; continue; }
     const ins = r.inputs || {};
     const rawOuts = r.outputs || {};
@@ -938,7 +1078,11 @@ function huntingBonus(c, job) {
 }
 function combatState(jobId) {
   if (!S.combat[jobId]) S.combat[jobId] = { enemy:null, ehp:0, tP:0, tE:0, respawn:0, region:0, logs:[] };
-  return S.combat[jobId];
+  const cs = S.combat[jobId];
+  if (typeof cs.tP !== 'number' || isNaN(cs.tP)) cs.tP = 0;
+  if (typeof cs.tE !== 'number' || isNaN(cs.tE)) cs.tE = 0;
+  if (!Array.isArray(cs.logs)) cs.logs = [];
+  return cs;
 }
 function enemyFor(job, js, c) {
   if (job.special === 'hunting') {
@@ -966,50 +1110,58 @@ function combatTick(jobId, dt) {
     const e = enemyFor(job, js, c);
     if (!e) return;
     cs.enemy = e; cs.ehp = e.hp; cs.tP = 0; cs.tE = 0;
-    cs.logs = cs.logs || []; pushCombatLog(cs, '遭遇 ' + e.name);
+    pushCombatLog(cs, '遭遇 ' + e.name + '（' + e.hp + ' HP）', 'sys');
     return;
   }
   const st = charStats(c);
+  if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
+  const e = cs.enemy;
   // 玩家攻击
   cs.tP += dt;
-  const interval = st.interval;
+  const interval = st.interval || 2.4;
   if (cs.tP >= interval) {
     cs.tP -= interval;
     const atkRating = Math.floor((c.lv.atk + 9) * (st.atk + 64));
-    const defRating = Math.floor(((cs.enemy.def || 0) + 9) * 64);
+    const defRating = Math.floor(((e.def || 0) + 9) * 64);
     const hit = atkRating < defRating ? atkRating/(2*defRating) : 1 - defRating/(2*atkRating);
     if (Math.random() < hit) {
-      const dmg = Math.max(1, Math.round(st.maxHit * (0.5 + Math.random()*0.5) * (1 - (cs.enemy.dr||0)/100) * huntingBonus(c, job)));
-      cs.ehp -= dmg;
+      const dmg = Math.max(1, Math.round(st.maxHit * (0.5 + Math.random()*0.5) * (1 - (e.dr||0)/100) * huntingBonus(c, job)));
+      cs.ehp = Math.max(0, cs.ehp - dmg);
       xpGain(c, 'atk', dmg * 0.4); xpGain(c, 'str', dmg * 0.2);
+      pushCombatLog(cs, charName(c) + ' 攻击 ' + e.name + '，造成 ' + dmg + ' 伤害（' + Math.ceil(cs.ehp) + ' / ' + e.hp + '）', 'hit');
       if (cs.ehp <= 0) { onKill(job, c, cs); return; }
+    } else {
+      pushCombatLog(cs, charName(c) + ' 攻击 ' + e.name + '，未命中', 'miss');
     }
   }
   // 敌人攻击
   cs.tE += dt;
-  const eint = cs.enemy.interval || 2.4;
+  const eint = e.interval || 2.4;
   if (cs.tE >= eint) {
     cs.tE -= eint;
-    const eAtk = Math.floor((cs.enemy.atk + 9) * 64), pDef = Math.floor(((c.lv.def) + 9) * 64);
+    const eAtk = Math.floor(((e.atk || 0) + 9) * 64), pDef = Math.floor(((c.lv.def) + 9) * 64);
     const hit = eAtk < pDef ? eAtk/(2*pDef) : 1 - pDef/(2*eAtk);
     if (Math.random() < hit) {
-      const emh = cs.enemy.maxHit || Math.floor(10*(2.2 + (cs.enemy.str||0)/10));
-      let dmg = Math.max(1, Math.round(emh * (0.5 + Math.random()*0.5) * (1 - st.dr/100)));
-      c.hpNow = (c.hpNow || st.maxHp) - dmg;
+      const emh = e.maxHit || Math.floor(10*(2.2 + (e.str||0)/10));
+      const dmg = Math.max(1, Math.round(emh * (0.5 + Math.random()*0.5) * (1 - st.dr/100)));
+      c.hpNow = Math.max(0, (c.hpNow === undefined || c.hpNow === null ? st.maxHp : c.hpNow) - dmg);
       xpGain(c, 'hp', dmg * 0.133); xpGain(c, 'def', dmg * 0.133);
+      pushCombatLog(cs, e.name + ' 攻击 ' + charName(c) + '，造成 ' + dmg + ' 伤害（我方 ' + Math.ceil(c.hpNow) + ' / ' + st.maxHp + '）', 'taken');
       if (c.hpNow <= st.maxHp * 0.2) {
         markInjured(c);
-        pushCombatLog(cs, '重伤！' + charName(c) + ' 退出战斗');
-        cs.enemy = null; cs.respawn = 8;
+        pushCombatLog(cs, '重伤！' + charName(c) + ' 退出战斗', 'bad');
+        cs.enemy = null; cs.ehp = 0; cs.tP = 0; cs.tE = 0; cs.respawn = 8;
         c.jobPaused = job.id;
         log('<b class="red">' + charName(c) + '</b> 在战斗中重伤，需要休养。');
       }
+    } else {
+      pushCombatLog(cs, e.name + ' 攻击 ' + charName(c) + '，未命中', 'miss');
     }
   }
 }
-function pushCombatLog(cs, msg) {
-  cs.logs.unshift({ t: Date.now(), msg });
-  if (cs.logs.length > 40) cs.logs.length = 40;
+function pushCombatLog(cs, msg, kind) {
+  cs.logs.unshift({ t: Date.now(), msg, kind: kind || '' });
+  if (cs.logs.length > 60) cs.logs.length = 60;
 }
 function onKill(job, c, cs) {
   const e = cs.enemy;
@@ -1018,25 +1170,32 @@ function onKill(job, c, cs) {
   // 图鉴认知度
   c.know = c.know || {};
   c.know[e.name] = Math.min(100, (c.know[e.name] || 0) + (huntingBonus(c,job) > 1.25 ? 2 : 1));
+  const drops = [];
+  const give = (name, n) => {
+    if (!(n > 0)) return;
+    const id = iid(normName(name));
+    if (!id) return;
+    addItem(id, n);
+    drops.push(itemName(id) + ' ×' + n);
+  };
   (e.loot || []).forEach(l => {
     if (l.name === '随机材料') return; // 模拟纪元另走 materialPool
     if (l.chance !== undefined && Math.random() > l.chance) return;
-    const nn = normName(l.name);
     const min = l.min || 1, max = l.max || min;
     const n = min + Math.floor(Math.random() * (max - min + 1));
-    if (n > 0) addItem(iid(nn), n);
+    give(l.name, n);
   });
   if (job.special === 'eraSim') {
     const pool = materialPool();
     for (let i = 0; i < 2; i++) if (pool.length) {
       const pick = weightedPick(pool);
-      if (pick) addItem(pick.id, 1);
+      if (pick) give(itemName(pick.id), 1);
     }
   }
   xpGain(c, 'str', 8); xpGain(c, 'atk', 6);
   gainMastery(c, job.id, 4);
-  pushCombatLog(cs, '击败 ' + e.name);
-  cs.enemy = null; cs.respawn = 3;
+  pushCombatLog(cs, '击败 ' + e.name + (drops.length ? '，获得 ' + drops.join('、') : ''), 'kill');
+  cs.enemy = null; cs.ehp = 0; cs.tP = 0; cs.tE = 0; cs.respawn = 3;
   cs.defeated = (cs.defeated||0) + 1;
 }
 function materialPool() {
@@ -1755,6 +1914,14 @@ function migrate(st) {
     if (merged.seen.items[oldId]) { merged.seen.items[newId] = true; delete merged.seen.items[oldId]; }
     if (merged.ever[oldId]) { merged.ever[newId] = 1; delete merged.ever[oldId]; }
   });
+  // v0.0.30：药剂工作并入医疗，药剂精通书并入医疗精通书
+  if ('book_alchemy' in merged.items) {
+    const n = merged.items.book_alchemy || 0;
+    if (n > 0) merged.items.book_medicine = (merged.items.book_medicine || 0) + n;
+    delete merged.items.book_alchemy;
+  }
+  if (merged.seen.items.book_alchemy) { merged.seen.items.book_medicine = true; delete merged.seen.items.book_alchemy; }
+  if (merged.ever.book_alchemy) { merged.ever.book_medicine = 1; delete merged.ever.book_alchemy; }
   Object.keys(merged.seen.items || {}).forEach(id => { if (merged.seen.items[id]) merged.ever[id] = 1; });
   Object.keys(merged.items).forEach(id => { if ((merged.items[id] || 0) > 0) merged.ever[id] = 1; });
   Object.keys(merged.chars).forEach(cid => {
@@ -1786,6 +1953,7 @@ function migrate(st) {
     }
   });
   merged.jobs = merged.jobs || {};
+  delete merged.jobs.pharmacy;   // v0.0.30：药剂工作已并入医疗
   JOBS.forEach(j => {
     let js = merged.jobs[j.id];
     if (!js) js = merged.jobs[j.id] = {};
@@ -1799,7 +1967,19 @@ function migrate(st) {
     }
     if (typeof js.prog === 'number') { js.prog = []; js.prog[clamp(js.recipe || 0, 0, Math.max(0, jobRecipes(j).length - 1))] = js.prog; }
     delete js.char; delete js.recipe;
-    ensureSlots(js, Math.max(1, jobRecipes(j).length));
+    const nR = Math.max(1, jobRecipes(j).length);
+    ensureSlots(js, nR);
+    // v0.0.30：锻造 51→16、裁缝 17→5，旧存档里指向已移走装备的槽位必须清掉，
+    // 否则角色会卡在一个不会推进的幽灵槽里（assignedCount 也会多算）。
+    if (js.slots.length > nR) {
+      for (let i = nR; i < js.slots.length; i++) {
+        const cid = js.slots[i];
+        if (cid && merged.chars[cid]) merged.chars[cid].jobPaused = null;
+      }
+      js.slots.length = nR;
+      if (Array.isArray(js.prog)) js.prog.length = nR;
+      if (Array.isArray(js.blocked)) js.blocked.length = nR;
+    }
     const nUp = (j.upgrades || []).length;
     if (!Array.isArray(js.up)) js.up = [];
     if (js.upVer !== 2) {
@@ -1816,6 +1996,14 @@ function migrate(st) {
     }
     while (js.up.length < nUp) js.up.push(0);
     if (js.up.length > nUp) js.up.length = nUp;
+    if (j.id === 'husbandry') {
+      if (!Array.isArray(js.animals)) js.animals = [];
+      js.animals = js.animals.filter(a => a && HUSBANDRY_ANIMALS[a.name]).map(a => ({
+        name: a.name,
+        prog: Number(a.prog) || 0,
+        done: Number(a.done) || 0,
+      }));
+    }
   });
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
@@ -1846,7 +2034,7 @@ function importSave(str) {
 window.Engine = {
   APP_VERSION,
   GAME, HEROES, POOLS, GIFTS, LEGACY_GIFT, ERA_LIST, ERA_KEYS, ERA_NAME,
-  ITEMS, ITEM_ORDER, JOBS, TECHS, ENEMIES, REGIONS, WEAPON_COMBAT, CC,
+  ITEMS, ITEM_ORDER, JOBS, TECHS, ENEMIES, REGIONS, WEAPON_COMBAT, CC, ENEMY_BY_NAME,
   HOUSING, COMFORT, FORTS, WH_UPG, GR_UPG, PR,
   get S() { return S; }, set S(v) { S = v; },
   newState, newChar, load, save, exportSave, importSave, migrate,
@@ -1861,6 +2049,8 @@ window.Engine = {
   comfortValue, comfortMult, fortPower, fortWatts, fortReduce, powerProduced, powerDemand, powerEfficiency, powerNow,
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
   recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
+  HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
+  addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandrySpeed,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, gachaPityLimit, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
   pull, dismissChar, giftTo, starUp, PULL_COST, PITY_MIN, PITY_MAX, POTION_STARDUST_COST, CODEX_REWARD, SHARD_ITEM, NORMAL,

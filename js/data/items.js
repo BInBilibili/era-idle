@@ -18,7 +18,7 @@ window.ITEMS = {
   sand:         { name: '沙',     era: 'stone', cat: 'ore', storage: 'warehouse', price: 5,    src: '采矿', use: '制陶、玻璃制造、半导体制造' },
   limestone:    { name: '石灰石', era: 'stone', cat: 'ore', storage: 'warehouse', price: 6,    src: '采矿', use: '机械加工 → 水泥 → 混凝土' },
   iron_ore:     { name: '铁矿',   era: 'stone', cat: 'ore', storage: 'warehouse', price: 7.5,  src: '采矿', use: '熔炼 → 铁锭 → 钢铁' },
-  oil:          { name: '石油',   era: 'stone', cat: 'ore', storage: 'warehouse', price: 2,    src: '采矿', use: '化学精炼' },
+  oil:          { name: '石油',   era: 'stone', cat: 'ore', storage: 'warehouse', price: 2,    src: '石油开采', use: '化学精炼' },
   nitric_acid:  { name: '硝酸',   era: 'stone', cat: 'ore', storage: 'warehouse', price: 16,   src: '采矿', use: '火药制作' },
   bauxite:      { name: '铝土矿', era: 'stone', cat: 'ore', storage: 'warehouse', price: 6,    src: '采矿', use: '熔炼 → 铝合金' },
   rare_earth:   { name: '稀土',   era: 'stone', cat: 'ore', storage: 'warehouse', price: 15,   src: '采矿', use: '半导体制造、电池升级项' },
@@ -30,11 +30,11 @@ window.ITEMS = {
   /* ============================================================
    * §三 石器时代 · 3.1 资源（14 仓库）
    * ============================================================ */
-  wood:          { name: '木材',     era: 'stone', cat: 'material', storage: 'warehouse', price: 1,   src: '伐木', use: '木工、加工、建造、燃料、造纸' },
+  wood:          { name: '木材',     era: 'stone', cat: 'material', storage: 'warehouse', price: 1,   src: '伐木 / 采集（平原）', use: '木工、加工、建造、燃料、造纸' },
   stone_block:   { name: '石材',     era: 'stone', cat: 'material', storage: 'warehouse', price: 5,   src: '切石机', use: '建造、仓库升级' },
   plant_fiber:   { name: '植物纤维', era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '加工（内衬衣物）、编织（地毯）、裁缝（弓）' },
-  fodder:        { name: '草料',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植', use: '畜牧饲料（人不能吃）' },
-  herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '医疗、药剂' },
+  fodder:        { name: '草料',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植 / 畜牧（加工草料）', use: '畜牧饲料（人不能吃）' },
+  herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '医疗' },
   bone_horn:     { name: '骨 / 角',  era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.5, src: '狩猎', use: '加工（骨项链 + 骨器升级项）' },
   compost:       { name: '堆肥',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.1, src: '腐坏转化', use: '种植化肥（+50% 产出）' },
   pottery:       { name: '陶器',     era: 'stone', cat: 'material', storage: 'warehouse', price: 8.5, src: '制陶（沙）', use: '粮仓容量升级项' },
@@ -77,7 +77,7 @@ window.ITEMS = {
   hemp:         { name: '大麻',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植（*缝制）', use: '纺织' },
   cotton:       { name: '棉花',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植（*缝制）', use: '纺织' },
   cloth:        { name: '布料',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 3,  src: '纺织', use: '裁缝（衣物）、编织（地毯）' },
-  wool:         { name: '毛料',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 2,  src: '畜牧 / 纺织', use: '裁缝（保暖衣物、袜子）' },
+  wool:         { name: '毛料',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 2,  src: '畜牧（野山羊）', use: '裁缝（保暖衣物、袜子）' },
   paper:        { name: '纸张',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 5,  src: '造纸', use: '科研（可选消耗品，+50% 科研点）' },
   croc_leather: { name: '鳄鱼皮', era: 'medieval', cat: 'animal',   storage: 'warehouse', price: 8,  src: '狩猎 / 畜牧（鳄鱼）', use: '裁缝（高级轻甲）' },
 
@@ -212,11 +212,11 @@ window.ITEMS = {
    * ============================================================ */
   herb_medicine:  { name: '草药',     era: 'stone', cat: 'medicine', storage: 'warehouse', price: 2.5,  src: '医疗（药草）', use: '补给栏 · 医物（石器 ×2 回血）',
                     med: { era: 'stone', healMul: 2, consumeSec: 20 } },
-  herbal_potion:  { name: '草药药剂', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 4,    src: '药剂', use: '补给栏 · 医物（中世纪 ×3 回血）',
+  herbal_potion:  { name: '草药药剂', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 4,    src: '医疗（药剂配方）', use: '补给栏 · 医物（中世纪 ×3 回血）',
                     med: { era: 'medieval', healMul: 3, consumeSec: 25 } },
-  medicine:       { name: '医药',     era: 'cross', cat: 'medicine', storage: 'warehouse', price: 15.5, src: '药剂（+化学燃料）', use: '补给栏 · 医物（工业 ×4 回血）',
+  medicine:       { name: '医药',     era: 'cross', cat: 'medicine', storage: 'warehouse', price: 15.5, src: '医疗（药剂配方 + 化学燃料）', use: '补给栏 · 医物（工业 ×4 回血）',
                     med: { era: 'industrial', healMul: 4, consumeSec: 30 } },
-  shining_med:    { name: '闪耀医药', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 54,   src: '药剂（+医药 +稀土 +化学燃料）', use: '补给栏 · 医物（信息 ×6 回血）',
+  shining_med:    { name: '闪耀医药', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 54,   src: '医疗（药剂配方 + 医药 + 稀土 + 化学燃料）', use: '补给栏 · 医物（信息 ×6 回血）',
                     med: { era: 'info', healMul: 6, consumeSec: 40 } },
   carpet:         { name: '地毯',     era: 'cross', cat: 'misc',     storage: 'warehouse', price: 6,    src: '编织', use: '舒适度' },
 
@@ -261,12 +261,12 @@ window.ITEMS = {
   book_carpentry:           { name: '木工精通书',       era: 'medieval',   cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '木工',       src: '商店' },
   book_textile:             { name: '纺织精通书',       era: 'medieval',   cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '纺织',       src: '商店' },
   book_tailoring:           { name: '裁缝精通书',       era: 'medieval',   cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '裁缝',       src: '商店' },
-  book_alchemy:             { name: '药剂精通书',       era: 'medieval',   cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '药剂',       src: '商店' },
   book_weaving:             { name: '编织精通书',       era: 'medieval',   cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '编织',       src: '商店' },
   book_papermaking:         { name: '造纸精通书',       era: 'medieval',   cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '造纸',       src: '商店' },
   book_power:               { name: '电力精通书',       era: 'industrial', cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '电力',       src: '商店' },
   book_machining:           { name: '机械加工精通书',   era: 'industrial', cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '机械加工',   src: '商店' },
   book_chemical_refining:   { name: '化学精炼精通书',   era: 'industrial', cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '化学精炼',   src: '商店' },
+  book_oil_extraction:      { name: '石油开采精通书',   era: 'industrial', cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '石油开采',   src: '商店' },
   book_glassmaking:         { name: '玻璃制造精通书',   era: 'industrial', cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '玻璃制造',   src: '商店' },
   book_gunpowder_making:    { name: '火药制作精通书',   era: 'industrial', cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '火药制作',   src: '商店' },
   book_semiconductor:       { name: '半导体制造精通书', era: 'info',       cat: 'book', storage: 'warehouse', price: 8000, buy: 24000, book: '半导体制造', src: '商店' },
@@ -372,8 +372,8 @@ window.ITEM_ORDER = [
 
   /* §十一 精通技能书（31 本） */
   'book_woodcutting', 'book_mining', 'book_gathering', 'book_farming', 'book_hunting', 'book_herding', 'book_cooking', 'book_crafting', 'book_research', 'book_stonecutting', 'book_pottery', 'book_medicine',
-  'book_smelting', 'book_forging', 'book_carpentry', 'book_textile', 'book_tailoring', 'book_alchemy', 'book_weaving', 'book_papermaking',
-  'book_power', 'book_machining', 'book_chemical_refining', 'book_glassmaking', 'book_gunpowder_making',
+  'book_smelting', 'book_forging', 'book_carpentry', 'book_textile', 'book_tailoring', 'book_weaving', 'book_papermaking',
+  'book_power', 'book_machining', 'book_chemical_refining', 'book_oil_extraction', 'book_glassmaking', 'book_gunpowder_making',
   'book_semiconductor', 'book_precision_assembly',
   'book_alien_mining', 'book_particle_collider', 'book_synthesis', 'book_warp_core_making',
 

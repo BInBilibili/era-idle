@@ -264,6 +264,12 @@
         break;
       }
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
+      case 'hubPanel': openHusbandryPanel(); break;
+      case 'hubRemove': {
+        const r = E.removeHusbandryAnimal(+i);
+        if (r.ok) U.toast('已移出：' + r.name);
+        U.render(); break;
+      }
       case 'upg': {
         const r = E.buyUpgrade(id, +i);
         U.toast(r.ok ? '已购买升级' : (r.why || '无法购买'), r.ok ? 'good' : 'bad');
@@ -401,6 +407,42 @@
   }
   function closeSlotMenu() {
     if (slotMenuEl) { slotMenuEl.remove(); slotMenuEl = null; }
+  }
+  /* 畜牧「＋」面板：列出可圈养动物（名称 / 消耗 / 产出 / 时间 / 占用容量 / 认知度门槛） */
+  function openHusbandryPanel() {
+    const cap = E.husbandryCapacity(), used = E.husbandryUsed();
+    const list = E.husbandryAnimalList();
+    const rows = list.map(a => {
+      const e = E.ENEMY_BY_NAME[a.name];
+      const canFit = used + a.sizeCost <= cap + 1e-9;
+      const ok = a.unlocked && canFit;
+      const why = !a.unlocked ? '认知度 ' + a.know + '/' + E.HUSBANDRY_UNLOCK_KNOW
+        : (!canFit ? '容量不足' : '');
+      return `<button type="button" class="pickrow ${ok ? '' : 'lack'}" data-hubadd="${U.esc(a.name)}" ${ok ? '' : 'disabled'}>
+        <span class="pi">${e ? U.enemyIcon(e, 'xs') : '🐾'}</span>
+        <span class="pn">
+          <b>${U.esc(a.name)}</b>
+          <span class="badge" style="margin-left:6px">占用 ${a.sizeCost}</span>
+          <span class="badge" style="margin-left:4px">${a.duration} 秒 / 次</span>
+          <div class="tiny muted">消耗：草料 ${a.consume} / 天 · 产出：${U.ioList(a.outputs)}</div>
+          ${why ? `<div class="tiny ${a.unlocked ? 'red' : 'dim'}">${U.esc(why)}</div>` : ''}
+        </span>
+        <span class="pc mono ${ok ? 'green' : 'dim'}">${ok ? '可圈养' : (a.unlocked ? '容量满' : '未解锁')}</span>
+      </button>`;
+    }).join('');
+    U.modal(`<h3>可畜牧动物</h3>
+      <div class="sub" style="margin-bottom:10px">畜牧容量 <b class="mono">${E.fmt(used)} / ${E.fmt(cap)}</b>；狩猎把该动物的图鉴认知度刷满 100 后解锁。</div>
+      <div class="picklist">${rows || '<div class="empty">暂无可畜牧动物</div>'}</div>
+      <div class="acts"><button data-act="closeModal">关闭</button></div>`);
+    document.querySelectorAll('#modalBox [data-hubadd]').forEach(el => {
+      el.onclick = () => {
+        const r = E.addHusbandryAnimal(el.dataset.hubadd);
+        if (!r.ok) { U.toast(r.why || '无法圈养', 'bad'); return; }
+        U.closeModal();
+        U.render();
+        U.toast('已圈养 ' + r.name + '（占用 ' + E.fmt(r.used) + ' / ' + E.fmt(r.cap) + '）', 'good');
+      };
+    });
   }
   function openJobSlot(jobId, slotIdx, anchor) {
     closeSlotMenu();

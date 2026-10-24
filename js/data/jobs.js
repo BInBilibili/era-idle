@@ -75,7 +75,6 @@ window.JOBS = [
       { name: "沙", weight: 30, tech: "陶器" },
       { name: "石灰石", weight: 25, tech: "混凝土" },
       { name: "铁矿", weight: 20, tech: "金属冶炼" },
-      { name: "石油", weight: 15, tech: "蒸汽机" },
       { name: "硝酸", weight: 12, tech: "蒸汽机" },
       { name: "铝土矿", weight: 12, tech: "半导体" },
       { name: "稀土", weight: 10, tech: "半导体" },
@@ -115,7 +114,7 @@ window.JOBS = [
       note: "两个修改器全开后（*核能 阶段）石头权重 100 → 50，石头概率从 41.7% 掉到约 21%，金银翻倍。"
     },
     special: "mining",
-    note: "v0.0.27：曾经拥有 1 木材 + 1 石头后永久显示；先买「石镐」（2 木材 + 2 石头）才出现矿石项目。3 秒 1 票，从 13 种矿按权重抽 1 种；概率 = 该矿权重 ÷ 当时已解锁矿的总权重（每解锁一种新矿，老矿概率自动被稀释，不需要分阶段配表）。开局只有 石头 100 / 铜矿 40（71.4% / 28.6%）。石油 / 硝酸 由采矿产出，不新增钻井工作。1.5 个采矿工喂 1 个熔炼工。"
+    note: "v0.0.27：曾经拥有 1 木材 + 1 石头后永久显示；先买「石镐」（2 木材 + 2 石头）才出现矿石项目。3 秒 1 票，从 12 种矿按权重抽 1 种；概率 = 该矿权重 ÷ 当时已解锁矿的总权重（每解锁一种新矿，老矿概率自动被稀释，不需要分阶段配表）。开局只有 石头 100 / 铜矿 40（71.4% / 28.6%）。石油已拆到独立的 #石油开采 工作；硝酸仍由采矿产出。1.5 个采矿工喂 1 个熔炼工。"
   },
   {
     id: "gathering",
@@ -155,9 +154,18 @@ window.JOBS = [
     tech: "作物栽培",
     category: "collect",
     duration: 3,
-    inputs: { "种子": 1 },
+    inputs: { "谷物种子": 1 },
     outputs: { "谷物": 6, "草料": 1 },
     powerUse: 0,
+    recipes: [
+      { name: "谷物", inputs: { "谷物种子": 1 }, outputs: { "谷物": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "豆类", inputs: { "豆类种子": 1 }, outputs: { "豆类": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "蔬菜", inputs: { "蔬菜种子": 1 }, outputs: { "蔬菜": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "甜菜", inputs: { "甜菜种子": 1 }, outputs: { "甜菜": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "药草", inputs: { "药草种子": 1 }, outputs: { "药草作物": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "干草", inputs: {}, outputs: { "草料": 1 }, era: "stone", unlockTech: null, duration: 4,
+        note: "不消耗种子 / 食材，纯粹晒制草料；畜牧的保底饲料来源" }
+    ],
     upgrades: [
       { name: "石锄", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "石锄 / 铜锄 二选一，各 +25%（各 100 木材 + 50 石头 / 铜锭）" },
       { name: "灌溉", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
@@ -165,7 +173,7 @@ window.JOBS = [
       { name: "化肥", watt: 0, bonusPct: 100, cost: { "堆肥": 1 }, note: "每次消耗 1 堆肥（持续消耗，不是一次性造价）" }
     ],
     special: null,
-    note: "1 种子 → 6 作物 + 1 草料（草料人不能吃，只喂畜牧）；收成由播的种子决定：谷物 / 豆类 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 药草作物，大麻 / 棉花 种子需 *缝制（中世纪 120）。upgrades[3] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
+    note: "1 种子 → 6 对应作物 + 1 草料；收成由播的种子决定：谷物 / 豆类 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 药草作物。额外「干草」项目不消耗任何物品，4 秒产 1 草料，保证畜牧有保底饲料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
   },
   {
     id: "hunting",
@@ -202,17 +210,23 @@ window.JOBS = [
     tech: "畜牧业",
     category: "collect",
     duration: 0,
-    inputs: { "草料": 1 },
+    inputs: {},
     outputs: {},
     powerUse: 0,
+    recipes: [
+      { name: "加工草料", inputs: { "素食食材": 2 }, outputs: { "草料": 1 }, era: "stone", unlockTech: null, duration: 4,
+        note: "把 2 份素食食材加工成 1 草料" },
+      { name: "畜牧", inputs: {}, outputs: {}, era: "stone", unlockTech: null, duration: 0,
+        note: "派驻角色后，畜牧网格里的每只动物都会推进自己的产出进度" }
+    ],
     upgrades: [
-      { name: "圈舍", watt: 0, bonusPct: 0, cost: { "木材": 100, "草料": 50 }, note: "圈舍容量 +5（不是产出加成）" },
+      { name: "圈舍", watt: 0, bonusPct: 0, cap: 5, cost: { "木材": 100, "石材": 50 }, note: "畜牧容量 +5（用木材 + 石材启动，草料留给加工草料项目）" },
       { name: "饲料槽", watt: 0, bonusPct: 25, cost: { "木材": 300, "草料": 150 }, note: "" },
-      { name: "大型牧场", watt: 0, bonusPct: 0, cost: { "木材": 800, "石材": 400 }, note: "圈舍容量 +15（不是产出加成）" },
+      { name: "大型牧场", watt: 0, bonusPct: 0, cap: 15, cost: { "木材": 800, "石材": 400 }, note: "畜牧容量 +15（不是产出加成）" },
       { name: "自动喂食机", watt: 1, bonusPct: 50, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "duration = 0 表示周期 = 狩猎期望 × 2.5（不是固定秒数）。前置：该敌人图鉴认知度满 —— 认知度是狩猎解锁畜牧的唯一路径。产出 = 该敌人肉量 × 0.6 + 副产物（毛料 / 蛋 / 奶）。消耗 1 草料 / 只 / 天（1 天 = 24 秒）。零风险纯周期，离线同伐木规则、不走战斗模拟。圈舍容量按体型占用：极小 0.5 / 小 1 / 中 2 / 大 3 / 极大 5，初始 5；机械兽、硅基生物不能畜牧；每种已驯化的敌人一条独立进度条。inputs 的草料 = 每只每日 1 份，实际速率 = 入驻只数 × 1/24 秒。"
+    note: "前置：该敌人的图鉴认知度满 100 —— 认知度是狩猎解锁畜牧的唯一路径。项目一「加工草料」消耗食材产出草料；项目二「畜牧」派驻角色后推进所有动物的产出进度条，畜牧速度加成对所有动物同时生效。网格按「畜牧容量」排布：初始 5，圈舍 +5、大型牧场 +15；体型占用 极小 0.5 / 小 1 / 中 2 / 大 3 / 极大 5。每只动物消耗 1 草料 / 天（1 天 = 24 秒），草料不足时全部动物停产。机械兽、硅基生物不能畜牧。零风险纯周期，离线同伐木规则。"
   },
   {
     id: "cooking",
@@ -336,18 +350,23 @@ window.JOBS = [
     category: "process",
     duration: 3,
     recipes: [
-      { name: "草药", inputs: { "药草": 1 }, outputs: { "草药": 1 }, era: "stone", duration: 3,
-        note: "把 1 药草捣成 1 草药；医疗工作同时让全队回血速度提高" }
+      { name: "草药", inputs: { "药草": 1 }, outputs: { "草药": 1 }, era: "stone", unlockTech: null, duration: 3,
+        note: "把 1 药草捣成 1 草药；医疗工作同时让全队回血速度提高" },
+      { name: "草药药剂", inputs: { "药草": 3 }, outputs: { "草药药剂": 1 }, era: "medieval", unlockTech: "医疗", duration: 5,
+        note: "原「药剂」工作的基础配方，已并入医疗" },
+      { name: "医药", inputs: { "草药药剂": 1, "化学燃料": 1 }, outputs: { "医药": 1 }, era: "industrial", unlockTech: "火药", duration: 5 },
+      { name: "闪耀医药", inputs: { "医药": 1, "稀土": 1, "化学燃料": 2, "药草": 1 }, outputs: { "闪耀医药": 1 }, era: "info", unlockTech: "半导体", duration: 10,
+        note: "此配方 10 秒（其余 3~5 秒）" }
     ],
     powerUse: 0,
     upgrades: [
-      { name: "医疗床", watt: 0, bonusPct: 25, cost: { "木材": 100, "药草": 50 }, note: "" },
-      { name: "医疗设备", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "银锭": 150 }, note: "" },
+      { name: "研钵", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "用木材 + 石头启动，受伤后立刻可以买，不卡药草" },
+      { name: "药剂实验室", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "银锭": 150 }, note: "" },
       { name: "医院", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "玻璃": 400 }, note: "需工业科技「公共卫生」（医疗 → 200）解锁" },
       { name: "自动医疗床", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "需工业科技「公共卫生」解锁；耗电 +1 瓦" }
     ],
     special: null,
-    note: "v0.0.27：至少一名角色受伤后永久显示。项目「草药」= 3 秒消耗 1 药草 → 1 草药（石器时代医物）。医疗工作有人入驻时全队回血速度提高；把草药 / 草药药剂 / 医药 / 闪耀医药放进角色的医物栏，受伤时还会按时代额外加速回血（草药 ×2、草药药剂 ×3、医药 ×4、闪耀医药 ×6）。医药 / 闪耀医药仍由 #18 药剂 产出。1~2 档随工作可见，3~4 档另由工业科技「公共卫生」解锁。"
+    note: "v0.0.30：原「药剂」工作整体并入医疗，成为医疗的 3 个新配方；「医疗床」升级项改名「研钵」，「医疗设备」改名「药剂实验室」。项目「草药」= 3 秒消耗 1 药草 → 1 草药；「草药药剂」需科技 *医疗（中世纪 120）；「医药」「闪耀医药」沿用原药剂的 *火药 / *半导体 门槛。医疗工作有人入驻时全队回血速度提高；把草药 / 草药药剂 / 医药 / 闪耀医药放进角色的医物栏，受伤时还会按时代额外加速回血（草药 ×2、草药药剂 ×3、医药 ×4、闪耀医药 ×6）。1~2 档随工作可见，3~4 档另由工业科技「公共卫生」解锁。"
   },
 
   /* ------------------------------------------------------------------ *
@@ -375,7 +394,7 @@ window.JOBS = [
       { name: "钢铁", inputs: { "铁锭": 1, "木材": 1 }, outputs: { "钢铁": 1 }, era: "medieval", unlockTech: "钢铁", duration: 4, note: "二级精炼：铁锭 → 钢铁。工作表原文「投料比例写实现时回填」，此处取 1 铁锭 + 1 木材 / 4 秒（价格规则：钢铁 27 = 铁锭 18 × 1.5）。" }
     ],
     upgrades: [
-      { name: "风箱", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "" },
+      { name: "风箱", watt: 0, bonusPct: 25, cost: { "铜矿": 100, "木材": 50 }, note: "启动档用铜矿 —— 铁锭要熔炼自己产，不能拿本工作的产物当门票" },
       { name: "高炉", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "石头": 150 }, note: "" },
       { name: "大型熔炉", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "电弧炉", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -401,7 +420,7 @@ window.JOBS = [
       { name: "蒸汽锤", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "5 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。51 件：主材料是金属锭 / 钢铁 / 合金 / 电子元件的装备与武器；石器时代装备与长弓 / 弩归 加工，布料 / 皮革 / 毛料 / 超织物防具归 裁缝。"
+    note: "5 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。v0.0.30 起工业 / 信息 / 太空装备全部移到机械加工，本工作只剩中世纪金属类装备与武器 18 件；石器时代装备与长弓 / 弩归 加工，布料 / 皮革 / 毛料防具归 裁缝。"
   },
   {
     id: "carpentry",
@@ -442,7 +461,7 @@ window.JOBS = [
       { name: "布料（毛料）", inputs: { "毛料": 2 }, outputs: { "布料": 1 }, era: "medieval", unlockTech: null, duration: 4 }
     ],
     upgrades: [
-      { name: "纺锤", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "毛料": 50 }, note: "" },
+      { name: "纺锤", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "启动档用木材 —— 毛料要畜牧产，不能拿本工作的输入当门票" },
       { name: "织布机", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "毛料": 150 }, note: "" },
       { name: "大型织坊", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "电动织机", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
@@ -462,45 +481,19 @@ window.JOBS = [
     equipment: true,
     powerUse: 0,
     upgrades: [
-      { name: "缝纫针", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "布料": 50 }, note: "" },
+      { name: "缝纫针", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "木材": 50 }, note: "启动档用木材 —— 布料要纺织产，不能拿本工作的输入当门票" },
       { name: "裁缝铺", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "布料": 150 }, note: "" },
       { name: "大型裁缝铺", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
       { name: "缝纫机", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "5 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。17 件：主材料是布料 / 皮革 / 毛料 / 超织物的防具；石器时代的皮革货是例外，全部由 加工 造。"
-  },
-  {
-    id: "pharmacy",
-    name: "药剂",
-    era: "medieval",
-    order: 18,
-    alwaysVisible: false,
-    tech: "医疗",
-    category: "process",
-    duration: 5,
-    inputs: { "药草": 3 },
-    outputs: { "草药药剂": 1 },
-    powerUse: 0,
-    recipes: [
-      { name: "草药药剂", inputs: { "药草": 3 }, outputs: { "草药药剂": 1 }, era: "medieval", unlockTech: null, duration: 5 },
-      { name: "医药", inputs: { "草药药剂": 1, "化学燃料": 1 }, outputs: { "医药": 1 }, era: "industrial", unlockTech: "火药", duration: 5 },
-      { name: "闪耀医药", inputs: { "医药": 1, "稀土": 1, "化学燃料": 2, "药草": 1 }, outputs: { "闪耀医药": 1 }, era: "info", unlockTech: "半导体", duration: 10, note: "此配方 10 秒（其余 5 秒）" }
-    ],
-    upgrades: [
-      { name: "研钵", watt: 0, bonusPct: 25, cost: { "铁锭": 100, "药草": 50 }, note: "" },
-      { name: "药剂房", watt: 0, bonusPct: 50, cost: { "铁锭": 300, "药草": 150 }, note: "" },
-      { name: "大型药剂房", watt: 0, bonusPct: 75, cost: { "铁锭": 800, "石材": 400 }, note: "" },
-      { name: "离心机", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
-    ],
-    special: null,
-    note: "5 秒 / 3 药草 → 1 草药药剂。三种药：草药药剂（投料 3 药草，1.5 → 售价 4，+167%）、医药（1 草药药剂 + 1 化学燃料，13 → 15.5）、闪耀医药（1 医药 + 1 稀土 + 2 化学燃料 + 1 药草，49 → 54，10 秒）。闪耀医药归本工作而不放加工 —— 放加工会撞 751.5 的价位。三种药的真实消耗方是 #12 医疗。标准 4 档按 §1.1 阶梯推导。"
+    note: "5 秒一件，材料按 资源表.md 各装备「造价」栏自动生成。v0.0.30 起工业 / 信息 / 太空装备全部移到机械加工；本工作只剩中世纪布料 / 皮革 / 毛料防具 5 件（布帽、布衬衣、布衬裤、羊毛袜、银项链）。"
   },
   {
     id: "carpet_weaving",
     name: "编织",
     era: "medieval",
-    order: 19,
+    order: 18,
     alwaysVisible: false,
     tech: "缝制",
     category: "craft",
@@ -520,7 +513,7 @@ window.JOBS = [
     id: "papermaking",
     name: "造纸",
     era: "medieval",
-    order: 20,
+    order: 19,
     alwaysVisible: false,
     tech: "文字",
     category: "process",
@@ -545,7 +538,7 @@ window.JOBS = [
     id: "power",
     name: "电力",
     era: "industrial",
-    order: 21,
+    order: 20,
     alwaysVisible: false,
     tech: "电力",
     category: "power",
@@ -568,13 +561,34 @@ window.JOBS = [
       { name: "核电站", watt: 0, bonusPct: 0, cost: { "钢铁": 5000, "机械零件": 1000 }, note: "120 瓦，消耗 1 核燃料 / 10 秒" }
     ],
     special: "power",
-    note: "3 秒 / 2 木材 → 10 瓦。5 档升级项不是产量百分比，而是产电方式的替代：1~2 档仍要人，3~5 档「无消耗、不用人」—— 设计意图是早期用人力换电、后期用电把自己的角色从电力岗位换下来。岩 11.3 峰值：9 个耗电工作 9.65 瓦 + 27 个电力升级项 27 瓦 + 冷库 1 瓦 ≈ 37.65 瓦（不含 #防御 工事 18 瓦）。"
+    note: "3 秒 / 2 木材 → 10 瓦。5 档升级项不是产量百分比，而是产电方式的替代：1~2 档仍要人，3~5 档「无消耗、不用人」—— 设计意图是早期用人力换电、后期用电把自己的角色从电力岗位换下来。v0.0.30 峰值：10 个耗电工作 10.05 瓦 + 27 个电力升级项 27 瓦 + 冷库 1 瓦 ≈ 38.05 瓦（不含 #防御 工事 18 瓦）。"
+  },
+  {
+    id: "oil_extraction",
+    name: "石油开采",
+    era: "industrial",
+    order: 22,
+    alwaysVisible: false,
+    tech: "蒸汽机",
+    category: "collect",
+    duration: 6,
+    inputs: {},
+    outputs: { "石油": 2 },
+    powerUse: 0.4,
+    upgrades: [
+      { name: "井架", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "木材": 50 }, note: "解锁石油项目" },
+      { name: "抽油机", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "石材": 150 }, note: "" },
+      { name: "大型油井", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
+      { name: "自动化钻井", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
+    ],
+    special: null,
+    note: "v0.0.30 新增：石油从采矿的 12 种矿里拆出来，成为独立的工业工作。由 *蒸汽机（工业 800）解锁；先买「井架」才出现石油项目。6 秒产 2 石油，运转时耗电 0.4 瓦。喂给 #化学精炼（3 石油 → 1 化学燃料 / 塑料）与 #火药制作（经化学燃料 + 硝酸）。"
   },
   {
     id: "machining",
     name: "机械加工",
     era: "industrial",
-    order: 22,
+    order: 21,
     alwaysVisible: false,
     tech: "精密机床",
     category: "process",
@@ -582,6 +596,7 @@ window.JOBS = [
     inputs: { "钢铁": 2, "铜锭": 1 },
     outputs: { "机械零件": 1 },
     powerUse: 0.4,
+    equipmentMixed: true,
     recipes: [
       { name: "机械零件", inputs: { "钢铁": 2, "铜锭": 1 }, outputs: { "机械零件": 1 }, era: "industrial", unlockTech: "精密机床", duration: 5 },
       { name: "电子元件", inputs: { "钢铁": 2, "铜锭": 1 }, outputs: { "电子元件": 1 }, era: "industrial", unlockTech: "精密机床", duration: 5 },
@@ -590,13 +605,13 @@ window.JOBS = [
       { name: "核燃料", inputs: { "铀矿": 1 }, outputs: { "核燃料": 1 }, era: "info", unlockTech: "核能", duration: 5 }
     ],
     upgrades: [
-      { name: "车床", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "铜锭": 50 }, note: "" },
+      { name: "车床", watt: 0, bonusPct: 25, cost: { "钢铁": 100, "铜锭": 50 }, note: "解锁机械加工项目" },
       { name: "机械车间", watt: 0, bonusPct: 50, cost: { "钢铁": 300, "铜锭": 150 }, note: "" },
       { name: "大型车间", watt: 0, bonusPct: 75, cost: { "钢铁": 800, "石材": 400 }, note: "" },
       { name: "自动化产线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦；工作表 §6.2 明写 +75%" }
     ],
     special: null,
-    note: "5 秒，同一份工作、同一个进度条，5 个配方自己选：1 机械零件 / 1 电子元件（2 钢铁 + 1 铜锭，*精密机床）｜1 水泥（1 石灰石 + 1 石材）｜1 混凝土（1 水泥 + 1 石材）（*混凝土 工业 200）｜1 核燃料（1 铀矿，*核能 信息 1,200）。工业的建材 + 电子总入口。运转时耗电 0.4 瓦。"
+    note: "5 秒，同一份工作、同一个进度条：1 机械零件 / 1 电子元件（2 钢铁 + 1 铜锭，*精密机床）｜1 水泥（1 石灰石 + 1 石材）｜1 混凝土（1 水泥 + 1 石材）（*混凝土 工业 200）｜1 核燃料（1 铀矿，*核能 信息 1,200）。v0.0.30 起工业 / 信息 / 太空时代的全部装备与武器制造也移到这里（配方由物品造价自动生成）。先买「车床」才出现项目。运转时耗电 0.4 瓦。"
   },
   {
     id: "chemistry",
@@ -621,7 +636,7 @@ window.JOBS = [
       { name: "自动化精炼线", watt: 1, bonusPct: 75, cost: { "钢铁": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "6 秒 / 3 石油 → 1 化学燃料 或 1 塑料（二选一，投料成本 6 → 售价 9，+50%）。石油由 #2 采矿 产出（*蒸汽机 后进池），不新增钻井工作。运转时耗电 0.5 瓦。"
+    note: "6 秒 / 3 石油 → 1 化学燃料 或 1 塑料（二选一，投料成本 6 → 售价 9，+50%）。石油由 #石油开采（工业 *蒸汽机）产出，不再从采矿随机掉落。运转时耗电 0.5 瓦。"
   },
   {
     id: "glassmaking",
@@ -690,7 +705,7 @@ window.JOBS = [
       { name: "芯片", inputs: { "硅片": 2, "稀土": 1, "机械零件": 1 }, outputs: { "芯片": 1 }, era: "info", unlockTech: null, duration: 8 }
     ],
     upgrades: [
-      { name: "光刻机", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "硅片": 50 }, note: "" },
+      { name: "光刻机", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "稀土": 50 }, note: "硅片要本工作自己产，启动档改用钛合金 + 稀土" },
       { name: "无尘车间", watt: 0, bonusPct: 100, cost: { "钛合金": 300, "精密零件": 150 }, note: "" },
       { name: "全自动晶圆厂", watt: 1, bonusPct: 150, cost: { "钛合金": 2000, "精密零件": 500 }, note: "耗电 +1 瓦；+150% 是全表最高一档" }
     ],
@@ -733,7 +748,7 @@ window.JOBS = [
     outputs: { "外星合金": 1, "硅片": 1 },
     powerUse: 1.25,
     upgrades: [
-      { name: "等离子钻", watt: 0, bonusPct: 50, cost: { "外星合金": 100, "精密零件": 50 }, note: "" },
+      { name: "等离子钻", watt: 0, bonusPct: 50, cost: { "钛合金": 100, "芯片": 50 }, note: "外星合金要本工作自己产，启动档用钛合金 + 芯片" },
       { name: "自动采矿站", watt: 1, bonusPct: 100, cost: { "外星合金": 2000, "反物质": 500 }, note: "耗电 +1 瓦（此工作只有 2 档）" }
     ],
     special: null,
@@ -752,7 +767,7 @@ window.JOBS = [
     outputs: { "反物质": 1 },
     powerUse: 2,
     upgrades: [
-      { name: "环形加速器", watt: 0, bonusPct: 50, cost: { "外星合金": 100, "反物质": 50 }, note: "" },
+      { name: "环形加速器", watt: 0, bonusPct: 50, cost: { "外星合金": 100, "芯片": 50 }, note: "反物质要本工作自己产，启动档用外星合金 + 芯片" },
       { name: "超级对撞机", watt: 1, bonusPct: 100, cost: { "外星合金": 2000, "反物质": 500 }, note: "耗电 +1 瓦（此工作只有 2 档）" }
     ],
     special: null,
@@ -860,7 +875,8 @@ window.JOBS = [
  *   素食食材 = 浆果 / 块根 / 野菌 / 坚果（items.js cat:"food"）
  *   肉食食材 = 肉类食材（items.js id:"meat"）
  *   种子     = 谷物种子 / 豆类种子 / 蔬菜种子 / 甜菜种子 / 药草种子（cat:"seed"）
- *   石器装备 / 金属装备 / 衣物 = 装备泛称：17 + 51 + 17 件由 engine.equipmentRecipes 从物品造价生成
+ *   石器装备 / 金属装备 / 衣物 = 装备泛称：85 件由 engine.equipmentRecipes 从物品造价生成
+ *     （v0.0.30 分工：加工 17 / 锻造 16 / 裁缝 5 / 机械加工 47）
  *   科研点 / 电力 = 特殊产出，不是仓库物品（科研点记进科研系统，电力记进电网）
  */
 

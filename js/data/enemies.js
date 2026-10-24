@@ -580,45 +580,72 @@ window.REGIONS = [
  * 深渊大剑来自 资源表.md §12.1（战斗系统.md 未单列，但计入 29 把全表）。 */
 window.WEAPON_COMBAT = {
   // 石器时代
-  "石匕首": { interval: 1.5, atk: 10, str: 0, range: 0, twoHanded: false, special: "高频" },
-  "石斧": { interval: 2.5, atk: 0, str: 18, range: 0, twoHanded: false, armorPen: 10, special: "破甲 10%" },
-  "石矛": { interval: 2.4, atk: 12, str: 8, range: 1, twoHanded: false, special: "射程 1" },
-  "短弓": { interval: 2.4, atk: 6, str: 8, range: 2, twoHanded: true, special: "射程 2" },
+  "石匕首": { interval: 1.5, atk: 10, str: 0, range: 0, twoHanded: false },
+  "石斧": { interval: 2.5, atk: 0, str: 18, range: 0, twoHanded: false, armorPen: 10 },
+  "石矛": { interval: 2.4, atk: 12, str: 8, range: 1, twoHanded: false },
+  "短弓": { interval: 2.4, atk: 6, str: 8, range: 2, twoHanded: true },
 
   // 中世纪
-  "铜匕首": { interval: 1.5, atk: 14, str: 4, range: 0, twoHanded: false, special: "高频" },
-  "铁匕首": { interval: 1.5, atk: 18, str: 8, range: 0, twoHanded: false, special: "高频" },
-  "短剑": { interval: 2.0, atk: 12, str: 12, range: 0, twoHanded: false, special: "基准" },
-  "铜矛": { interval: 2.4, atk: 16, str: 10, range: 1, twoHanded: false, special: "射程 1" },
-  "铁矛": { interval: 2.4, atk: 20, str: 16, range: 1, twoHanded: false, special: "射程 1" },
-  "战斧": { interval: 3.0, atk: 4, str: 30, range: 0, twoHanded: false, armorPen: 20, special: "破甲 20%" },
-  "双手剑": { interval: 3.6, atk: 10, str: 38, range: 0, twoHanded: true, crit: 15, special: "暴击 15%" },
-  "巨锤": { interval: 4.0, atk: 0, str: 48, range: 0, twoHanded: true, ignoreDR: 30, special: "无视 30% 伤害减免" },
-  "长弓": { interval: 3.0, atk: 10, str: 26, range: 3, twoHanded: true, special: "射程 3" },
-  "弩": { interval: 3.4, atk: 24, str: 36, range: 3, twoHanded: true, special: "射程 3，高命中" },
+  "铜匕首": { interval: 1.5, atk: 14, str: 4, range: 0, twoHanded: false },
+  "铁匕首": { interval: 1.5, atk: 18, str: 8, range: 0, twoHanded: false },
+  "短剑": { interval: 2.0, atk: 12, str: 12, range: 0, twoHanded: false },
+  "铜矛": { interval: 2.4, atk: 16, str: 10, range: 1, twoHanded: false },
+  "铁矛": { interval: 2.4, atk: 20, str: 16, range: 1, twoHanded: false },
+  "战斧": { interval: 3.0, atk: 4, str: 30, range: 0, twoHanded: false, armorPen: 20 },
+  "双手剑": { interval: 3.6, atk: 10, str: 38, range: 0, twoHanded: true, crit: 15 },
+  "巨锤": { interval: 4.0, atk: 0, str: 48, range: 0, twoHanded: true, ignoreDR: 30 },
+  "长弓": { interval: 3.0, atk: 10, str: 26, range: 3, twoHanded: true },
+  "弩": { interval: 3.4, atk: 24, str: 36, range: 3, twoHanded: true },
 
   // 工业时代
-  "刺刀": { interval: 1.5, atk: 26, str: 14, range: 0, twoHanded: false, special: "高频" },
-  "军刀": { interval: 2.0, atk: 20, str: 26, range: 0, twoHanded: false, special: "基准" },
-  "工兵铲": { interval: 3.0, atk: 6, str: 48, range: 0, twoHanded: false, armorPen: 25, special: "破甲 25%" },
-  "手枪": { interval: 1.5, atk: 16, str: 30, range: 4, twoHanded: false, special: "火器" },
-  "霰弹枪": { interval: 2.5, atk: 4, str: 66, range: 2, twoHanded: true, special: "火器，近距高伤" },
-  "步枪": { interval: 3.0, atk: 24, str: 52, range: 5, twoHanded: true, special: "火器" },
+  "刺刀": { interval: 1.5, atk: 26, str: 14, range: 0, twoHanded: false },
+  "军刀": { interval: 2.0, atk: 20, str: 26, range: 0, twoHanded: false },
+  "工兵铲": { interval: 3.0, atk: 6, str: 48, range: 0, twoHanded: false, armorPen: 25 },
+  "手枪": { interval: 1.5, atk: 16, str: 30, range: 4, twoHanded: false },
+  "霰弹枪": { interval: 2.5, atk: 4, str: 66, range: 2, twoHanded: true },
+  "步枪": { interval: 3.0, atk: 24, str: 52, range: 5, twoHanded: true },
 
   // 信息时代
-  "战术刀": { interval: 1.5, atk: 40, str: 26, range: 0, twoHanded: false, special: "高频" },
-  "碳纤维长刀": { interval: 2.4, atk: 26, str: 58, range: 0, twoHanded: false, armorPen: 30, special: "破甲 30%" },
-  "突击步枪": { interval: 2.0, atk: 34, str: 62, range: 5, twoHanded: true, special: "火器" },
-  "狙击枪": { interval: 4.0, atk: 48, str: 96, range: 6, twoHanded: true, special: "火器" },
+  "战术刀": { interval: 1.5, atk: 40, str: 26, range: 0, twoHanded: false },
+  "碳纤维长刀": { interval: 2.4, atk: 26, str: 58, range: 0, twoHanded: false, armorPen: 30 },
+  "突击步枪": { interval: 2.0, atk: 34, str: 62, range: 5, twoHanded: true },
+  "狙击枪": { interval: 4.0, atk: 48, str: 96, range: 6, twoHanded: true },
 
   // 太空时代
-  "等离子刃": { interval: 2.0, atk: 50, str: 90, range: 0, twoHanded: false, ignoreDR: 40, special: "无视 40% 伤害减免" },
-  "重力锤": { interval: 3.5, atk: 20, str: 140, range: 0, twoHanded: true, ignoreDR: 50, special: "无视 50% 伤害减免" },
-  "轨道矛": { interval: 2.4, atk: 70, str: 100, range: 3, twoHanded: false, special: "射程 3" },
-  "粒子枪": { interval: 3.0, atk: 44, str: 120, range: 6, twoHanded: true, special: "火器" },
+  "等离子刃": { interval: 2.0, atk: 50, str: 90, range: 0, twoHanded: false, ignoreDR: 40 },
+  "重力锤": { interval: 3.5, atk: 20, str: 140, range: 0, twoHanded: true, ignoreDR: 50 },
+  "轨道矛": { interval: 2.4, atk: 70, str: 100, range: 3, twoHanded: false },
+  "粒子枪": { interval: 3.0, atk: 44, str: 120, range: 6, twoHanded: true },
 
   // 黑魂套（资源表.md §12.1；仅 [黑暗之魂] 专属，1 档固定属性、不强化）
-  "深渊大剑": { interval: 2.2, atk: 30, str: 72, range: 0, twoHanded: false, armorPen: 25, special: "破甲 25%" }
+  "深渊大剑": { interval: 2.2, atk: 30, str: 72, range: 0, twoHanded: false, armorPen: 25 }
+};
+
+/* ============================================================================
+ * 畜牧动物表（工作表.md §4.6 / UI 动物列表面板）
+ *   size     占用畜牧容量的体型（COMBAT_CONST.husbandry.sizeCost）
+ *   duration 基础产出周期（秒）
+ *   outputs  一次周期的产出（中文物品名，引擎自己映射 id）
+ *   consume  每天消耗草料数量（1 天 = 24 秒，按连续时间扣）
+ * 机械兽 / 硅基生物不能畜牧，因此不在本表里。
+ * ==========================================================================*/
+window.HUSBANDRY_ANIMALS = {
+  "兔子":     { size: "极小", duration: 8,  consume: 1, outputs: { "肉类食材": 1,  "小型皮革": 1 } },
+  "松鸡":     { size: "极小", duration: 8,  consume: 1, outputs: { "肉类食材": 1,  "羽毛": 1 } },
+  "鹿":       { size: "小",   duration: 12, consume: 1, outputs: { "肉类食材": 4,  "中型皮革": 1 } },
+  "野山羊":   { size: "小",   duration: 10, consume: 1, outputs: { "肉类食材": 3,  "毛料": 1, "中型皮革": 1 } },
+  "羚羊":     { size: "小",   duration: 12, consume: 1, outputs: { "肉类食材": 5,  "中型皮革": 1 } },
+  "野猪":     { size: "中",   duration: 16, consume: 1, outputs: { "肉类食材": 5,  "中型皮革": 1, "骨 / 角": 1 } },
+  "狼":       { size: "中",   duration: 18, consume: 1, outputs: { "肉类食材": 6,  "狼皮": 1 } },
+  "鳄鱼":     { size: "中",   duration: 30, consume: 1, outputs: { "肉类食材": 9,  "鳄鱼皮": 1 } },
+  "巨蜥":     { size: "中",   duration: 28, consume: 1, outputs: { "肉类食材": 12, "厚重皮革": 1 } },
+  "熊":       { size: "大",   duration: 28, consume: 1, outputs: { "肉类食材": 11, "熊皮": 1, "骨 / 角": 1 } },
+  "驼鹿":     { size: "大",   duration: 30, consume: 1, outputs: { "肉类食材": 12, "厚重皮革": 1 } },
+  "野牛":     { size: "大",   duration: 32, consume: 1, outputs: { "肉类食材": 15, "厚重皮革": 1 } },
+  "犀牛":     { size: "大",   duration: 42, consume: 1, outputs: { "肉类食材": 24, "厚重皮革": 1, "骨 / 角": 1 } },
+  "猛犸":     { size: "极大", duration: 45, consume: 1, outputs: { "肉类食材": 18, "厚重皮革": 1, "骨 / 角": 1 } },
+  "变异巨兽": { size: "极大", duration: 55, consume: 1, outputs: { "肉类食材": 36, "厚重皮革": 1 } },
+  "外星掠食者": { size: "极大", duration: 55, consume: 1, outputs: { "肉类食材": 48, "外星皮革": 1 } }
 };
 
 /* 战斗常数。所有数值都有文档出处；文档没写的记 null 并在 notes 里点名。 */
