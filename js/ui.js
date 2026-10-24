@@ -61,31 +61,15 @@ const ERA_TAG_NAME = Object.assign({ cross: '通用' }, E.ERA_NAME || {});
 
 const UI = {
   /* ---------------- 基础 ---------------- */
-  toast(msg, kind) {
-    const box = document.getElementById('toast');
-    const d = document.createElement('div');
-    d.className = 't';
-    if (kind === 'bad') d.style.borderColor = '#7a3a42';
-    if (kind === 'good') d.style.borderColor = '#2f6b4c';
-    d.textContent = msg;
-    box.appendChild(d);
-    setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .35s'; }, 2200);
-    setTimeout(() => d.remove(), 2700);
-  },
-  /* ---------------- 获得物品消息框（底部） ----------------
-     所有物品产出都走这里：工作产出 / 采集资源包拆出的植物纤维与种子 / 狩猎掉落 /
-     抽卡礼物 / 图鉴领取 / 商店购买。同一种物品连续获得只累加数量；
-     每一行各自在「最后一次获得该物品」后 4.5 秒淡出，互不影响（不再整框共用计时）。
+  /* 统一消息框：物品产出与操作提示（入驻 / 撤下 / 购买 / 存档…）共用 #lootFeed */
+  toast(msg, kind) { this.notice(msg, kind); },
+  /* ---------------- 统一消息框（右下角） ----------------
+     物品产出与操作提示共用 #lootFeed：物品行同种累加数量，提示行按文字去重；
+     每行各自在「最后一次出现」后 4.5 秒淡出，互不影响。
      离线结算不逐条弹（走离线弹窗汇总）。 */
   LOOT_TTL: 4500,
   LOOT_FADE: 320,      // 与 .lootrow 的 opacity 过渡一致；淡出结束后再摘掉 DOM
-  loot(id, qty) {
-    if (typeof document === 'undefined') return;   // node 无头冒烟测试
-    qty = Number(qty) || 0;
-    if (!id || qty <= 0) return;
-    const it = E.ITEMS[id];
-    const feed = document.getElementById('lootFeed');
-    if (!it || !feed) return;
+  _lootBoxEl(feed) {
     if (!this._lootRows || !this._lootBox || !this._lootBox.isConnected) {
       feed.innerHTML = '';
       this._lootBox = document.createElement('div');
@@ -93,33 +77,71 @@ const UI = {
       feed.appendChild(this._lootBox);
       this._lootRows = new Map();
     }
+    return this._lootBox;
+  },
+  _trimLootRows() {
+    if (!this._lootRows || this._lootRows.size < 6) return;
+    const oldest = this._lootRows.keys().next().value;
+    const old = this._lootRows.get(oldest);
+    if (old) old.el.remove();
+    this._lootRows.delete(oldest);
+  },
+  _touchLootRow(row) {
+    // 同一条消息 / 同种物品又出现：正在淡出就拉回来，重新计 4.5 秒
+    if (row.fading) {
+      row.fading = false; row.removeAt = 0;
+      row.el.classList.remove('fade');
+    }
+    row.exp = Date.now() + this.LOOT_TTL;
+  },
+  loot(id, qty) {
+    if (typeof document === 'undefined') return;   // node 无头冒烟测试
+    qty = Number(qty) || 0;
+    if (!id || qty <= 0) return;
+    const it = E.ITEMS[id];
+    const feed = document.getElementById('lootFeed');
+    if (!it || !feed) return;
+    const box = this._lootBoxEl(feed);
     let row = this._lootRows.get(id);
     if (!row) {
-      if (this._lootRows.size >= 6) {
-        const oldest = this._lootRows.keys().next().value;
-        const old = this._lootRows.get(oldest);
-        if (old) old.el.remove();
-        this._lootRows.delete(oldest);
-      }
+      this._trimLootRows();
       const el = document.createElement('div');
       el.className = 'lootrow';
       el.innerHTML = '<span class="ic"></span><span class="n"></span><span class="q mono"></span>';
       el.querySelector('.ic').innerHTML = this.itemIcon(it);
       el.querySelector('.n').textContent = it.name;
-      this._lootBox.appendChild(el);
+      box.appendChild(el);
       row = { el, n: 0, q: el.querySelector('.q'), exp: 0, fading: false, removeAt: 0 };
       this._lootRows.set(id, row);
-    } else if (row.fading) {
-      // 这一行正在淡出时又拿到了同种物品：拉回来继续累计，4.5 秒重新计起
-      row.fading = false; row.removeAt = 0;
-      row.el.classList.remove('fade');
     }
+    this._touchLootRow(row);
     row.n += qty;
     row.q.textContent = '+' + E.fmt(row.n);
     row.q.classList.remove('bump');
     void row.q.offsetWidth;
     row.q.classList.add('bump');
-    row.exp = Date.now() + this.LOOT_TTL;
+  },
+  /* 文字提示行：与物品行共用同一个框和同一套逐行 4.5 秒计时（UI.toast 走这里） */
+  notice(text, kind) {
+    if (typeof document === 'undefined') return;
+    const msg = String(text == null ? '' : text).trim();
+    if (!msg) return;
+    const feed = document.getElementById('lootFeed');
+    if (!feed) return;
+    const box = this._lootBoxEl(feed);
+    const key = 'msg:' + msg;
+    let row = this._lootRows.get(key);
+    if (!row) {
+      this._trimLootRows();
+      const el = document.createElement('div');
+      el.className = 'lootrow msg' + (kind === 'good' || kind === 'bad' ? ' ' + kind : '');
+      el.innerHTML = '<span class="n"></span>';
+      el.querySelector('.n').textContent = msg;
+      box.appendChild(el);
+      row = { el, n: 0, q: null, exp: 0, fading: false, removeAt: 0 };
+      this._lootRows.set(key, row);
+    }
+    this._touchLootRow(row);
   },
   /* 逐行到期检查（UI.tick 每 200ms 跑一次）：每行只看自己的 exp，到点单独淡出 */
   _sweepLoot() {

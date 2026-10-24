@@ -553,6 +553,36 @@ try {
   await sleep(3000);
   ok(await js(`document.getElementById('lootFeed').textContent.trim().length === 0`), '石头也在自己的 4.5 秒后消失，消息框清空');
 
+  console.log('== 统一消息框：操作提示与物品共用 + 点击穿透（v0.0.31）==');
+  const unified = await js(`(function(){
+    Engine.S = Engine.newState('统一消息框测试');
+    UI.render();
+    document.getElementById('lootFeed').innerHTML=''; UI._lootRows=null; UI._lootBox=null;
+    UI.toast('无名者 → 伐木');
+    UI.toast('已撤下 无名者');
+    UI.toast('无名者 → 伐木', 'bad');          // 同一条提示：去重、只刷新计时
+    UI.loot('wood',2);
+    const feed=document.getElementById('lootFeed');
+    const rows=[...feed.querySelectorAll('.lootrow')];
+    const box=feed.querySelector('.lootbox');
+    const r=box?box.getBoundingClientRect():{left:0,top:0,width:0,height:0};
+    const at=box?document.elementFromPoint(Math.round(r.left+r.width/2),Math.round(r.top+r.height/2)):null;
+    return JSON.stringify({rows:rows.length,
+      msgs:rows.filter(x=>x.classList.contains('msg')).length,
+      dedupe:rows.filter(x=>x.textContent.trim()==='无名者 → 伐木').length,
+      toastGone:!document.getElementById('toast'),
+      item:feed.textContent.includes('木材'),
+      pe:getComputedStyle(feed).pointerEvents,
+      through:!at||!at.closest('#lootFeed'),
+      right:Math.round(innerWidth-r.right), bottom:Math.round(innerHeight-r.bottom)});
+  })()`);
+  const uf = JSON.parse(unified);
+  ok(uf.rows === 3 && uf.item, '操作提示与物品共用同一个消息框：' + JSON.stringify(uf));
+  ok(uf.msgs === 2 && uf.dedupe === 1, '同一条提示按文字去重：' + JSON.stringify(uf));
+  ok(uf.toastGone && uf.pe === 'none' && uf.through, '旧 #toast 已移除，消息框点击穿透：' + JSON.stringify(uf));
+  await sleep(5600);
+  ok(await js(`document.getElementById('lootFeed').textContent.trim().length === 0`), '操作提示与物品一样 4.5 秒后消失');
+
   console.log('== 获得物品消息框：工作产出 / 资源包拆包（v0.0.30）==');
   const prodLoot = await js(`(function(){
     const S=Engine.S;
