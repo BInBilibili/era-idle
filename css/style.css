@@ -512,3 +512,31 @@ html[data-theme="light"] .pen.penAdd:hover:not(:disabled){background:#eef9f3}
 html[data-theme="light"] .battlelog .l.hit{color:#1f7a4f}
 html[data-theme="light"] .battlelog .l.taken{color:#a52a35}
 html[data-theme="light"] .battlelog .l.kill{color:#8a5a00}
+
+/* ===== v0.0.33 好感度节点 / 招募卡池 / 招募券图标 ===== */
+.favorbar{position:relative;margin:7px 0 14px}
+.favorbar .bar{margin:0}
+.fnode{position:absolute;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;cursor:help;z-index:2}
+.fnode i{display:block;width:8px;height:8px;border-radius:2px;transform:rotate(45deg);background:#38485a;border:1px solid #5a7086;transition:.15s}
+.fnode.on i{background:#b49ae8;border-color:#e0d5ff;box-shadow:0 0 7px #a98be0cc}
+.fnode:hover i{transform:rotate(45deg) scale(1.25)}
+html[data-theme="light"] .fnode i{background:#c3cedd;border-color:#94a6ba}
+html[data-theme="light"] .fnode.on i{background:#8b6ed0;border-color:#6d52b5;box-shadow:0 0 6px #8b6ed077}
+
+.poollist{align-items:stretch}
+.poolwrap{display:flex;flex-direction:column;min-width:0}
+.poolwrap>.card{flex:1}
+.poolodds{line-height:1.6;padding:7px 10px 0;font-size:11px}
+.poolodds b{color:#cfd9e6}
+html[data-theme="light"] .poolodds b{color:#2c3a4b}
+.chip .av.giftav{background:#161b2a;border-color:#3a4664}
+.chip .av.giftav .icSvg{width:40px;height:40px;vertical-align:0}
+.badge .icSvg{width:14px;height:14px;vertical-align:-2px;margin-right:2px}
+.badge.shardbadge{cursor:help}
+.giftmenu .pmh{display:flex;align-items:center;gap:7px}
+.giftmenu .pmitem .mm{min-width:38px;text-align:right}
+.giftmenu .pmitem .pms{font-size:10.5px;color:var(--dim);margin:0}
+.giftmenu .pmitem{gap:7px}
+.giftmenu .pmfoot{justify-content:space-between;align-items:center}
+.giftmenu .favnow{font-size:11px;color:var(--muted)}
+.giftmenu .favnow b{color:var(--violet)}

@@ -4,7 +4,7 @@
 'use strict';
 (function () {
   const E = window.Engine, U = window.UI;
-  let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null;
+  let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null, giftMenuEl = null;
   let pendingOffline = null;
   let resetting = false;   // 「重开」确认后置 true，阻止 beforeunload/visibilitychange 把旧存档写回去
   let devTapCount = 0, devTapTimer = null;
@@ -160,11 +160,16 @@
   function wireGlobal() {
     document.addEventListener('click', onClick);
     document.addEventListener('click', e => {
+      if (giftMenuEl) {
+        if (e.target.closest('#giftMenu') || e.target.closest('[data-act="sendgift"]')) {
+          // 点自己的按钮 / 菜单内部：保持下拉打开
+        } else closeGiftMenu();
+      }
       if (!slotMenuEl) return;
       if (e.target.closest('#slotMenu') || e.target.closest('[data-act="recslot"],[data-act="cardrec"]')) return;
       closeSlotMenu();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlotMenu(); U.hideTip(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlotMenu(); closeGiftMenu(); U.hideTip(); } });
     // 物品悬浮面板：mouseover 决定显示谁，mousemove 只记坐标（整页重绘后 syncTip 靠坐标找回锚点）
     document.addEventListener('mouseover', e => U.onHover(e));
     document.addEventListener('mousemove', e => U.onHoverMove(e), { passive: true });
@@ -212,8 +217,9 @@
     if (page) page.addEventListener('scroll', () => {
       if (E.S && E.S.ui) E.S.ui.scroll = page.scrollTop;   // 记住页面滚动，重绘后还原
       closeSlotMenu();
+      closeGiftMenu();
     }, { passive: true });
-    window.addEventListener('resize', closeSlotMenu);
+    window.addEventListener('resize', () => { closeSlotMenu(); closeGiftMenu(); });
     // 开发者后门：连点版本号 5 次
     const verEl = document.getElementById('hudVer');
     if (verEl) verEl.addEventListener('click', () => {
@@ -314,7 +320,7 @@
         U.toast(r.ok ? '升星成功：★' + r.stars : (r.why || '无法升星'), r.ok ? 'good' : 'bad');
         U.render(); break;
       }
-      case 'sendgift': openGift(id); break;
+      case 'sendgift': openGiftMenu(id, el); break;
       case 'dismissChar': confirmDismiss(id); break;
       case 'pull': doPull(id); break;
       case 'claimCodex': {
@@ -646,7 +652,26 @@
       if (score(E.ITEMS[list[0]]) > curVal) { equipItem(c.cid, list[0], true); changed++; }
     });
 
-    U.toast(changed ? '已换上仓库里最好的装备（' + changed + ' 件）' : '当前装备已经是最优', changed ? 'good' : '');
+    /* v0.0.33：一键最优把补给栏一起选上。
+       食物：粮仓有货的优先特殊餐（均衡餐 > 肉餐 > 素餐），同类取贵的；
+       医物：仓库有货里回血倍率最高的。没有库存则保持原样，不选「缺货」的。 */
+    let supplyN = 0;
+    const foodRank = id => id === 'balanced_meal' ? 3 : id === 'meat_meal' ? 2 : id === 'vegetarian_meal' ? 1 : 0;
+    const foodCands = Object.keys(E.ITEMS).filter(id => E.isFoodItem(id) && E.count(id) > 0);
+    if (foodCands.length) {
+      foodCands.sort((a, b) => foodRank(b) - foodRank(a) || (E.ITEMS[b].price || 0) - (E.ITEMS[a].price || 0));
+      if (c.food !== foodCands[0]) { c.food = foodCands[0]; supplyN++; }
+    }
+    const medCands = Object.keys(E.ITEMS).filter(id => E.ITEMS[id].med && E.count(id) > 0);
+    if (medCands.length) {
+      medCands.sort((a, b) => (E.ITEMS[b].med.healMul || 1) - (E.ITEMS[a].med.healMul || 1));
+      if (c.med !== medCands[0]) { c.med = medCands[0]; c.medT = 0; supplyN++; }
+    }
+
+    const parts = [];
+    if (changed) parts.push('换上最好装备 ' + changed + ' 件');
+    if (supplyN) parts.push('补给已选最优 ' + supplyN + ' 项');
+    U.toast(parts.length ? parts.join(' · ') : '当前装备与补给已经是最优', parts.length ? 'good' : '');
     U.render();
   }
   function combinedScore(mainId, offId) {
@@ -709,22 +734,54 @@
       U.closeModal(); U.render(); U.toast('已改名');
     };
   }
-  function openGift(cid) {
+  function closeGiftMenu() {
+    if (giftMenuEl) { giftMenuEl.remove(); giftMenuEl = null; }
+  }
+  /* v0.0.33：送礼物改成常驻下拉（锚在按钮下方）。
+     赠送后不关闭：原地刷新库存与好感动，角色卡片也随 U.render() 刷新节点。 */
+  function openGiftMenu(cid, anchor) {
     const S = E.S, c = S.chars[cid];
-    if (!c) return;
-    const gifts = E.GIFTS.map(g => ({ g, it: E.ITEMS[g.id], id: g.id, n: E.count(g.id) }));
-    U.modal(`<h3>送礼物 · ${U.esc(E.charName(c))}</h3>
-      <div class="sub" style="margin-bottom:10px">当前好感度 ${c.favor}/100。50 解锁一级恩赐，100 解锁二级。</div>
-      ${gifts.map(({ g, it, id, n }) => `<div class="card" style="margin-bottom:8px"><div class="row" style="justify-content:space-between">
-        <span>${it ? U.itemIcon(it) : ''} ${U.esc(g.name)} <span class="tiny muted">+${g.favor} 好感</span></span>
-        <span class="row"><span class="tiny ${n ? 'green' : 'dim'}">持有 ${n}</span><button data-gift="${id}" ${n ? '' : 'disabled'}>赠送</button></span>
-      </div></div>`).join('')}
-      <div class="acts"><button data-act="closeModal">关闭</button></div>`);
-    document.querySelectorAll('[data-gift]').forEach(el => el.onclick = () => {
-      const r = E.giftTo(cid, el.dataset.gift);
-      U.toast(r.ok ? '好感度 +' + E.GIFTS.find(g => g.id === el.dataset.gift).favor : (r.why || '无法赠送'), r.ok ? 'good' : 'bad');
-      U.closeModal(); U.render();
-    });
+    if (!c || !anchor) return;
+    closeGiftMenu();
+    const menu = document.createElement('div');
+    menu.id = 'giftMenu';
+    menu.className = 'slotmenu giftmenu';
+    document.body.appendChild(menu);
+    const draw = () => {
+      const gifts = E.GIFTS.map(g => ({ g, it: E.ITEMS[g.id], n: E.count(g.id) }));
+      menu.innerHTML = `
+        <div class="pmh">🎁 送礼物 · ${U.esc(E.charName(c))}</div>
+        <div class="pms">当前好感度 <b class="violet">${c.favor}</b> / 100 · 50 解锁一级恩赐，100 解锁二级<br>赠送后下拉不会关闭，可以连续送。</div>
+        <div class="pmlist">${gifts.map(({ g, it, n }) => `
+          <button type="button" class="pmitem ${n ? '' : 'dim'}" data-gift="${g.id}" ${n ? '' : 'disabled'}>
+            ${it ? U.itemIcon(it) : '🎁'}
+            <span class="nm">${U.esc(g.name)} <span class="tiny dim">+${g.favor}</span></span>
+            <span class="mm tiny ${n ? 'green' : 'dim'}">×${E.fmt(n)}</span>
+            <span class="mm tiny gold">赠送</span>
+          </button>`).join('')}</div>
+        <div class="pmfoot"><span class="favnow">好感度 <b>${c.favor}</b>/100</span><button type="button" data-menu-close>关闭</button></div>`;
+      menu.querySelectorAll('[data-gift]').forEach(el => el.onclick = ev => {
+        // 菜单内部点击不应触发「点外面关闭」；U.render() 会替换页面，事件冒泡到 document 时按钮已脱离 DOM
+        ev.stopPropagation();
+        const giftId = el.dataset.gift;
+        const r = E.giftTo(cid, giftId);
+        if (!r || !r.ok) { U.toast((r && r.why) || '无法赠送', 'bad'); return; }
+        U.toast('好感度 +' + E.GIFTS.find(g => g.id === giftId).favor, 'good');
+        U.render();   // 刷新角色卡上的好感度与节点高亮
+        draw();       // 下拉保持打开，原地刷新库存 / 好感
+      });
+      const cl = menu.querySelector('[data-menu-close]');
+      if (cl) cl.onclick = closeGiftMenu;
+    };
+    draw();
+    const r = anchor.getBoundingClientRect();
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 8));
+    let top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    giftMenuEl = menu;
   }
   function doPull(poolId) {
     const r = E.pull(poolId);

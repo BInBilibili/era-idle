@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.32';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.33';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -25,15 +25,15 @@ const GAME = {
    其余 7 位 retired=true —— 数据保留（旧存档、#黑暗之魂 的门槛、刘的商店折扣仍按 id 查得到），
    但不再进任何卡池、不进图鉴、不可获得。 */
 const HEROES = [
-  { id:'dashao', name:'大少',           pool:'limited', portrait:'assets/portraits/dashao.jpg', hp:14, atk:6,  str:8,  def:12, job:'医疗',     e1:'模拟纪元',           e2:'模拟纪元+' },
-  { id:'lare',   name:'Laremehpe',      pool:'limited', portrait:'assets/portraits/lare.jpg',   hp:8,  atk:10, str:8,  def:8,  job:'科研',     e1:'波浪式地向前进',      e2:'波浪式地向前进+' },
-  { id:'yuki',   name:'星见由岐',       pool:null, retired:true, hp:12, atk:10, str:12, def:6,  job:'锻造',     e1:'黑暗之魂',           e2:'黑暗之魂+' },
-  { id:'finger', name:'一根手指扣晕你', pool:null, retired:true, hp:4,  atk:12, str:14, def:10, job:'火药制作', e1:'让这个瞬间成为永恒', e2:'让这个瞬间成为永恒+' },
-  { id:'chao',   name:'超超',           pool:null, retired:true, hp:10, atk:8,  str:6,  def:16, job:'种植',     e1:'开拓者',             e2:'开拓者+' },
-  { id:'juju',   name:'居居',           pool:null, retired:true, hp:6,  atk:6,  str:6,  def:6,  job:'畜牧',     e1:'习惯',               e2:'习惯+' },
-  { id:'muyi',   name:'木易天二人一',   pool:null, retired:true, hp:8,  atk:9,  str:10, def:7,  job:'伐木',     e1:'潜水摸鱼',           e2:'潜水摸鱼+' },
-  { id:'liu',    name:'刘',             pool:null, retired:true, hp:7,  atk:8,  str:9,  def:10, job:'烹饪',     e1:'人缘好',             e2:'人缘好+' },
-  { id:'space',  name:'空白TheSpace',   pool:null, retired:true, hp:12, atk:7,  str:8,  def:9,  job:'切石机',   e1:'搬石',               e2:'搬石+' },
+  { id:'dashao', name:'大少',           pool:'limited', portrait:'assets/portraits/dashao.jpg', hp:14, atk:6,  str:8,  def:12, job:'医疗',     e1:'模拟纪元',           e2:'模拟纪元+',           e1d:'解锁角色特技「模拟纪元」（仅大少可入驻）', e2d:'「模拟纪元」技能经验翻倍' },
+  { id:'lare',   name:'Laremehpe',      pool:'limited', portrait:'assets/portraits/lare.jpg',   hp:8,  atk:10, str:8,  def:8,  job:'科研',     e1:'波浪式地向前进',      e2:'波浪式地向前进+',      e1d:'入驻工作的速度按 10 分钟周期正弦波动', e2d:'摆动幅度加大，波峰期速度更快' },
+  { id:'yuki',   name:'星见由岐',       pool:null, retired:true, hp:12, atk:10, str:12, def:6,  job:'锻造',     e1:'黑暗之魂',           e2:'黑暗之魂+',           e1d:'解锁角色特技「黑暗之魂」（仅星见由岐可入驻）', e2d:'「黑暗之魂」技能经验翻倍' },
+  { id:'finger', name:'一根手指扣晕你', pool:null, retired:true, hp:4,  atk:12, str:14, def:10, job:'火药制作', e1:'让这个瞬间成为永恒', e2:'让这个瞬间成为永恒+', e1d:'每 24 小时可发动一次「定格」：全体在岗工作立刻完成 1 轮产出', e2d:'「定格」完成 3 轮，且不消耗输入材料' },
+  { id:'chao',   name:'超超',           pool:null, retired:true, hp:10, atk:8,  str:6,  def:16, job:'种植',     e1:'开拓者',             e2:'开拓者+',             e1d:'狩猎产出 +25%', e2d:'狩猎产出 +50%，且狩猎图鉴认知度累积 +50%' },
+  { id:'juju',   name:'居居',           pool:null, retired:true, hp:6,  atk:6,  str:6,  def:6,  job:'畜牧',     e1:'习惯',               e2:'习惯+',               e1d:'精通经验 +50%', e2d:'精通经验 +100%' },
+  { id:'muyi',   name:'木易天二人一',   pool:null, retired:true, hp:8,  atk:9,  str:10, def:7,  job:'伐木',     e1:'潜水摸鱼',           e2:'潜水摸鱼+',           e1d:'待命时也按伐木 50% 产出', e2d:'待命时也按伐木 100% 产出' },
+  { id:'liu',    name:'刘',             pool:null, retired:true, hp:7,  atk:8,  str:9,  def:10, job:'烹饪',     e1:'人缘好',             e2:'人缘好+',             e1d:'商店买入价 -15%', e2d:'商店买入价 -30%' },
+  { id:'space',  name:'空白TheSpace',   pool:null, retired:true, hp:12, atk:7,  str:8,  def:9,  job:'切石机',   e1:'搬石',               e2:'搬石+',               e1d:'采矿产出 +50%', e2d:'采矿产出 +100%' },
 ];
 /* 只有 2 个池：限定（有名英雄 + 随机普通角色）/ 常驻（只有随机普通角色）。
    namedW = 池内全部有名英雄的权重之和；normalW = 「抽到一个随机普通角色」的权重。
@@ -238,7 +238,7 @@ function newState(name) {
     jobs: {}, techs: {}, recipes: {},
     housing: 0, comfort: [], forts: [], whUpg: 0, granary: 0,
     shop: { slots: [], next: 0 },
-    gacha: { pity: {}, pulls: 0, noNew: {}, genSeq: 0 },
+    gacha: { pity: { shared: 0 }, pulls: 0, noNew: { shared: 0 }, genSeq: 0 },
     codex: { items: {}, enemies: {}, chars: {} },
     combat: {},
     raid: { next: GAME.raidPeriod, last: null, count: 0 },
@@ -737,14 +737,15 @@ function jobProjectLabel(job) {
   if (names.length === 2) return names.join('、');
   return job.name;
 }
-/* 升级项描述 = 解锁内容 + 产出加成 + 数据备注；「解锁 X 项目」由代码生成，不写进数据。 */
+/* 升级项描述 = 解锁内容 + 工作速度加成 + 数据备注；「解锁 X 项目」由代码生成，不写进数据。
+   v0.0.33：bonusPct 实际作用于 jobSpeed（进度推进倍率），描述统一写「工作速度」。 */
 function upgradeDesc(job, idx) {
   const u = job && job.upgrades && job.upgrades[idx];
   if (!u) return '';
   const parts = [];
   if (jobRecipeGate(job) === idx) parts.push('解锁' + jobProjectLabel(job) + '项目');
   const bonus = upgradeBonus(job, idx, u);
-  if (bonus) parts.push('产出 +' + bonus + '%');
+  if (bonus) parts.push('工作速度 +' + bonus + '%');
   if (u.note) parts.push(String(u.note));
   return parts.join(' · ');
 }
@@ -1333,18 +1334,22 @@ function sellItem(id, qty) {
 }
 
 /* ---------- 抽卡 ---------- */
-function gachaPity(poolId) {
-  if (!S.gacha.noNew[poolId]) S.gacha.noNew[poolId] = 0;
-  return S.gacha.noNew[poolId];
+/* v0.0.33：限定 / 常驻共用一个保底窗口（PITY_KEY），不再分池独立。
+   旧存档 migrate() 会把两个池的窗口合并到 shared。 */
+const PITY_KEY = 'shared';
+function gachaPity() {
+  if (!S.gacha.noNew) S.gacha.noNew = {};
+  if (!S.gacha.noNew[PITY_KEY]) S.gacha.noNew[PITY_KEY] = 0;
+  return S.gacha.noNew[PITY_KEY];
 }
-/* 保底窗口：第 1 抽必出角色；每抽到一次角色，下一窗口 +1 抽，封顶 10 抽（分池独立） */
-function gachaPityLimit(poolId) {
-  const n = (S.gacha.pity && S.gacha.pity[poolId]) || 0;
+/* 保底窗口：第 1 抽必出角色；每抽到一次角色，下一窗口 +1 抽，封顶 10 抽（两池共用） */
+function gachaPityLimit() {
+  const n = (S.gacha.pity && S.gacha.pity[PITY_KEY]) || 0;
   return Math.min(PITY_MAX, PITY_MIN + n);
 }
-function bumpGachaPity(poolId) {
+function bumpGachaPity() {
   if (!S.gacha.pity) S.gacha.pity = {};
-  S.gacha.pity[poolId] = Math.min(PITY_MAX, (S.gacha.pity[poolId] || 0) + 1);
+  S.gacha.pity[PITY_KEY] = Math.min(PITY_MAX, (S.gacha.pity[PITY_KEY] || 0) + 1);
 }
 function shardCount() { return S.items[SHARD_ITEM] || 0; }
 function ownsHero(hid) { return !!S.chars[hid]; }
@@ -1355,15 +1360,15 @@ function pull(poolId) {
   if ((S.items[SHARD_ITEM]||0) < PULL_COST) return { ok:false, why:'招募券不足（需要 ' + PULL_COST + ' 张）' };
   removeItem(SHARD_ITEM, PULL_COST);
   S.gacha.pulls++; S.stats.pulls++;
-  const noNew = gachaPity(poolId);
-  const needPity = noNew + 1 >= gachaPityLimit(poolId);   // 本窗口的最后一抽 → 必出角色
+  const noNew = gachaPity();
+  const needPity = noNew + 1 >= gachaPityLimit();   // 本窗口的最后一抽 → 必出角色
   const isChar = needPity || Math.random() < 0.30;
   if (!isChar) {
     const roll = Math.random() * 100;
     let acc = 0, tier = GIFTS[0];
     for (const g of GIFTS) { acc += g.w; if (roll <= acc) { tier = g; break; } }
     addItem(tier.id, 1);
-    S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出角色」
+    S.gacha.noNew[PITY_KEY] = noNew + 1;   // 礼物也算「这一抽没出角色」
     return { ok:true, type:'gift', gift: tier };
   }
   // 抽角色：先掷「有名英雄 or 全新随机普通角色」
@@ -1382,8 +1387,8 @@ function pull(poolId) {
     }
   }
   // 抽到角色（含重复）→ 关闭当前窗口：本窗口计数清零，下一窗口 +1 抽（封顶 10）
-  bumpGachaPity(poolId);
-  S.gacha.noNew[poolId] = 0;
+  bumpGachaPity();
+  S.gacha.noNew[PITY_KEY] = 0;
   if (hero) {
     const hid = hero.id;
     if (ownsHero(hid)) {
@@ -2071,6 +2076,14 @@ function migrate(st) {
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
   merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, genSeq:0 }, st.gacha || {});
   if (!merged.gacha.genSeq) merged.gacha.genSeq = 0;
+  /* v0.0.33：保底改为限定 / 常驻共用 → 旧存档的两个池窗口合并到 shared（取进度最深的那个，对玩家更宽松） */
+  const g = merged.gacha;
+  if (!g.pity) g.pity = {};
+  if (!g.noNew) g.noNew = {};
+  if (g.pity.shared == null) g.pity.shared = Math.max(g.pity.limited || 0, g.pity.standard || 0);
+  if (g.noNew.shared == null) g.noNew.shared = Math.max(g.noNew.limited || 0, g.noNew.standard || 0);
+  delete g.pity.limited; delete g.pity.standard;
+  delete g.noNew.limited; delete g.noNew.standard;
   // 旧存档（v0.0.10/0.0.11）的预生成普通角色：已抽到手的人还在 S.chars 里，只是不再有新批次
   delete merged.gacha.normals;
   merged.codex = Object.assign({ items:{}, enemies:{}, chars:{} }, st.codex || {});

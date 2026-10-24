@@ -249,6 +249,16 @@ const UI = {
     info.power = it.cat === 'weapon' ? info.str * 2 + info.atk : (it.dr || 0) * 5 + info.str * 2;   // 与 engine.gearPower 同权重
     return info;
   },
+  /* v0.0.33：物品面板的「获取」只写来源，不再展开配方细节。
+     例：医药 的 src「医疗（药剂配方 + 化学燃料）」→ 显示「医疗」。
+     全角 / 半角括号里的补充说明（材料、具体动物、*缝制 等）统一去掉。 */
+  srcText(src) {
+    return String(src === undefined || src === null ? '' : src)
+      .replace(/（[^）]*）/g, '')
+      .replace(/\([^)]*\)/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
   itemTipHtml(id) {
     const info = this.itemInfo(id);
     if (!info) return '';
@@ -320,7 +330,8 @@ const UI = {
     if (it.gift) h += row('送礼好感', '+' + it.gift, 'gold');
     if (it.storage === 'granary') h += row('腐坏', '每 2400 秒减半', 'red');
 
-    if (it.src) h += `<div class="ttSec">获取</div><div class="ttDesc">${esc(it.src)}</div>`;
+    const srcText = it.src ? this.srcText(it.src) : '';
+    if (srcText) h += `<div class="ttSec">获取</div><div class="ttDesc">${esc(srcText)}</div>`;
     if (it.use) h += `<div class="ttDesc">用途：${esc(it.use)}</div>`;
     if (it.note) h += `<div class="ttDesc">备注：${esc(it.note)}</div>`;
 
@@ -373,6 +384,18 @@ const UI = {
     tip.classList.add('show');
     this._placeTip(el);
   },
+  /* 好感度节点：复用同一个悬浮面板容器 */
+  showFavorTip(el) {
+    const tip = document.getElementById('itemTip');
+    if (!tip) return;
+    const [cid, tier] = String(el.dataset.tipFavor || '').split(':');
+    const html = this.favorTipHtml(cid, +tier);
+    if (!html) return this.hideTip();
+    if (this._tipHtml !== html) { tip.innerHTML = html; this._tipHtml = html; }
+    this._tipId = '#fav:' + el.dataset.tipFavor;
+    tip.classList.add('show');
+    this._placeTip(el);
+  },
   /* 固定方向：默认贴在元素正下方居中；下方放不下就翻到正上方；横向越界夹进视口 */
   _placeTip(el) {
     const tip = document.getElementById('itemTip');
@@ -406,6 +429,13 @@ const UI = {
     this._tipX = e.clientX; this._tipY = e.clientY;
     if (!e.target || !e.target.closest) return;
     if (e.target.closest('[data-act="recslot"]')) return this.hideTip();   // 入驻槽不抢物品面板
+    const fav = e.target.closest('[data-tip-favor]');
+    if (fav) {
+      const key = fav.dataset.tipFavor;
+      if (this._tipEl === fav && this._tipId === '#fav:' + key) return;
+      this._tipEl = fav;
+      return this.showFavorTip(fav);
+    }
     const hub = e.target.closest('[data-tip-hub]');
     if (hub) {
       if (this._tipEl === hub && this._tipId === '#hub') return;
@@ -429,6 +459,12 @@ const UI = {
       if (!hub) return this.hideTip();
       this._tipEl = hub;
       return this.showHubTip(hub);
+    }
+    if (String(this._tipId).indexOf('#fav:') === 0) {
+      const fav = under && under.closest ? under.closest('[data-tip-favor]') : null;
+      if (!fav || '#fav:' + fav.dataset.tipFavor !== this._tipId) return this.hideTip();
+      this._tipEl = fav;
+      return this.showFavorTip(fav);
     }
     const el = under && under.closest ? under.closest('[data-tip-item]') : null;
     if (!el || el.dataset.tipItem !== this._tipId) return this.hideTip();
@@ -465,12 +501,6 @@ const UI = {
          <span class="ic">${icon}</span><span class="nm">${name}</span>${sub ? `<span class="sub ${String(sub).indexOf('人在工作') >= 0 ? 'green' : ''}">${sub}</span>` : ''}
        </div>`;
     let h = '';
-    // 角色特技（狩猎归入「工作」，不再单列「战斗」分组）
-    const gifts = E.JOBS.filter(j => (j.special === 'blackSoul' || j.special === 'eraSim') && E.jobVisible(j));
-    if (gifts.length) {
-      h += `<div class="grp">角色特技</div>`;
-      gifts.forEach(j => h += nav('job:' + j.id, this.jobIcon(j), j.name + '（' + (j.staffOnly || (j.special === 'blackSoul' ? '星见由岐' : '大少')) + '）', ''));
-    }
     // 被动
     const nv = k => (window.ICONS ? window.ICONS.nav(k) : '•');
     h += `<div class="grp">被动</div>`;
@@ -486,6 +516,12 @@ const UI = {
     E.JOBS.filter(j => (j.special !== 'blackSoul' && j.special !== 'eraSim') && E.jobVisible(j)).forEach(j => {
       h += nav('job:' + j.id, this.jobIcon(j), j.name, this.jobSub(j), this.jobSub(j) && j.id !== 'hunting' ? '' : '');
     });
+    // 角色特技（v0.0.33：挪到工作列表最下面；狩猎归入「工作」，不再单列「战斗」分组）
+    const gifts = E.JOBS.filter(j => (j.special === 'blackSoul' || j.special === 'eraSim') && E.jobVisible(j));
+    if (gifts.length) {
+      h += `<div class="grp">角色特技</div>`;
+      gifts.forEach(j => h += nav('job:' + j.id, this.jobIcon(j), j.name + '（' + (j.staffOnly || (j.special === 'blackSoul' ? '星见由岐' : '大少')) + '）', ''));
+    }
     document.getElementById('side').innerHTML = h;
   },
   jobSub(job) {
@@ -910,6 +946,7 @@ const UI = {
           <div style="flex:1;min-width:0">
             <div class="row" style="justify-content:space-between"><b class="small">${this.esc(E.charName(c))}</b><span class="tiny ${c.injured ? 'red' : 'muted'}">${c.injured ? '重伤' : '战斗中'}</span></div>
             <div class="bar hp" style="margin-top:5px" data-live="php"><i style="width:${pct(hp / st.maxHp * 100)}"></i><span data-live="phpText">${Math.ceil(hp)} / ${st.maxHp}</span></div>
+            <div class="tiny muted" style="margin-top:6px">命中 ${st.atk} · 力量 ${st.str} · 防御 ${c.lv.def} · 减免 ${st.dr.toFixed(0)}% · 间隔 ${st.interval.toFixed(1)}s</div>
             <div class="atkline"><span class="k">我方攻击</span><div class="bar sm atk" data-live="pap"><i style="width:${pct((cs.tP || 0) / (st.interval || 2.4) * 100)}"></i></div><span class="v mono" data-live="papText">${Math.max(0, (st.interval || 2.4) - (cs.tP || 0)).toFixed(1)}s</span></div>
           </div>
         </div>`;
@@ -1230,6 +1267,37 @@ const UI = {
       <div class="tiny dim supplyState">${this.esc(state)}</div>
     </div>`;
   },
+  /* v0.0.33：好感度进度条上的 25 / 50 / 100 节点。
+     节点本身可悬浮，面板写清「到点后解锁什么」（数据来自 HEROES 的 e1d / e2d）。 */
+  favorNode(c, tier) {
+    const on = c.favor >= tier;
+    const left = tier === 100 ? 'transform:translate(-100%,-50%);left:100%' : `left:${tier}%`;
+    return `<span class="fnode ${on ? 'on' : ''}" data-tip-favor="${c.cid}:${tier}" style="${left}"><i></i></span>`;
+  },
+  favorTipHtml(cid, tier) {
+    const c = E.S.chars[cid];
+    if (!c) return '';
+    const esc = s => this.esc(s);
+    const def = E.heroDef(cid) || {};
+    const on = c.favor >= tier;
+    let name = '', desc = '';
+    if (tier === 25) {
+      name = '头像解锁';
+      desc = '好感度 ≥ 25 后解锁该角色头像：角色列表、招募页显示立绘。';
+    } else if (tier === 50) {
+      name = def.e1 || '一级社交恩赐';
+      desc = def.gen ? '随机普通角色没有社交恩赐。' : (def.e1d || '好感度 ≥ 50 后解锁一级社交恩赐。');
+    } else {
+      name = def.e2 || '二级社交恩赐';
+      desc = def.gen ? '随机普通角色没有社交恩赐。' : (def.e2d || '好感度达到 100 后强化一级社交恩赐。');
+    }
+    return `<div class="ttHead"><span class="ttIcon">💜</span><div class="ttTitle">
+      <b>好感度 ${tier} 节点</b>
+      <div class="ttTags"><span class="badge ${on ? 'on' : 'off'}">${on ? '已激活' : '未激活'}</span></div></div></div>
+      <div class="ttRows"><div class="ttRow"><span class="k">当前好感</span><span class="v mono">${c.favor} / 100</span></div></div>
+      <div class="ttSec">节点效果</div>
+      <div class="ttDesc"><b class="violet">${esc(name)}</b>：${esc(desc)}</div>`;
+  },
   pageCharacters() {
     const S = E.S;
     const sel = S.chars[S.ui.charSel] ? S.ui.charSel : (S.order[0] || 'player');
@@ -1290,14 +1358,17 @@ const UI = {
               <span class="small">好感度 <b class="violet">${c.favor}</b>/100</span>
               <span class="tiny dim">${c.favor >= 100 ? '爱戴' : c.favor >= 50 ? '友好' : c.favor >= 25 ? '头像已解锁' : '陌生'}</span>
             </div>
-            <div class="bar" style="margin:6px 0 10px"><i style="width:${c.favor}%;background:linear-gradient(90deg,#4b3a6b,#a98be0)"></i></div>
+            <div class="favorbar">
+              <div class="bar"><i style="width:${c.favor}%;background:linear-gradient(90deg,#4b3a6b,#a98be0)"></i></div>
+              ${[25, 50, 100].map(t => this.favorNode(c, t)).join('')}
+            </div>
             <div class="row" style="justify-content:space-between">
               <span class="small">升星 <b class="gold">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</b></span>
               <button class="gold" data-act="starup" data-id="${c.cid}" ${c.stars >= 5 ? 'disabled' : ''}>升星（${c.stars} 瓶药水）</button>
             </div>
-            <div class="tiny dim" style="margin-top:4px">${c.gen ? '随机普通角色' : '自带工作加成'}：${(() => { const h = E.heroDef(c.cid); return (h && h.job) ? this.esc(h.job) + ' +' + Math.round(E.charBonusFor(c, { name: h.job }) * 100) + '%' : '无'; })()}</div>
+            <div class="tiny dim" style="margin-top:4px">${(() => { const h = E.heroDef(c.cid); const job = h && h.job; return job ? '特长：' + this.esc(job) + ' +' + Math.round(E.charBonusFor(c, { name: job }) * 100) + '% 工作速度' : '特长：无'; })()}</div>
             <div class="row" style="margin-top:8px">
-              ${c.gen ? `<button class="red" data-act="dismissChar" data-id="${c.cid}">开除</button>` : `<button data-act="sendgift" data-id="${c.cid}">🎁 送礼物</button>`}
+              ${c.gen ? `<button class="red" data-act="dismissChar" data-id="${c.cid}">开除</button>` : `<button data-act="sendgift" data-id="${c.cid}" aria-haspopup="true">🎁 送礼物</button>`}
             </div>` : `<div class="tiny dim" style="margin-top:8px">玩家角色。</div>`}
         </div>
 
@@ -1421,23 +1492,22 @@ const UI = {
     const shards = E.shardCount();
     const cost = E.PULL_COST;
     const genOwned = S.order.filter(id => S.chars[id] && S.chars[id].gen).length;
-    let h = `<div class="wrap"><div class="pagehead"><h2>招募</h2>
-      <span class="badge">招募券 <b class="gold">${shards}</b></span>
-      <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span>
-      <span class="badge">随机普通角色 ${genOwned}</span></div>
-      <div class="hint">使用招募券概率获取到角色</div>
-      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
+    const shardItem = E.ITEMS[E.SHARD_ITEM];
+    const pityNoNew = E.gachaPity(), pityWin = E.gachaPityLimit();
     const giftOdds = E.GIFTS.map(g => this.esc(g.name) + ' ' + (g.w / 100 * 70).toFixed(1) + '%').join(' / ');
+    const giftChip = `<div class="chip poolchip"><div class="av md giftav">${this.itemIcon(E.ITEMS[E.GIFTS[0].id])}</div><div class="cn tiny">好感度礼物</div></div>`;
+    let h = `<div class="wrap"><div class="pagehead"><h2>招募</h2>
+      <span class="badge shardbadge" data-tip-item="${E.SHARD_ITEM}">${shardItem ? this.itemIcon(shardItem) : ''}招募券 <b class="gold">${shards}</b></span>
+      <span class="badge">累计抽卡 ${S.gacha.pulls || 0}</span>
+      <span class="badge">随机普通角色 ${genOwned}</span>
+      <span class="badge" title="限定与常驻共用一个保底窗口；抽到角色后窗口 +1 抽，最长 10 抽">保底 ${pityNoNew}/${pityWin} 抽</span></div>
+      <div class="grid poollist" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-top:14px">`;
     E.POOLS.forEach(p => {
       const named = (p.heroes || []).map(id => E.heroDef(id)).filter(Boolean);
       const namedOwned = named.filter(hero => E.ownsHero(hero.id)).length;
       const complete = named.length > 0 && namedOwned === named.length;
-      const noNew = E.gachaPity(p.id), window = E.gachaPityLimit(p.id);
-      const left = Math.max(1, window - noNew);
-      const charOdds = named.length
-        ? '出角色时：有名英雄 90.9%（每人 45.5%）/ 随机普通角色 9.1%'
-        : '出角色时：随机普通角色 100%（常驻池没有有名英雄）';
-      h += `<div class="card">
+      h += `<div class="poolwrap">
+        <div class="card">
         <div class="row" style="justify-content:space-between"><h3 style="margin:0">${this.esc(p.name)}</h3><span class="badge ${complete ? 'on' : ''}">${named.length ? '英雄 ' + namedOwned + '/' + named.length : '随机角色'}</span></div>
         <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
           ${named.map(hero => {
@@ -1449,15 +1519,15 @@ const UI = {
           <div class="chip poolchip">
             <div class="av md empty">？</div><div class="cn tiny">随机普通角色</div>
           </div>
-        </div>
-        <div class="tiny muted" style="margin-top:10px;line-height:1.6">
-          <div>出角色 <b class="green">30%</b> · 礼物 <b>70%</b></div>
-          <div>礼物档位：${giftOdds}</div>
-          <div>当前窗口 ${noNew}/${window} 抽，再抽 <b class="gold">${left}</b> 次内必出角色</div>
-          <div>${charOdds}</div>
+          ${giftChip}
         </div>
         <div class="row" style="margin-top:10px;justify-content:flex-end">
           <button class="gold" data-act="pull" data-id="${p.id}" ${shards < cost ? 'disabled' : ''}>抽一次（${cost} 招募券）</button>
+        </div>
+        </div>
+        <div class="tiny muted poolodds">
+          <div>出角色 <b class="green">30%</b> · 好感度礼物 <b>70%</b></div>
+          <div>礼物档位：${giftOdds}</div>
         </div>
       </div>`;
     });
@@ -1465,7 +1535,7 @@ const UI = {
       <div class="card" style="margin-top:14px">
         <h3>已拥有角色</h3>
         <div class="chips" style="margin-top:8px">
-          ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip"><div class="cn">${this.esc(E.charName(c))}${c.gen ? ' <span class="tiny dim">随机</span>' : ''}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
+          ${S.order.filter(id => S.chars[id] && S.chars[id].kind !== 'player').map(id => { const c = S.chars[id]; return `<div class="chip" title="${this.esc(E.charName(c))}"><div class="avwrap">${this.avatar(c)}</div><div class="cn">${this.esc(E.charName(c))}${c.gen ? ' <span class="tiny dim">随机</span>' : ''}</div><div class="tiny gold">${'★'.repeat(c.stars)}</div><div class="tiny muted">好感 ${c.favor}</div></div>`; }).join('') || '<span class="dim small">还没有英雄角色</span>'}
         </div>
       </div>
     </div>`;
