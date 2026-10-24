@@ -20,6 +20,8 @@ button.primary:hover:not(:disabled){background:linear-gradient(180deg,#3480bf,#2
 button.gold{background:linear-gradient(180deg,#6b5522,#4c3c17);border-color:#8a6f2e;color:#ffe9b8}
 button.gold:hover:not(:disabled){background:linear-gradient(180deg,#7d6328,#5a471b)}
 button.danger{background:#3a2024;border-color:#7a3a42;color:#ffc9ce}
+button.devbtn{font-size:11px;line-height:1.5;padding:2px 8px}
+button.devbtn:hover:not(:disabled){background:#4a262b;border-color:#a04a55}
 h1,h2,h3,h4{margin:0;font-weight:600}
 a{color:var(--blue);text-decoration:none}
 ::-webkit-scrollbar{width:9px;height:9px}

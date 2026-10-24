@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.36';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.37';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -1582,6 +1582,103 @@ function buyUpgrade(jobId, idx) {
   if (!payCost(t.cost)) return { ok:false, why:'材料不足' };
   js.up[idx] = 1; return { ok:true };
 }
+/* ---------- 开发者：摧毁升级项 / 退化科技（v0.0.37） ----------
+   只回退存档状态，不返还材料 / 科研点：
+   - 摧毁升级项会连带撤销依赖它的后续档位（req 链）；若它是本工作的项目门槛档，
+     项目立即重新上锁并撤下入驻角色。
+   - 退化科技会连带撤销依赖它的后续科技；依赖该科技的工作 / 项目重新上锁，
+     并立即撤下入驻角色（下一跳 tick 原本也会清，这里让界面马上一致）。 */
+function upgradeRevokeSet(job, idx) {
+  const set = new Set([idx]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    (job.upgrades || []).forEach((u, i) => {
+      if (set.has(i)) return;
+      if (u.req != null && set.has(u.req)) { set.add(i); grew = true; }
+    });
+  }
+  return Array.from(set).sort((a, b) => a - b);
+}
+function upgradeRevokePlan(jobId, idx) {
+  const job = JOB_BY_ID[jobId], js = S.jobs[jobId];
+  if (!job || !js || !job.upgrades || !job.upgrades[idx]) return { ok:false, why:'没有这个升级项' };
+  if (!(Array.isArray(js.up) && js.up[idx])) return { ok:false, why:'该升级项尚未购买' };
+  const set = upgradeRevokeSet(job, idx);
+  const gate = jobRecipeGate(job);
+  return {
+    ok: true,
+    list: set.filter(i => js.up[i]).map(i => ({ i, name: job.upgrades[i].name || ('升级 ' + (i + 1)) })),
+    gate: gate != null && set.includes(gate),
+  };
+}
+function clearHiddenSlots(job) {
+  const js = S.jobs[job.id];
+  if (!js || !Array.isArray(js.slots)) return false;
+  const rs = jobRecipes(job);
+  ensureSlots(js, Math.max(1, rs.length));
+  let cleared = false;
+  js.slots.forEach((cid, i) => {
+    if (!cid || recipeVisible(rs[i], job)) return;
+    js.slots[i] = null;
+    if (js.prog) js.prog[i] = 0;
+    if (js.blocked) js.blocked[i] = null;
+    cleared = true;
+  });
+  return cleared;
+}
+function revokeUpgrade(jobId, idx) {
+  if (!S.dev) return { ok:false, why:'仅开发者模式' };
+  const plan = upgradeRevokePlan(jobId, idx);
+  if (!plan.ok) return plan;
+  const job = JOB_BY_ID[jobId], js = S.jobs[jobId];
+  plan.list.forEach(x => { js.up[x.i] = 0; });
+  if (plan.gate) clearHiddenSlots(job);
+  log('开发者：摧毁升级项 ' + plan.list.map(x => x.name).join('、'));
+  return plan;
+}
+function techRevokeSet(id) {
+  const set = new Set([id]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    TECHS.forEach(t => {
+      if (set.has(t.id)) return;
+      if ((t.requires || []).some(r => { const rt = TECH_BY_NAME[r]; return rt && set.has(rt.id); })) { set.add(t.id); grew = true; }
+    });
+  }
+  return Array.from(set);
+}
+function techRevokePlan(id) {
+  if (!techDone(id)) return { ok:false, why:'该科技尚未研究' };
+  const set = techRevokeSet(id);
+  return {
+    ok: true,
+    list: set.filter(x => techDone(x)).map(x => {
+      const t = TECHS.find(y => y.id === x);
+      return { id: x, name: t ? t.name : x };
+    }),
+  };
+}
+function revokeTech(id) {
+  if (!S.dev) return { ok:false, why:'仅开发者模式' };
+  const plan = techRevokePlan(id);
+  if (!plan.ok) return plan;
+  plan.list.forEach(x => { delete S.techs[x.id]; });
+  const cleared = [];
+  JOBS.forEach(job => {
+    const js = S.jobs[job.id];
+    if (!js || !Array.isArray(js.slots) || !js.slots.some(Boolean)) return;
+    if (jobVisible(job)) { clearHiddenSlots(job); return; }
+    js.slots = js.slots.map((cid, i) => {
+      if (cid) { if (js.prog) js.prog[i] = 0; if (js.blocked) js.blocked[i] = null; }
+      return null;
+    });
+    cleared.push(job.name);
+  });
+  log('开发者：退化科技 ' + plan.list.map(x => x.name).join('、'));
+  return Object.assign(plan, { cleared });
+}
 
 /* ---------- 袭击 ---------- */
 function wealth() {
@@ -2234,6 +2331,7 @@ window.Engine = {
   pull, dismissChar, giftTo, starUp, PULL_COST, PITY_MIN, PITY_MAX, POTION_STARDUST_COST, CODEX_REWARD, SHARD_ITEM, NORMAL,
   codexSeen, codexClaimed, codexClaimable, codexClaim, codexUnclaimed, codexClaimAll,
   affordCost, payCost, costHtml, buyHousing, buyComfort, buyFort, buyWarehouse, buyGranary, buyUpgrade,
+  upgradeRevokePlan, revokeUpgrade, techRevokePlan, revokeTech,
   wealth, basePower, raidStrength, doRaid, tick, log, toast,
   settleOffline, offlineCombatChars,
   gold: () => S.gold, research: () => S.research,

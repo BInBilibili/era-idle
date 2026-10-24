@@ -309,6 +309,8 @@
         U.toast(r.ok ? '研究完成' : (r.why || '无法研究'), r.ok ? 'good' : 'bad');
         U.render(); break;
       }
+      case 'devDestroyUpg': confirmDestroyUpgrade(id, +i); break;
+      case 'devDegradeTech': confirmDegradeTech(id); break;
       case 'sell': { const g = E.sellItem(id, 1); if (g) U.toast('卖出获得 ' + E.fmt(g) + ' 金'); U.render(); break; }
       case 'sellall': { const g = E.sellItem(id, S.items[id] || 0); if (g) U.toast('卖出获得 ' + E.fmt(g) + ' 金'); U.render(); break; }
       case 'buy': confirmBuy(+i); break;
@@ -976,6 +978,56 @@
       U.closeModal();
       U.toast('开发者模式已关闭');
     }
+  }
+  /* 开发者专用：确认后摧毁已购升级项 / 退化已研究科技。只回退状态，不返还材料或科研点。 */
+  function confirmDestroyUpgrade(jobId, idx) {
+    const S = E.S;
+    if (!S || !S.dev) return;
+    const plan = E.upgradeRevokePlan(jobId, idx);
+    if (!plan.ok) { U.toast(plan.why || '无法摧毁', 'bad'); return; }
+    const job = E.JOB_BY_ID[jobId] || {};
+    const names = plan.list.map(x => U.esc(x.name));
+    const cascade = names.length > 1 ? `<div class="tiny muted" style="margin-top:6px">依赖它的后续档位会一起摧毁：${names.slice(1).join('、')}</div>` : '';
+    U.modal(`<h3 class="red">摧毁升级项？</h3>
+      <div class="sub">工作：<b>${U.esc(job.name || jobId)}</b></div>
+      <div class="card" style="margin-top:10px">
+        <div class="small">将摧毁：<b class="red">${names.join('、')}</b></div>
+        ${cascade}
+        ${plan.gate ? '<div class="tiny muted" style="margin-top:6px">这是本工作的项目门槛档：项目会重新上锁，正在项目上的角色会被撤下。</div>' : ''}
+        <div class="tiny muted" style="margin-top:6px">不返还材料；其它升级项与角色精通不受影响。</div>
+      </div>
+      <div class="acts"><button data-act="closeModal">取消</button><button class="danger" id="devUpgOk">确认摧毁</button></div>`);
+    document.getElementById('devUpgOk').onclick = () => {
+      const r = E.revokeUpgrade(jobId, idx);
+      U.closeModal();
+      E.save(true);
+      U.render();
+      U.toast(r.ok ? '已摧毁：' + r.list.map(x => x.name).join('、') : (r.why || '无法摧毁'), r.ok ? 'good' : 'bad');
+    };
+  }
+  function confirmDegradeTech(id) {
+    const S = E.S;
+    if (!S || !S.dev) return;
+    const plan = E.techRevokePlan(id);
+    if (!plan.ok) { U.toast(plan.why || '无法退化', 'bad'); return; }
+    const names = plan.list.map(x => U.esc(x.name));
+    const t = E.TECHS.find(x => x.id === id);
+    U.modal(`<h3 class="red">退化科技？</h3>
+      <div class="sub">将撤销研究：<b class="red">${names.join('、')}</b></div>
+      <div class="card" style="margin-top:10px">
+        ${names.length > 1 ? '<div class="tiny muted">依赖它的后续科技会一起退化。</div>' : ''}
+        <div class="tiny muted" style="margin-top:6px">科研点不返还；依赖该科技的工作 / 项目会重新上锁，相关入驻角色会被撤下。</div>
+        ${t && t.desc ? `<div class="tiny dim" style="margin-top:6px">${U.esc(t.desc)}</div>` : ''}
+      </div>
+      <div class="acts"><button data-act="closeModal">取消</button><button class="danger" id="devTechOk">确认退化</button></div>`);
+    document.getElementById('devTechOk').onclick = () => {
+      const r = E.revokeTech(id);
+      U.closeModal();
+      E.save(true);
+      U.render();
+      const cleared = r.ok && r.cleared && r.cleared.length ? '；撤下 ' + r.cleared.join('、') : '';
+      U.toast(r.ok ? '已退化：' + r.list.map(x => x.name).join('、') + cleared : (r.why || '无法退化'), r.ok ? 'good' : 'bad');
+    };
   }
   function devAction(action) {
     const S = E.S;

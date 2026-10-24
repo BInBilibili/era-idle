@@ -1073,5 +1073,67 @@ ok(!randArt.includes('<img') && randArt.includes('林'), '随机普通角色仍�
 const cssText = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
 ok(cssText.includes('.av.art img'), 'CSS 有 .av.art img 铺满规则');
 
+console.log('== v0.0.37：开发者摧毁升级项 / 退化科技 ==');
+E.S = E.newState('v037开发者');
+E.S.dev = false;
+ok(!E.revokeUpgrade('woodcutting', 0).ok, '非开发者模式不能摧毁升级项');
+ok(!E.revokeTech('metal_smelting').ok, '非开发者模式不能退化科技');
+E.S.dev = true;
+E.S.milestones.wood_stone = true;
+E.addItem('木材', 600, { silent: true });
+E.addItem('石头', 200, { silent: true });
+E.addItem('铜锭', 100, { silent: true });
+E.addItem('铁锭', 100, { silent: true });
+E.S.techs.metal_smelting = true;
+ok(E.buyUpgrade('woodcutting', 0).ok && E.buyUpgrade('woodcutting', 1).ok && E.buyUpgrade('woodcutting', 2).ok, '买齐石斧 / 铜斧 / 铁斧');
+const upPlan = E.upgradeRevokePlan('woodcutting', 0);
+ok(upPlan.ok && upPlan.list.map(x => x.name).join('、') === '石斧、铜斧、铁斧', '摧毁石斧的级联计划包含 3 档：' + (upPlan.list || []).map(x => x.name).join('、'));
+ok(upPlan.gate, '石斧是本工作的项目门槛档');
+E.assignSlot('woodcutting', 0, 'player');
+const upRes = E.revokeUpgrade('woodcutting', 0);
+ok(upRes.ok && E.S.jobs.woodcutting.up.slice(0, 3).join('') === '000', '3 档升级项全部归零：' + E.S.jobs.woodcutting.up.slice(0, 3).join(''));
+ok(E.S.jobs.woodcutting.slots[0] === null, '门槛档被摧毁后项目上的角色被撤下');
+ok(!E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.woodcutting)[0], E.JOB_BY_ID.woodcutting), '木材项目重新上锁');
+ok(!E.revokeUpgrade('woodcutting', 0).ok, '已摧毁的升级项不能重复摧毁');
+
+// 科技：级联 + 工作 / 项目入驻撤下
+E.S.techs.fire = true;
+E.S.techs.metal_smelting = true;
+E.S.techs.steel = true;
+E.S.techs.forging = true;
+const tPlan = E.techRevokePlan('metal_smelting');
+ok(tPlan.ok && tPlan.list.map(x => x.name).join('、') === '金属冶炼、钢铁、锻造', '退化金属冶炼的级联计划包含后续 3 项：' + (tPlan.list || []).map(x => x.name).join('、'));
+E.assignSlot('forging', 0, 'player');
+const tRes = E.revokeTech('metal_smelting');
+ok(tRes.ok && !E.S.techs.metal_smelting && !E.S.techs.steel && !E.S.techs.forging, '依赖它的 3 项科技一起退化');
+ok(!!E.S.techs.fire, '无依赖关系的科技保留');
+ok(!E.jobVisible(E.JOB_BY_ID.forging), '锻造工作重新上锁');
+ok(E.S.jobs.forging.slots.every(x => !x), '不再可见的工作入驻角色被撤下');
+ok(tRes.cleared.includes('锻造'), '返回值报告撤下的工作：' + tRes.cleared.join('、'));
+
+// 科技退化只隐藏部分项目时，只撤下对应项目的人
+E.S.techs.pottery = true;
+ok(E.buyUpgrade('mining', 0).ok, '买石镐');
+const sandIdx = E.jobRecipes(E.JOB_BY_ID.mining).findIndex(r => r.name === '沙');
+E.assignSlot('mining', sandIdx, 'player');
+const sandRes = E.revokeTech('pottery');
+ok(sandRes.ok && !E.S.techs.pottery, '退化陶器');
+ok(E.S.jobs.mining.slots[sandIdx] === null, '沙项目上的角色被撤下');
+ok(E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.mining)[0], E.JOB_BY_ID.mining), '同工作的其它矿种不受影响');
+
+// 界面按钮只在开发者模式出现
+E.buyUpgrade('woodcutting', 0);
+const upHtmlDev = U.pageJob('woodcutting');
+ok(upHtmlDev.includes('data-act="devDestroyUpg"') && upHtmlDev.includes('摧毁'), '开发者模式：已购升级项显示「摧毁」');
+E.S.dev = false;
+const upHtmlNormal = U.pageJob('woodcutting');
+ok(!upHtmlNormal.includes('data-act="devDestroyUpg"'), '普通模式：不显示「摧毁」');
+E.S.techs.metal_smelting = true;
+const techHtmlNormal = U.pageTech();
+ok(!techHtmlNormal.includes('data-act="devDegradeTech"'), '普通模式：科技树不显示「退化」');
+E.S.dev = true;
+const techHtmlDev = U.pageTech();
+ok(techHtmlDev.includes('data-act="devDegradeTech"') && techHtmlDev.includes('退化'), '开发者模式：已完成科技显示「退化」');
+
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);

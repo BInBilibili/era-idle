@@ -721,7 +721,7 @@ const UI = {
       ${job.id === 'husbandry' ? this.husbandrySection(job, js) : ''}
 
       <div style="margin-top:16px">
-        <h3 style="font-size:15px">升级项</h3>
+        <h3 style="font-size:15px">升级项${S.dev ? ' <span class="tiny gold" style="font-weight:400">🛠 开发者：已购项可摧毁</span>' : ''}</h3>
         <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-top:8px">
           ${(job.upgrades || []).map((u, i) => {
             const bought = js.up && js.up[i];
@@ -730,7 +730,7 @@ const UI = {
             if (!bought && (locked || !ever)) return '';
             const desc = E.upgradeDesc(job, i);
             return `<div class="card upg ${bought ? 'done' : ''}">
-              <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b>${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</div>
+              <div class="row" style="justify-content:space-between;gap:6px"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b><span class="row" style="gap:5px;flex-wrap:nowrap">${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}${bought && S.dev ? `<button class="danger devbtn" data-act="devDestroyUpg" data-id="${job.id}" data-i="${i}" title="开发者：摧毁该升级项（连带后续档位，不返还材料）">摧毁</button>` : ''}</span></div>
               ${desc ? `<div class="tiny muted" style="margin-top:4px">${this.esc(desc)}</div>` : ''}
               ${bought ? '' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>`}
               ${bought ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="upg" data-id="${job.id}" data-i="${i}" ${E.affordCost(u.cost) ? '' : 'disabled'}>购买</button>`}
@@ -1135,7 +1135,8 @@ const UI = {
     let h = `<div class="pagehead"><h2>科技树</h2>
       <span class="badge">已研究 ${E.techsDone()}/${E.TECHS.length}</span>
       <span class="badge blue">科研点 <b class="mono" data-live="researchval">${E.fmt(S.research)}</b></span>
-      <span class="badge">${E.eraName()}</span></div>`;
+      <span class="badge">${E.eraName()}</span>
+      ${S.dev ? '<span class="badge warn">🛠 开发者：已完成科技可退化</span>' : ''}</div>`;
     E.ERA_LIST.forEach(era => {
       const list = E.TECHS.filter(t => t.era === era.id);
       if (!list.length) return;
@@ -1150,6 +1151,7 @@ const UI = {
             <div class="tu"><span class="tk">作用</span><ul>${(t.unlocks || []).map(u => `<li>${this.esc(this.techUnlockText(u))}</li>`).join('')}</ul></div>
             <div class="tc">${done ? '✓ 已完成' : avail ? '可研究' : '前置：' + (t.requires || []).filter(r => !E.researched(r)).join('、')}</div>
             ${done ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="tech" data-id="${t.id}" ${(!avail || S.research < t.cost) ? 'disabled' : ''}>研究</button>`}
+            ${done && S.dev ? `<button class="danger devbtn" style="margin-top:8px;width:100%" data-act="devDegradeTech" data-id="${t.id}" title="开发者：退化该科技（连带后续科技，不返还科研点）">退化</button>` : ''}
           </div>`;
         }).join('') + `</div></div>`;
     });
