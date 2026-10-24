@@ -37,7 +37,7 @@ window.ITEMS = {
   herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集 / 种植', use: '医疗' },
   bone_horn:     { name: '骨 / 角',  era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.5, src: '狩猎', use: '加工（骨项链 + 骨器升级项）' },
   compost:       { name: '堆肥',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.1, src: '腐坏转化', use: '种植化肥（+50% 产出）' },
-  pottery:       { name: '陶器',     era: 'stone', cat: 'material', storage: 'warehouse', price: 8.5, src: '制陶（沙）', use: '粮仓容量升级项' },
+  pottery:       { name: '陶器',     era: 'stone', cat: 'material', storage: 'warehouse', price: 8.5, src: '制陶（沙）', use: '粮仓防腐升级项' },
   leather_small: { name: '小型皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 2,   src: '狩猎 / 畜牧（兔子）', use: '低级衣物' },
   leather_medium:{ name: '中型皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 3,   src: '狩猎 / 畜牧（鹿、山羊、野猪、羚羊）', use: '中级护甲' },
   leather_heavy: { name: '厚重皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 5,   src: '狩猎 / 畜牧（驼鹿、野牛、巨蜥）', use: '高级护甲' },
@@ -279,7 +279,7 @@ window.ITEMS = {
   /* ============================================================
    * §十二 抽卡与恩赐新增物品（13 种）
    * ============================================================ */
-  hero_shard:  { name: '招募券',         era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 667,  buy: 2000,  kind: 'shard',     src: '任意工作极低概率 / 商店第 6 格', note: '10 张 = 1 次抽卡' },
+  hero_shard:  { name: '招募券',         era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 667,  buy: 2000,  kind: 'shard',     src: '图鉴收集/商店' },
   sticky_note: { name: '好感度礼物·便利贴', era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 400,  buy: 1200,  kind: 'gift', gift: 2,  src: '抽卡 35.0%' },
   merch:       { name: '好感度礼物·周边',   era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 1200, buy: 3600,  kind: 'gift', gift: 6,  src: '抽卡 21.0%' },
   collector:   { name: '好感度礼物·典藏',   era: 'gacha', cat: 'gacha', storage: 'warehouse', price: 3000, buy: 9000,  kind: 'gift', gift: 15, src: '抽卡 10.5%' },
@@ -303,11 +303,11 @@ window.ITEMS = {
   wild_mushroom:  { name: '野菌',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
   nut:            { name: '坚果',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
   grain:          { name: '谷物',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
-  bean:           { name: '豆类',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
+  bean:           { name: '大豆',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
   vegetable:      { name: '蔬菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
   beet:           { name: '甜菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
   grain_seed:     { name: '谷物种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
-  bean_seed:      { name: '豆类种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
+  bean_seed:      { name: '大豆种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
   vegetable_seed: { name: '蔬菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
   beet_seed:      { name: '甜菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
   herb_seed:      { name: '药草种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },

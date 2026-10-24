@@ -428,7 +428,7 @@
     book_warp_core_making: ['book', 'bookSpace', 'vortex'],
 
     /* ---------------- 抽卡 / 恩赐 ---------------- */
-    hero_shard: ['shardCrystal', 'shardBlue'],
+    hero_shard: ['ticket', 'shardBlue'],
     sticky_note: ['note', 'noteYellow'],
     merch: ['plush', 'plushPink'],
     collector: ['album', 'album'],
@@ -1045,6 +1045,23 @@
       el(37, 26.5, 3.4, 3.4, c.d) +
       det('M36 20 A7 7 0 0 1 43.5 25', '#fff', '.45'));
     s += det('M30 40 Q34 44 40 42', c.d, '.4');
+    return s;
+  };
+
+  /* 招募券：带缺口与撕线的蓝色票券 + 金色星标 */
+  SH.ticket = function (c) {
+    let s = sh(24, 43, 15, 2);
+    const body = 'M10 11.5 H38 A3.2 3.2 0 0 1 41.2 14.7 V20.3 A4.2 4.2 0 0 1 41.2 27.7 V33.3 A3.2 3.2 0 0 1 38 36.5 H10 A3.2 3.2 0 0 1 6.8 33.3 V27.7 A4.2 4.2 0 0 0 6.8 20.3 V14.7 A3.2 3.2 0 0 1 10 11.5 Z';
+    s += sil(body, c.m, 1.8);
+    s += det('M10 11.5 H18 V36.5 H10 A3.2 3.2 0 0 1 6.8 33.3 V27.7 A4.2 4.2 0 0 0 6.8 20.3 V14.7 A3.2 3.2 0 0 1 10 11.5 Z', c.d, '.42');
+    s += ln('M18 14 V17.5 M18 20.5 V24 M18 27 V30.5 M18 33 V34.5', c.l, 1.25, '.8');
+    s += ci(12.4, 24, 2.1, OUT) + ci(12.4, 24, 1.1, c.l, ' opacity=".7"');
+    const star = 'M30 17.6 L31.5 21.6 L35.7 21.7 L32.4 24.2 L33.5 28.2 L30 25.8 L26.5 28.2 L27.6 24.2 L24.3 21.7 L28.5 21.6 Z';
+    s += sil(star, PAL.gold.m, 1.1);
+    s += det('M30 17.6 L31.5 21.6 L30 23.6 L28.5 21.6 Z', PAL.gold.l, '.95');
+    s += ln('M22 15.5 H36', '#fff', 1.2, '.3');
+    s += ln('M23 32 H35', OUT, 1.1, '.35');
+    s += ci(39.5, 9.5, 1.2, PAL.gold.l) + ln('M38 14 L36.5 15.5 M43 13 L41.5 14.5', PAL.gold.m, 1.1, '.8');
     return s;
   };
 

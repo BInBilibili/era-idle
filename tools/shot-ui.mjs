@@ -78,7 +78,7 @@ try {
   await sleep(700);
   for (const pg of pages) {
     const [p, sub] = pg.split('#');
-    await js(`Engine.S.ui.page = ${JSON.stringify(p)}; ${sub ? `Engine.S.ui.tab.codex = ${JSON.stringify(sub)};` : ''} UI.closeModal(); UI.render(); 1`);
+    await js(`Engine.S.ui.page = ${JSON.stringify(p)}; ${sub ? (p === 'warehouse' ? `Engine.S.ui.tab.wh = ${JSON.stringify(sub)};` : `Engine.S.ui.tab.codex = ${JSON.stringify(sub)};`) : ''} UI.closeModal(); UI.render(); 1`);
     if (p.endsWith('!tip')) {
       await js(`Engine.S.ui.page = ${JSON.stringify(p.replace('!tip', ''))}; UI.render();
         const el = document.querySelector('[data-tip-item]');

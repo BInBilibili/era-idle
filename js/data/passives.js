@@ -9,8 +9,11 @@
  *   FORTS        14 档，工事战力合计 = 47,750，耗电合计 = 18 瓦
  *                袭击强度削减：尖木陷阱 -5% + 石墙 / 钢筋混凝土墙 / 合金要塞 各 -10% = -35%
  *   WAREHOUSE_UPG 6 档，每档 +34 格：20（初始）→ 54 → 88 → 122 → 156 → 190 → 224
- *   GRANARY_UPG   3 档：陶器（容量 ×1.5）/ 地窖（×2、半衰期 ×2）/ 冷库（×2、半衰期 ×2）
+ *   GRANARY_UPG   3 档（v0.0.35）：陶器 −30% 腐坏 / 地窖 −60% 腐坏 / 冷库 −100% 腐坏（粮仓容量无限）
  *
+ * v0.0.35 升级项造价：按升级项名字选材料（材料都取自现有物品），
+ *   第一档（解锁项目 / 进门档）压到很便宜，后续档按该套被动的重要性递增，
+ *   同一套里每一档的材料种类与数量都不重复 —— 定价规则见 工作表.md §1.1。
  * 材料名严格照抄原文，注意「石头」与「石材」是两种不同物品：
  *   茅草棚用「石头」，长屋 / 石屋 / 土垒 / 石墙用「石材」。
  * ==========================================================================*/
@@ -21,12 +24,12 @@
  * 没有任何舒适度门槛：材料够、时代到就能盖。
  * ------------------------------------------------------------------------- */
 window.HOUSING = [
-  { name: "茅草棚", era: "stone",      cost: { 木材: 300, 石头: 150 },            cap: 7  },
-  { name: "长屋",   era: "stone",      cost: { 木材: 800, 石材: 400 },            cap: 9  },
-  { name: "石屋",   era: "medieval",   cost: { 石材: 800, 铁锭: 400 },            cap: 11 },
-  { name: "公寓",   era: "industrial", cost: { 钢铁: 2000, 混凝土: 500 },         cap: 13 },
-  { name: "住宅区", era: "info",       cost: { 钛合金: 2000, 精密零件: 500 },     cap: 15 },
-  { name: "殖民舱", era: "space",      cost: { 外星合金: 2000, 生命维持单元: 200 }, cap: 18 }
+  { name: "茅草棚", era: "stone",      cost: { 木材: 40, 石头: 20 },                              cap: 7  },
+  { name: "长屋",   era: "stone",      cost: { 木材: 400, 石材: 175, 木板: 75 },                  cap: 9  },
+  { name: "石屋",   era: "medieval",   cost: { 石材: 550, 石灰石: 225, 木材: 200 },              cap: 11 },
+  { name: "公寓",   era: "industrial", cost: { 混凝土: 400, 钢铁: 650, 玻璃: 175 },               cap: 13 },
+  { name: "住宅区", era: "info",       cost: { 钛合金: 900, 混凝土: 350, 玻璃: 250 },             cap: 15 },
+  { name: "殖民舱", era: "space",      cost: { 外星合金: 1050, 生命维持单元: 175, 精密零件: 125 }, cap: 18 }
 ];
 
 /* ---------------------------------------------------------------------------
@@ -37,22 +40,22 @@ window.HOUSING = [
  * 腐坏规则：舒适度 ≥ 80 时，陶器 / 地毯按周期腐坏（每周期 10%，见 PASSIVE_RULES）。
  * ------------------------------------------------------------------------- */
 window.COMFORT = [
-  { name: "陶罐装饰",   era: "stone",      cost: { 陶器: 500 },                        value: 4 },
-  { name: "木床",       era: "stone",      cost: { 木材: 300, 石材: 150 },             value: 4 },
-  { name: "木地板",     era: "stone",      cost: { 木材: 800 },                        value: 4 },
-  { name: "地毯",       era: "medieval",   cost: { 布料: 800, 植物纤维: 400 },         value: 6 },
-  { name: "纸窗",       era: "medieval",   cost: { 纸张: 500, 木材: 200 },             value: 5 },
-  { name: "木制家具",   era: "medieval",   cost: { 木板: 800, 铁锭: 400 },             value: 6 },
-  { name: "石地板",     era: "medieval",   cost: { 石材: 1000 },                       value: 5 },
-  { name: "台球桌",     era: "industrial", cost: { 木板: 1000, 塑料: 500 },            value: 6 },
-  { name: "塑料家具",   era: "industrial", cost: { 塑料: 2000, 钢铁: 500 },            value: 8 },
-  { name: "瓷砖地板",   era: "industrial", cost: { 混凝土: 2000 },                     value: 6 },
-  { name: "电气娱乐",   era: "industrial", cost: { 电子元件: 1000, 玻璃: 500 },        value: 7 },
-  { name: "合成地板",   era: "info",       cost: { 塑料: 2000, 钛合金: 500 },          value: 7 },
-  { name: "AI 家电",    era: "info",       cost: { 芯片: 2000, 精密零件: 500 },        value: 9 },
-  { name: "全息娱乐",   era: "info",       cost: { 芯片: 1000, 铝合金: 500 },          value: 8 },
-  { name: "全息地板",   era: "space",      cost: { 外星合金: 2000, 反物质: 500 },      value: 7 },
-  { name: "生命维持舱", era: "space",      cost: { 生命维持单元: 200, 外星合金: 2000 }, value: 8 }
+  { name: "陶罐装饰",   era: "stone",      cost: { 陶器: 40, 沙: 20 },                          value: 4 },
+  { name: "木床",       era: "stone",      cost: { 木材: 125, 植物纤维: 65 },                  value: 4 },
+  { name: "木地板",     era: "stone",      cost: { 木板: 90, 木材: 65 },                       value: 4 },
+  { name: "地毯",       era: "medieval",   cost: { 地毯: 65, 布料: 50, 植物纤维: 40 },         value: 6 },
+  { name: "纸窗",       era: "medieval",   cost: { 纸张: 75, 木材: 50 },                       value: 5 },
+  { name: "木制家具",   era: "medieval",   cost: { 木板: 125, 铁锭: 40, 木材: 75 },            value: 6 },
+  { name: "石地板",     era: "medieval",   cost: { 石材: 175, 石灰石: 90 },                    value: 5 },
+  { name: "台球桌",     era: "industrial", cost: { 木板: 150, 塑料: 65, 布料: 40 },             value: 6 },
+  { name: "塑料家具",   era: "industrial", cost: { 塑料: 350, 钢铁: 125 },                     value: 8 },
+  { name: "瓷砖地板",   era: "industrial", cost: { 混凝土: 275, 陶器: 150, 沙: 110 },           value: 6 },
+  { name: "电气娱乐",   era: "industrial", cost: { 电子元件: 90, 玻璃: 75, 塑料: 65 },          value: 7 },
+  { name: "合成地板",   era: "info",       cost: { 塑料: 400, 铝合金: 90 },                    value: 7 },
+  { name: "AI 家电",    era: "info",       cost: { 芯片: 225, 精密零件: 65, 电子元件: 90 },     value: 9 },
+  { name: "全息娱乐",   era: "info",       cost: { 芯片: 175, 铝合金: 110, 玻璃: 90 },          value: 8 },
+  { name: "全息地板",   era: "space",      cost: { 外星合金: 900, 反物质: 110, 精密零件: 75 },   value: 7 },
+  { name: "生命维持舱", era: "space",      cost: { 生命维持单元: 160, 外星合金: 1130, 玻璃: 225 }, value: 8 }
 ];
 
 /* ---------------------------------------------------------------------------
@@ -62,56 +65,53 @@ window.COMFORT = [
  * 工事职责只有三件：给工事战力、改袭击强度、耗电；不参与狩猎战斗。
  * ------------------------------------------------------------------------- */
 window.FORTS = [
-  { name: "尖木陷阱",       era: "stone",      cost: { 木材: 300, 石头: 150 },                        power: 50,    watt: 0, reduce: 0.05, note: "袭击强度 -5%" },
-  { name: "陷坑",           era: "stone",      cost: { 木材: 800, 石材: 400 },                        power: 100,   watt: 0, reduce: 0,    note: "" },
-  { name: "土垒",           era: "stone",      cost: { 石材: 800 },                                   power: 150,   watt: 0, reduce: 0,    note: "" },
-  { name: "石墙",           era: "medieval",   cost: { 石材: 800, 铁锭: 400 },                        power: 250,   watt: 0, reduce: 0.10, note: "袭击强度 -10%（原「袭击者入场人数 -1」改为此）" },
-  { name: "铁蒺藜",         era: "medieval",   cost: { 铁锭: 800, 石材: 400 },                        power: 400,   watt: 0, reduce: 0,    note: "" },
-  { name: "瞭望塔",         era: "medieval",   cost: { 木板: 500, 铁锭: 500 },                        power: 600,   watt: 0, reduce: 0,    note: "原「全队命中 +2」已删除" },
-  { name: "钢筋混凝土墙",   era: "industrial", cost: { 混凝土: 2000, 钢铁: 1000 },                    power: 1000,  watt: 0, reduce: 0.10, note: "袭击强度 -10%" },
-  { name: "自动炮塔",       era: "industrial", cost: { 钢铁: 2000, 机械零件: 500 },                   power: 1500,  watt: 2, reduce: 0,    note: "⚡ 2 瓦" },
-  { name: "机枪碉堡",       era: "industrial", cost: { 钢铁: 2000, 机械零件: 500, 火药: 200 },        power: 2200,  watt: 2, reduce: 0,    note: "⚡ 2 瓦" },
-  { name: "合金要塞",       era: "info",       cost: { 钛合金: 2000, 精密零件: 500 },                 power: 3000,  watt: 0, reduce: 0.10, note: "袭击强度 -10%" },
-  { name: "激光炮塔",       era: "info",       cost: { 精密零件: 2000, 芯片: 500 },                   power: 4500,  watt: 3, reduce: 0,    note: "⚡ 3 瓦" },
-  { name: "护盾塔",         era: "info",       cost: { 反物质: 1000, 钛合金: 500 },                   power: 7000,  watt: 5, reduce: 0,    note: "⚡ 5 瓦（原「给全队加护盾」已删除）" },
-  { name: "战斗机器人",     era: "space",      cost: { "AI 核心": 2000, 外星合金: 1000 },             power: 11000, watt: 0, reduce: 0,    note: "原「失守时优先被击毁」已删除" },
-  { name: "轨道防御平台",   era: "space",      cost: { 反物质: 2000, 外星合金: 1000 },                power: 16000, watt: 6, reduce: 0,    note: "⚡ 6 瓦" }
+  { name: "尖木陷阱",       era: "stone",      cost: { 木材: 45, 石头: 20 },                             power: 50,    watt: 0, reduce: 0.05, note: "袭击强度 -5%" },
+  { name: "陷坑",           era: "stone",      cost: { 木材: 225, 石头: 110, 植物纤维: 75 },             power: 100,   watt: 0, reduce: 0,    note: "" },
+  { name: "土垒",           era: "stone",      cost: { 石材: 200, 石头: 125 },                           power: 150,   watt: 0, reduce: 0,    note: "" },
+  { name: "石墙",           era: "medieval",   cost: { 石材: 450, 石灰石: 200 },                         power: 250,   watt: 0, reduce: 0.10, note: "袭击强度 -10%（原「袭击者入场人数 -1」改为此）" },
+  { name: "铁蒺藜",         era: "medieval",   cost: { 铁锭: 225, 铁矿: 125 },                          power: 400,   watt: 0, reduce: 0,    note: "" },
+  { name: "瞭望塔",         era: "medieval",   cost: { 木板: 225, 铁锭: 110, 木材: 150 },                power: 600,   watt: 0, reduce: 0,    note: "原「全队命中 +2」已删除" },
+  { name: "钢筋混凝土墙",   era: "industrial", cost: { 混凝土: 550, 钢铁: 300, 石灰石: 175 },            power: 1000,  watt: 0, reduce: 0.10, note: "袭击强度 -10%" },
+  { name: "自动炮塔",       era: "industrial", cost: { 钢铁: 800, 机械零件: 250, 电子元件: 75 },         power: 1500,  watt: 2, reduce: 0,    note: "⚡ 2 瓦" },
+  { name: "机枪碉堡",       era: "industrial", cost: { 钢铁: 950, 机械零件: 325, 火药: 150 },            power: 2200,  watt: 2, reduce: 0,    note: "⚡ 2 瓦" },
+  { name: "合金要塞",       era: "info",       cost: { 钛合金: 1000, 精密零件: 250, 混凝土: 300 },       power: 3000,  watt: 0, reduce: 0.10, note: "袭击强度 -10%" },
+  { name: "激光炮塔",       era: "info",       cost: { 精密零件: 450, 芯片: 200, 钛合金: 550 },          power: 4500,  watt: 3, reduce: 0,    note: "⚡ 3 瓦" },
+  { name: "护盾塔",         era: "info",       cost: { 反物质: 400, 精密零件: 300, 电子元件: 200 },     power: 7000,  watt: 5, reduce: 0,    note: "⚡ 5 瓦（原「给全队加护盾」已删除）" },
+  { name: "战斗机器人",     era: "space",      cost: { "AI 核心": 125, 外星合金: 880, 精密零件: 225 },   power: 11000, watt: 0, reduce: 0,    note: "原「失守时优先被击毁」已删除" },
+  { name: "轨道防御平台",   era: "space",      cost: { 反物质: 1200, 外星合金: 3000, 精密零件: 500 },   power: 16000, watt: 6, reduce: 0,    note: "⚡ 6 瓦" }
 ];
 
 /* ---------------------------------------------------------------------------
  * §7.1 仓库扩容（6 档，每档 +34 格；初始 20 格）
  * 格数序列（资源表.md §9.2）：20 → 54 → 88 → 122 → 156 → 190 → 224
  *
- * ⚠ 建材来源说明：被动.md §7.1 与 资源表.md §9.2 都把「建造材料」指向
- *   README.md「仓库」，但本仓库内 README.md 缺失（工作区内不存在该文件）。
- *   下列 cost 是按被动.md:28 明示的阶梯规则推得，未新增任何数值量级：
- *     4 档阶梯 = 100 / 300 / 800 / 2,000（主材料按时代）
- *     辅材料   = 50 / 150 / 400 / 500
- *   主材料取「建筑名对应的时代核心材料」。等 README.md 补齐后可直接覆盖。
+ * v0.0.35 建材：按升级项名字取同名 / 同义材料（木头仓库用木材，石头仓库用石材，
+ *   金属仓库用铁锭 …），关闭「4 档阶梯 100 / 300 / 800 / 2,000」的旧推导口径；
+ *   第一档木头仓库是进门档，压到 35 木材 + 15 石头。
  * ------------------------------------------------------------------------- */
 window.WAREHOUSE_UPG = [
-  { name: "木头仓库",         era: "stone",      cost: { 木材: 100, 石头: 50 },              slots: 54  },  /* DERIVED-PENDING-README */
-  { name: "石头仓库",         era: "stone",      cost: { 石材: 300, 木材: 150 },             slots: 88  },  /* DERIVED-PENDING-README */
-  { name: "金属仓库",         era: "medieval",   cost: { 铁锭: 800, 石材: 400 },             slots: 122 },  /* DERIVED-PENDING-README */
-  { name: "钢筋混凝土仓库",   era: "industrial", cost: { 混凝土: 2000, 钢铁: 500 },          slots: 156 },  /* DERIVED-PENDING-README */
-  { name: "合金仓库",         era: "info",       cost: { 钛合金: 2000, 精密零件: 500 },      slots: 190 },  /* DERIVED-PENDING-README */
-  { name: "量子仓库",         era: "space",      cost: { 外星合金: 2000, 反物质: 500 },      slots: 224 }   /* DERIVED-PENDING-README */
+  { name: "木头仓库",         era: "stone",      cost: { 木材: 35, 石头: 15 },                       slots: 54  },
+  { name: "石头仓库",         era: "stone",      cost: { 石材: 160, 木材: 100 },                     slots: 88  },
+  { name: "金属仓库",         era: "medieval",   cost: { 铁锭: 250, 石材: 150 },                     slots: 122 },
+  { name: "钢筋混凝土仓库",   era: "industrial", cost: { 混凝土: 400, 钢铁: 450, 石灰石: 200 },      slots: 156 },
+  { name: "合金仓库",         era: "info",       cost: { 钛合金: 850, 铝合金: 225, 精密零件: 175 },  slots: 190 },
+  { name: "量子仓库",         era: "space",      cost: { 外星合金: 2000, 反物质: 300, 精密零件: 400 },    slots: 224 }
 ];
 
 /* ---------------------------------------------------------------------------
- * §7.2 粮仓升级（3 档）
- * 陶器：容量 ×1.5（科技「陶器」，石器 40 点）
- * 地窖：容量 ×2、半衰期 ×2（科技「地窖」，石器 80 点）
- * 冷库：容量 ×2、半衰期 ×2（科技「制冷」，工业 400 点）
+ * §7.2 粮仓升级（3 档，v0.0.35 重做）
+ * 粮仓容量无限，升级项改为「降低全局腐坏效率」（作用于粮仓里所有食物）：
+ *   陶器：腐坏效率 −30%（spoilMul 0.7，科技「陶器」，石器 40 点）
+ *   地窖：腐坏效率 −60%（spoilMul 0.4，科技「地窖」，石器 80 点）
+ *   冷库：腐坏效率 −100%（spoilMul 0，科技「制冷」，工业 400 点）→ 完全不腐坏
+ * 基础腐坏：每 600 秒减半（有效半衰期 = 600 ÷ spoilMul）。
  * 注意：地窖 / 冷库不提供仓库格数，只作用于粮仓（资源表.md:345）。
- *
- * ⚠ 同 WAREHOUSE_UPG：文档把口径指向 README.md「粮仓与保质期」，该文件缺失；
- *   cost 按同一条阶梯（100 / 300 / 800 主材料 + 50 / 150 / 400 辅材料）推得。
+ * 材料按名字取：陶器 = 陶罐，地窖 = 石材 + 木材 + 石灰石，冷库 = 钢铁 + 塑料 + 机械零件。
  * ------------------------------------------------------------------------- */
 window.GRANARY_UPG = [
-  { name: "陶器", era: "stone",      cost: { 陶器: 100, 木材: 50 },    capMul: 1.5, halflifeMul: 1 },  /* DERIVED-PENDING-README */
-  { name: "地窖", era: "stone",      cost: { 石材: 300, 木材: 150 },   capMul: 2,   halflifeMul: 2 },  /* DERIVED-PENDING-README */
-  { name: "冷库", era: "industrial", cost: { 钢铁: 800, 塑料: 400 },   capMul: 2,   halflifeMul: 2 }   /* DERIVED-PENDING-README */
+  { name: "陶器", era: "stone",      cost: { 陶器: 20, 木材: 12, 沙: 8 },                spoilMul: 0.7 },
+  { name: "地窖", era: "stone",      cost: { 石材: 175, 木材: 110, 石灰石: 75 },         spoilMul: 0.4 },
+  { name: "冷库", era: "industrial", cost: { 钢铁: 550, 塑料: 225, 机械零件: 100 },      spoilMul: 0 }
 ];
 
 /* ---------------------------------------------------------------------------
@@ -212,15 +212,14 @@ window.PASSIVE_RULES = {
   codexEnemySimEra: 4,
 
   /* --- §7 仓库 / 粮仓 --- */
-  baseCap: 60,                // ⚠ DERIVED：粮仓基础容量。被动.md:494 与 资源表.md:330 都把
-                              //   容量口径指向 README.md「粮仓与保质期」，该文件缺失 → 按父任务指定取 60，待回填。
   warehouseStart: 20,         // 初始仓库格数
   warehousePerTier: 34,       // 每次扩容 +34 格
   warehouseTiers: 6,          // 6 次阶段式扩容
   warehouseMax: 224,          // 终局 224 格（194 占用 + 30 余量）
   warehouseOccupiedItems: 194,// 占仓库格的物品种类
-  granaryItems: 18,           // 粮仓类 18 种（15 食材 / 种子 + 3 熟食）
-  totalItems: 212,            // 物品总数 212 种
+  granaryItems: 17,           // 粮仓类 17 种（14 食材 / 种子 + 3 熟食），v0.0.35 起容量无限
+  granaryBaseHalfLife: 600,   // 基础腐坏：每 600 秒减半（粮仓升级项再按 spoilMul 拉低）
+  totalItems: 215,            // 物品总数 215 种（195 仓库 + 17 粮仓 + 3 虚拟资源包）
   workCount: 33,              // 33 份工作（31 常规 + 2 恩赐），被动不计入工作总数
   workCountRegular: 31,
   workCountGift: 2,

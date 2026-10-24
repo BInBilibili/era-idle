@@ -116,17 +116,17 @@ ok(E.assignedCount(E.JOB_BY_ID.woodcutting) === 1, '伐木显示 1 人在工作'
 
 console.log('== 采集 / 资源包 / 烹饪 ==');
 E.clearSlot('woodcutting', 0);
-E.assignSlot('gathering', 1, 'player');   // 平原资源：石头 / 木材 / 浆果 / 块根 / 坚果
+E.assignSlot('gathering', 3, 'player');   // 平原资源：石头 / 木材 / 浆果 / 块根 / 坚果
 for (let i = 0; i < 500; i++) E.tick(0.2);
 const plainsGain = ['石头', '木材', '浆果', '块根', '坚果'].reduce((a, n) => a + E.count(n), 0);
 ok(plainsGain > 0, '平原资源随机产出其中一种：' + plainsGain.toFixed(1));
 ok(E.count('草地资源') === 0 && E.count('平原资源') === 0, '资源包本身不会进仓库');
-ok(E.jobRecipes(E.JOB_BY_ID.gathering).map(r => r.name).join('/') === '草地/平原/沼泽', '采集项目 = 草地 / 平原 / 沼泽');
+ok(E.jobRecipes(E.JOB_BY_ID.gathering).map(r => r.name).join('/') === '灌木/捡石头/草地/平原/沼泽', '采集项目 = 灌木 / 捡石头 / 草地 / 平原 / 沼泽');
 const grassPool = E.ITEMS[E.N2I('草地资源')].pool;
 ok(grassPool.find(p => p.id === 'plant_fiber').weight === 90 && grassPool.length === 6, '草地：植物纤维 90% + 5 种种子合计 10%');
 ok(E.ITEMS[E.N2I('平原资源')].pool.every(p => p.weight === 1), '平原：五种产物等概率');
 ok(E.ITEMS[E.N2I('沼泽资源')].pool.map(p => p.id).join(',') === 'wild_mushroom,herb', '沼泽：野菌 / 药草各半');
-ok(!E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[2], E.JOB_BY_ID.gathering), '没受伤时沼泽项目隐藏');
+ok(!E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[4], E.JOB_BY_ID.gathering), '没受伤时沼泽项目隐藏');
 E.addItem('浆果', 40);
 S.research = 500;
 E.researchTech('fire');
@@ -156,9 +156,9 @@ console.log('== 采矿：每种矿石一条配方 ==');
 const mining = E.JOB_BY_ID.mining;
 const mrs = E.jobRecipes(mining);
 ok(mrs.length === 12, '采矿配方 12 条（石油已拆到石油开采）：' + mrs.length);
-const stoneR = mrs.find(r => r.name === '石头');
+const stoneR = mrs.find(r => r.name === '采石');
 const goldR = mrs.find(r => r.name === '金矿');
-ok(stoneR.duration === 3, '石头时长 3 秒（权重 100）');
+ok(stoneR.duration === 3, '采石时长 3 秒（权重 100）');
 ok(Math.abs(goldR.duration - 75) < 0.01, '金矿时长 75 秒（权重 4，与权重成反比）');
 ok(stoneR.duration < goldR.duration, '权重越高时长越短');
 ok(!E.recipeVisible(stoneR, mining) && !E.recipeVisible(mrs.find(r => r.name === '铜矿'), mining), '没买石镐时石头 / 铜矿项目隐藏');
@@ -179,21 +179,24 @@ ok(!E.recipeVisible(mrs.find(r => r.name === '铀矿'), mining), '核能未研�
 E.assignSlot('mining', mrs.indexOf(sandR), 'player');
 ok(E.assignedCount(mining) === 1, '同一角色只占一条配方（沙），石头被顶掉');
 
-console.log('== 装备制造：三份工作的完整配方 ==');
-const craftJob = E.JOB_BY_ID.crafting, forgeJob = E.JOB_BY_ID.forging, tailorJob = E.JOB_BY_ID.tailoring, machJob = E.JOB_BY_ID.machining;
-const craftRs = E.jobRecipes(craftJob), forgeRs = E.jobRecipes(forgeJob), tailorRs = E.jobRecipes(tailorJob), machRs = E.jobRecipes(machJob);
+console.log('== 装备制造：五份工作的完整配方 ==');
+const craftJob = E.JOB_BY_ID.crafting, forgeJob = E.JOB_BY_ID.forging, tailorJob = E.JOB_BY_ID.tailoring, machJob = E.JOB_BY_ID.machining, precJob = E.JOB_BY_ID.precision_assembly;
+const craftRs = E.jobRecipes(craftJob), forgeRs = E.jobRecipes(forgeJob), tailorRs = E.jobRecipes(tailorJob), machRs = E.jobRecipes(machJob), precRs = E.jobRecipes(precJob);
 const isGearR = r => { const id = E.N2I(r.name); return id && ['equip', 'weapon'].includes(E.ITEMS[id].cat); };
 const machGear = machRs.filter(isGearR);
+const precGear = precRs.filter(isGearR);
 ok(craftRs.length === 17, '加工 17 件：' + craftRs.length);
-ok(forgeRs.length === 16, '锻造 16 件（工业后装备已移到机械加工）：' + forgeRs.length);
-ok(tailorRs.length === 5, '裁缝 5 件（工业后装备已移到机械加工）：' + tailorRs.length);
-ok(machGear.length === 47, '机械加工新增 47 件工业 / 信息 / 太空装备：' + machGear.length);
+ok(forgeRs.length === 16, '锻造 16 件：' + forgeRs.length);
+ok(tailorRs.length === 17, '裁缝 17 件（各时代布料衣物）：' + tailorRs.length);
+ok(machGear.length === 24, '机械加工 24 件工业 / 信息武器盔甲：' + machGear.length);
+ok(precGear.length === 11, '精密装配 11 件太空武器盔甲：' + precGear.length);
+ok(craftRs.length + forgeRs.length + tailorRs.length + machGear.length + precGear.length === 85, '五份工作合计 85 件装备');
 ok(craftRs.some(r => r.name === '石斧') && craftRs.some(r => r.name === '皮甲'), '加工包含石器时代装备');
 ok(!craftRs.some(r => r.name === '硅片') && !craftRs.some(r => r.name === '光纤'), '硅片 / 光纤已移出加工');
 ok(E.jobRecipes(E.JOB_BY_ID.glassmaking).some(r => r.name === '光纤'), '光纤移到玻璃制造');
 ok(E.jobRecipes(E.JOB_BY_ID.semiconductors).some(r => r.name === '硅片'), '硅片移到半导体制造');
 let badRecipe = 0;
-for (const r of [...craftRs, ...forgeRs, ...tailorRs, ...machGear]) {
+for (const r of [...craftRs, ...forgeRs, ...tailorRs, ...machGear, ...precGear]) {
   if (Object.keys(E.recipeInputs(r)).length !== Object.keys(r.inputs).length) badRecipe++;
   if (Object.keys(E.recipeOutputs(r)).length !== 1) badRecipe++;
 }
@@ -514,10 +517,10 @@ ok(housingHtml.includes('住房能提高角色上限'), '住所页描述精简�
 ok(!housingHtml.includes('茅草棚') && !housingHtml.includes('陶罐装饰'), '没拥有过所需资源时，住房 / 舒适度升级项不显示');
 E.addItem('木材', 1); E.addItem('石头', 1);
 ok(U.pageHousing().includes('茅草棚'), '拥有过 1 木材 + 1 石头后，茅草棚出现');
-E.addItem('陶器', 1);
-ok(U.pageHousing().includes('陶罐装饰') && !U.pageHousing().includes('木床'), '有陶器 → 陶罐装饰出现；缺石材时木床仍不显示');
-E.addItem('石材', 1);
-ok(U.pageHousing().includes('木床'), '木材 + 石材都拥有过 → 木床出现');
+E.addItem('陶器', 1); E.addItem('沙', 1);
+ok(U.pageHousing().includes('陶罐装饰') && !U.pageHousing().includes('木床'), '有陶器 + 沙 → 陶罐装饰出现；缺植物纤维时木床仍不显示');
+E.addItem('植物纤维', 1);
+ok(U.pageHousing().includes('木床'), '木材 + 植物纤维都拥有过 → 木床出现');
 E.ITEMS.__noera = { name: '无时代物品', cat: 'material', storage: 'warehouse', price: 1 };
 const noEraTip = U.itemTipHtml('__noera');
 ok(!!noEraTip && !noEraTip.includes('未标时代'), '没有 era 的物品不显示时代标签');
@@ -624,7 +627,7 @@ E.JOBS.forEach(j => {
 ok(hardcodedUnlock.length === 0, '门槛档不再手写「解锁…」说明：' + (hardcodedUnlock.join('、') || '无'));
 ['woodcutting', 'mining', 'gathering'].forEach(jid => {
   const u = E.JOB_BY_ID[jid].upgrades.find(x => x.name.endsWith('小屋'));
-  ok(!!u && u.cost['石材'] === 150 && !u.cost['石头'], jid + ' 小屋改用石材：' + JSON.stringify(u && u.cost));
+  ok(!!u && !!u.cost['石材'] && !u.cost['石头'], jid + ' 小屋改用石材：' + JSON.stringify(u && u.cost));
 });
 ok(E.S.jobs.woodcutting.up.length === E.JOB_BY_ID.woodcutting.upgrades.length, 'up 数组长度跟随档位数');
 // 旧存档迁移：旧下标 [石斧, 小屋] / [石镐, 采矿场, 电动矿钻]
@@ -694,7 +697,7 @@ for (let i = 0; i < 10; i++) E.tick(0.2);
 ok(pc.injured && pc.hpNow > 1, '受伤后医物提高回血：HP ' + pc.hpNow.toFixed(3));
 ok(E.count('草药') < beforeHerb, '受伤后消耗草药：' + beforeHerb + ' → ' + E.count('草药'));
 ok(E.jobVisible(E.JOB_BY_ID.medicine), '有人受伤后医疗永久显示');
-ok(E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[2], E.JOB_BY_ID.gathering), '有人受伤后沼泽项目永久显示');
+ok(E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[4], E.JOB_BY_ID.gathering), '有人受伤后沼泽项目永久显示');
 const medTip = U.itemTipHtml(E.N2I('草药'));
 ok(medTip.includes('医物效果') && medTip.includes('×2'), '草药悬浮面板显示医物 ×2 回血');
 console.log('== 资源包：极简提示 + 逐项揭示 ==');
@@ -759,7 +762,7 @@ ok(selfRef.length === 0, '第一档升级项没有「自己产自己」的矛盾
 
 // 种植：按种子拆项目 + 干草（v0.0.32：药草直接产药草，草料只由干草产）
 const farmRs = E.jobRecipes(E.JOB_BY_ID.farming);
-ok(farmRs.length === 6 && farmRs.map(r => r.name).join('/') === '谷物/豆类/蔬菜/甜菜/药草/干草', '种植 6 个项目：5 种种子 + 干草');
+ok(farmRs.length === 6 && farmRs.map(r => r.name).join('/') === '谷物/大豆/蔬菜/甜菜/药草/干草', '种植 6 个项目：5 种种子 + 干草');
 ok(Object.keys(farmRs.find(r => r.name === '甜菜').inputs).join(',') === '甜菜种子', '甜菜项目吃甜菜种子');
 const hayR = farmRs.find(r => r.name === '干草');
 ok(Object.keys(hayR.inputs).length === 0 && hayR.outputs['草料'] === 6, '干草不消耗、产出 6 草料');
@@ -899,6 +902,140 @@ ok(csLog.logs.some(l => l.kind === 'hit' && l.msg.includes('造成')), '战斗�
 ok(csLog.logs.some(l => l.msg.includes('攻击') && (l.kind === 'taken' || l.kind === 'miss')), '战斗日志记录敌方攻击 / 未命中');
 ok(csLog.logs.some(l => l.kind === 'kill'), '战斗日志记录击杀与掉落');
 ok(typeof csLog.tP === 'number' && csLog.tP >= 0 && typeof csLog.tE === 'number' && csLog.tE >= 0, '攻击间隔进度保存在战斗状态里：tP=' + csLog.tP.toFixed(2) + ' / tE=' + csLog.tE.toFixed(2));
+
+console.log('== v0.0.34：采集 / 产量 / 装备分工 / 模糊投入筛选 ==');
+E.S = E.newState('v034数据');
+ok(E.jobRecipes(E.JOB_BY_ID.woodcutting)[0].outputs['木材'] === 3, '伐木每次 3 木材');
+const gRs = E.jobRecipes(E.JOB_BY_ID.gathering);
+ok(gRs.length === 5 && gRs[0].name === '灌木' && gRs[0].outputs['木材'] === 1
+  && gRs[1].name === '捡石头' && gRs[1].outputs['石头'] === 1, '采集新增灌木 / 捡石头两个直产项目');
+const m034 = E.jobRecipes(E.JOB_BY_ID.mining);
+ok(m034[0].name === '采石' && m034[0].outputs['石头'] === 3, '采石每次 3 石头');
+ok(!!E.N2I('大豆') && !!E.N2I('大豆种子') && E.N2I('豆类') === null, '豆类改名为大豆');
+ok(E.jobRecipes(E.JOB_BY_ID.husbandry)[0].outputs['草料'] === 12, '加工草料一次 12 草料');
+
+// 模糊投入筛选：没勾选的组成物品不计入够料判断
+const feed034 = E.jobRecipes(E.JOB_BY_ID.husbandry)[0];
+E.S.items[E.N2I('浆果')] = 20; E.S.items[E.N2I('块根')] = 20;
+ok(E.genericItemIds('素食食材').length === 4, '素食食材 = 4 种组成物');
+ok(E.canMake(feed034, 1, 'husbandry'), '全选时够料');
+E.setInputSelection('husbandry', feed034, '素食食材', [E.N2I('浆果')]);
+E.S.items[E.N2I('浆果')] = 1;
+ok(!E.canMake(feed034, 1, 'husbandry'), '未勾选的块根不计入够料判断');
+E.setInputSelection('husbandry', feed034, '素食食材', []);
+ok(!E.canMake(feed034, 1, 'husbandry'), '全不选时无料');
+E.toggleInputSelection('husbandry', feed034, '素食食材', E.N2I('块根'));
+ok(E.inputSelection('husbandry', feed034, '素食食材').length === 1
+  && E.inputSelection('husbandry', feed034, '素食食材')[0] === E.N2I('块根'), '单选切换生效');
+
+// 工作页：模糊投入徽章 + 展开面板；畜牧页文案精简；角色页删 DPS
+E.S = E.newState('v034界面');
+E.S.techs['animal_husbandry'] = true; E.S.jobs.husbandry.up[0] = 1;
+const hub034Html = U.pageJob('husbandry');
+ok(hub034Html.includes('data-act="inpfilter"'), '模糊投入徽章可点开筛选');
+ok(!hub034Html.includes('喂养一次消耗') && !hub034Html.includes('每只 1 / 天'), '畜牧页删除草料数值说明');
+const feed034b = E.jobRecipes(E.JOB_BY_ID.husbandry)[0];
+E.S.ui.inpOpen[E.inputFilterKey('husbandry', feed034b, '素食食材')] = true;
+const hub034Open = U.pageJob('husbandry');
+ok(hub034Open.includes('inpPanel') && hub034Open.includes('全不选'), '筛选面板展开后有全选 / 全不选');
+ok(!U.pageCharacters().includes('DPS'), '角色页删除 DPS 行');
+
+// 旧存档迁移：采集槽位后移 2 格；跨工作装备按名字搬回
+const old034 = E.newState('旧档34');
+old034.dataVer = 33;
+old034.jobs.gathering.slots = ['player', null, null];
+old034.jobs.gathering.prog = [0.4, 0, 0];
+const mg034 = E.migrate(old034);
+ok(mg034.jobs.gathering.slots[2] === 'player' && !mg034.jobs.gathering.slots[0] && !mg034.jobs.gathering.slots[1],
+  '旧采集槽位整体后移 2 格');
+ok(mg034.jobs.gathering.prog[2] === 0.4, '旧采集进度跟着槽位一起后移');
+
+const oldEq034 = E.newState('旧装备34');
+oldEq034.dataVer = 33;
+oldEq034.jobs.machining.rnames = ['机械零件', '棉衬衣'];
+oldEq034.jobs.machining.slots = [null, 'player'];
+oldEq034.jobs.machining.prog = [0, 0.3];
+oldEq034.jobs.tailoring.rnames = ['布帽', '布衬衣', '布衬裤', '羊毛袜', '银项链'];
+oldEq034.jobs.tailoring.slots = [null, null, null, null, null];
+const mgEq034 = E.migrate(oldEq034);
+const coatIdx = E.jobRecipes(E.JOB_BY_ID.tailoring).findIndex(r => r.name === '棉衬衣');
+ok(coatIdx >= 0 && mgEq034.jobs.tailoring.slots[coatIdx] === 'player', '旧存档里机械加工的棉衬衣入驻者搬到裁缝');
+ok(mgEq034.jobs.tailoring.prog[coatIdx] === 0.3, '跨工作搬槽时保留进度');
+ok(!mgEq034.jobs.machining.slots.includes('player'), '机械加工不再保留棉衬衣槽位');
+
+console.log('== v0.0.35：粮仓无限容量 / 腐坏 600 秒 / 升级项材料重设 ==');
+E.S = E.newState('v035粮仓');
+E.S.items = {};
+E.addFood(E.N2I('浆果'), 100000);
+ok(E.granaryTotal() === 100000 && E.granaryCap() === Infinity, '粮仓无限容量：10 万份一次全部入库');
+
+// 食物效果文案（腐坏面板先看基础值）
+ok(E.foodEffectText(E.N2I('浆果')) === '', '普通食材不再返回「无特殊效果」');
+const berryTip = U.itemTipHtml(E.N2I('浆果'));
+ok(!berryTip.includes('无特殊效果'), '食材悬浮面板不再出现「无特殊效果」');
+ok(berryTip.includes('每 600 秒减半'), '食材面板写「每 600 秒减半」');
+const mealTip = U.itemTipHtml(E.N2I('素餐'));
+ok(mealTip.includes('精通经验 +25%') && !mealTip.includes('必须在粮仓里有货'), '熟食面板保留效果、删除「必须在粮仓里有货」');
+
+// 基础腐坏：600 秒减半
+E.S.items = {}; E.addItem('浆果', 1000);
+ok(E.granarySpoilMul() === 1 && Math.round(E.granaryHalfLife()) === 600, '未买升级项：腐坏倍率 1、半衰期 600 秒');
+E.granaryDecay(600);
+ok(Math.abs(E.granaryTotal() - 500) < 1, '基础腐坏每 600 秒减半：' + E.granaryTotal().toFixed(1));
+
+// 三档升级项只改腐坏效率
+E.S.items = {}; E.addItem('浆果', 1000); E.S.granary = 1;
+ok(Math.round((1 - E.granarySpoilMul()) * 100) === 30, '陶器 = 腐坏效率 −30%');
+ok(Math.round(E.granaryHalfLife()) === 857, '陶器后有效半衰期 ≈ 857 秒');
+E.granaryDecay(600);
+ok(Math.abs(E.granaryTotal() - 1000 * Math.pow(0.5, 0.7)) < 1, '陶器档 600 秒后剩余 ' + E.granaryTotal().toFixed(1));
+E.S.granary = 2;
+ok(Math.round((1 - E.granarySpoilMul()) * 100) === 60, '地窖 = 腐坏效率 −60%');
+E.S.items = {}; E.addItem('浆果', 1000); E.S.granary = 3;
+E.granaryDecay(86400);
+ok(E.granaryTotal() === 1000 && E.granarySpoilMul() === 0 && E.granaryHalfLife() === Infinity,
+  '冷库 −100%：一天后仍是 1000 份、半衰期无限');
+
+// 页面文案
+E.S = E.newState('v035界面');
+E.S.milestones.wood_stone = true;
+const wh035 = U.pageWarehouse();
+ok(!wh035.includes('金币 '), '仓库页不再显示金币数量');
+ok(!wh035.includes('仓库只查看与卖出'), '仓库页删除「仓库只查看与卖出；买入在商店」');
+E.S.ui.tab.wh = 'granary';
+['陶器', '木材', '沙'].forEach(n => E.addItem(n, 1));
+const gr035 = U.pageWarehouse();
+ok(gr035.includes('容量无限') && !gr035.includes('剩余 0 / '), '粮仓页写「容量无限」，不再显示份数上限');
+ok(gr035.includes('腐坏 −') || gr035.includes('腐坏 −30%'), '粮仓升级卡显示腐坏效率');
+ok(!U.pageCharacters().includes('拖拽排序决定上场顺位'), '角色页删除「拖拽排序决定上场顺位」');
+
+// 全部升级项材料审计：只用现有物品、同一份工作内不重复、第一档便宜
+const allUp = [];
+E.JOBS.forEach(j => (j.upgrades || []).forEach((u, i) => allUp.push({ jid: j.id, i, u })));
+[E.HOUSING, E.COMFORT, E.FORTS, E.WH_UPG, E.GR_UPG].forEach(arr => arr.forEach(u => allUp.push({ u })));
+const badName = allUp.filter(x => Object.keys(x.u.cost || {}).some(n => !E.N2I(n)));
+ok(badName.length === 0, '升级项材料全部取自现有物品：' + (badName.map(x => x.u.name).join('、') || '无'));
+const costVal = c => Object.keys(c).reduce((a, n) => a + (E.ITEMS[E.N2I(n)].price || 0) * c[n], 0);
+const gateUp = E.JOBS.map(j => ({ j, u: j.upgrades && j.upgrades[E.jobRecipeGate(j)] })).filter(x => x.u);
+const notCheap = gateUp.filter(({ j, u }) => costVal(u.cost) > 5000);
+notCheap.push(...gateUp.filter(({ j, u }) => {
+  const t2 = j.upgrades[j.upgrades.indexOf(u) + 1];
+  return t2 && costVal(u.cost) > costVal(t2.cost) * 0.4;
+}));
+ok(notCheap.length === 0, '第一档（解锁项目）造价 ≤ 400 金且不超过第二档 40%：' + (notCheap.map(x => x.u.name).join('、') || '无'));
+const dupCost = [];
+E.JOBS.forEach(j => {
+  const seen = {};
+  (j.upgrades || []).forEach(u => {
+    const key = JSON.stringify(Object.keys(u.cost).sort().map(k => [k, u.cost[k]]));
+    if (seen[key]) dupCost.push(j.name + '：' + seen[key] + ' / ' + u.name);
+    seen[key] = u.name;
+  });
+});
+ok(dupCost.length === 0, '同一份工作里没有两档材料完全相同：' + (dupCost.join('、') || '无'));
+const granTiers = E.GR_UPG.map(u => u.spoilMul);
+ok(granTiers.join(',') === '0.7,0.4,0', '粮仓三档腐坏倍率 = 0.7 / 0.4 / 0');
+
 
 console.log('== 英雄立绘（v0.0.25）==');
 const fs = require('fs'), path = require('path');

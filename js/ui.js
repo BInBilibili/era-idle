@@ -7,8 +7,8 @@ const E = window.Engine;
 /* 工作的一句话简介（设计文档要求：工作页只显示粗略说明，不堆细节） */
 const JOB_BRIEF = {
   woodcutting: '砍树，产出木材。',
-  mining: '开采矿石。每种矿石单独开采，越稀有的矿越慢。',
-  gathering: '去草地、平原或沼泽采集；每种资源包会随机变成其中一种物品。',
+  mining: '开采矿石，也可以直接采石。每种矿石单独开采，越稀有的矿越慢。',
+  gathering: '灌木、石头、草地、平原、沼泽各是一个项目；资源包会随机变成其中一种物品。',
   farming: '种地，把种子变成对应作物与草料；也能晒制干草。',
   hunting: '派角色去野外打怪，掉落皮革与肉。',
   husbandry: '圈养认知度满的动物；喂养项目持续消耗草料，动物进度条满才产出肉、皮革与副产物。',
@@ -22,17 +22,17 @@ const JOB_BRIEF = {
   forging: '打造中世纪金属装备与武器。',
   carpentry: '把木材加工成木板。',
   weaving: '把植物纤维与毛料纺成布料。',
-  tailoring: '缝制衣物与轻甲。',
+  tailoring: '缝制各时代的布料衣物与轻甲。',
   carpet_weaving: '编织地毯。',
   papermaking: '把木材做成纸张。',
   power: '用燃料发电，供耗电工作与工事使用。',
-  machining: '制造机械零件、建材、核燃料，以及工业时代后的全部装备。',
+  machining: '制造机械零件、建材、核燃料，以及工业 / 信息时代的武器盔甲。',
   oil_extraction: '开采石油，供给化学精炼与火药制作。',
   chemistry: '炼油，产出化学燃料与塑料。',
   glassmaking: '把沙做成玻璃。',
   gunpowder: '制造火药。',
   semiconductors: '制造芯片。',
-  precision_assembly: '制造精密零件。',
+  precision_assembly: '制造精密零件，以及太空时代的武器与盔甲。',
   alien_mining: '在太空开采外星合金。',
   particle_collider: '对撞粒子，制造反物质。',
   synthesis: '合成超织物、AI 核心与生命维持单元。',
@@ -323,12 +323,16 @@ const UI = {
         + `</div>`;
     }
     if (E.isFoodItem(id)) {
-      h += `<div class="ttSec">食物效果</div><div class="ttDesc">${esc(E.foodEffectText(id))}${it.cat === 'cooked' ? '（选中的食物必须在粮仓里有货才生效）' : ''}</div>`;
+      const fx = E.foodEffectText(id);
+      if (fx) h += `<div class="ttSec">食物效果</div><div class="ttDesc">${esc(fx)}</div>`;
     }
     if (it.cat === 'book' && it.book) h += row('用途', '《' + esc(it.book) + '》精通 +10 级');
     if (it.kind) h += row('类别', esc(ITEM_KIND_NAME[it.kind] || it.kind));
     if (it.gift) h += row('送礼好感', '+' + it.gift, 'gold');
-    if (it.storage === 'granary') h += row('腐坏', '每 2400 秒减半', 'red');
+    if (it.storage === 'granary') {
+      const spoilt = E.granarySpoilMul() <= 0;
+      h += row('腐坏', spoilt ? '不腐坏' : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半', 'red');
+    }
 
     const srcText = it.src ? this.srcText(it.src) : '';
     if (srcText) h += `<div class="ttSec">获取</div><div class="ttDesc">${esc(srcText)}</div>`;
@@ -479,7 +483,7 @@ const UI = {
     const showRes = S.ui.showResearch !== false && (S.research >= 1 || S.ui.showResearch);
     if (S.research >= 1) S.ui.showResearch = true;
     if (E.powerProduced() >= 1) S.ui.showPower = true;
-    const food = E.granaryTotal(), cap = E.granaryCap();
+    const food = E.granaryTotal();
     const chars = E.onFieldChars().length;
     const foodRate = chars * E.GAME.foodPerCharSec;
     const foodLeft = chars > 0 ? food / foodRate : Infinity;
@@ -488,7 +492,7 @@ const UI = {
     html += `<div class="res gold"><span class="k">金币</span><span class="v mono" id="resGold">${E.fmt(S.gold)}</span></div>`;
     if (S.ui.showResearch) html += `<div class="res research"><span class="k">科研</span><span class="v mono" id="resResearch">${E.fmt(S.research)}</span></div>`;
     if (S.ui.showPower) html += `<div class="res power"><span class="k">电力</span><span class="v mono" id="resPower">${E.fmt(E.powerProduced(), 0)}/${E.fmt(E.powerDemand(), 0)}</span></div>`;
-    html += `<div class="res food ${low ? 'low' : ''}" title="粮仓份数；${chars ? '约可支撑 ' + E.fmtTime(foodLeft) : '无人在场'}"><span class="k">食物</span><span class="v mono" id="resFood">${E.fmt(food, 0)}/${E.fmt(cap, 0)}</span><span class="rate">${chars ? '-' + foodRate.toFixed(2) + '/秒' : '0/秒'}</span></div>`;
+    html += `<div class="res food ${low ? 'low' : ''}" title="粮仓份数（容量无限）；${chars ? '约可支撑 ' + E.fmtTime(foodLeft) : '无人在场'}"><span class="k">食物</span><span class="v mono" id="resFood">${E.fmt(food, 0)}</span><span class="rate">${chars ? '-' + foodRate.toFixed(2) + '/秒' : '0/秒'}</span></div>`;
     document.getElementById('resbar').innerHTML = html;
   },
 
@@ -756,10 +760,6 @@ const UI = {
     if (!feed || !E.recipeVisible(feed, job)) return '';
     const used = E.husbandryUsed(), cap = E.husbandryCapacity();
     const animals = E.husbandryAnimals();
-    const fodder = E.count('草料');
-    const cost = E.husbandryFeedCost();
-    const speed = E.husbandrySpeed();
-    const feedMin = E.husbandryFeedPerSec() * 60;
     const blocked = (js.blocked && js.blocked[1]) || '';
     const free = cap - used > 1e-9;
     const cells = animals.map((a, idx) => {
@@ -785,11 +785,8 @@ const UI = {
           <div class="row" style="gap:6px;flex-wrap:wrap;min-width:0">
             <span class="badge">🐾 ${animals.length} 只动物</span>
             <span class="badge" data-live="hubused">畜牧容量 ${E.fmt(used)} / ${E.fmt(cap)}</span>
-            <span class="badge ${fodder >= cost ? '' : 'bad'}" data-live="hubstock">草料 ${E.fmt(fodder)}</span>
-            <span class="badge" data-live="hubfeed">每次 ${E.fmt(cost)} 草料 · ${E.fmt(feedMin, 1)} / 分钟 · 速度 ×${speed.toFixed(2)}</span>
           </div>
         </div>
-        <div class="tiny dim" style="margin-top:4px">喂养一次消耗 = 所有动物草料消耗之和（每只 1 / 天）；喂养条只扣草料，不产物品。</div>
         ${blocked === 'input' ? '<div class="tiny red" style="margin-top:5px">草料不足，全部动物停产</div>' : ''}
         ${blocked === 'worker' ? '<div class="tiny dim" style="margin-top:5px">「喂养畜群」派驻角色后，动物进度条才会推进</div>' : ''}
         ${blocked === 'injury' ? '<div class="tiny red" style="margin-top:5px">角色重伤，喂养与动物进度暂停</div>' : ''}
@@ -811,7 +808,6 @@ const UI = {
     const prog = (js.prog && js.prog[i]) || 0;
     const speed = E.jobSpeed(job.id, i);
     const dur = speed > 0 ? Math.max(0.4, E.recipeDuration(job, r)) / speed : Infinity;
-    const animals = E.husbandryAnimals();
     const cost = E.husbandryFeedCost();
     const hay = E.count('草料');
     const lack = cost > 0 && hay < cost;
@@ -821,9 +817,7 @@ const UI = {
     const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
     const fodderId = E.N2I('草料');
     const fodderIt = fodderId ? E.ITEMS[fodderId] : null;
-    const costHtml = cost > 0
-      ? `<span class="badge io ${lack ? 'bad' : ''}" data-live="hubcost">${fodderIt ? this.itemIcon(fodderIt) + ' ' : ''}草料 ×${E.fmt(cost)}</span>`
-      : '<span class="dim">草料 ×0（先到畜牧区添加动物）</span>';
+    const costHtml = `<span class="badge io ${lack ? 'bad' : ''}" data-live="hubcost">${fodderIt ? this.itemIcon(fodderIt) : '🌾'} ×${E.fmt(cost)}</span>`;
     return `<div class="card recipe ${c ? 'run' : ''}" data-act="cardrec" data-job="${job.id}" data-i="${i}" data-drop-job="${job.id}" data-drop-i="${i}">
       <div class="row" style="justify-content:space-between">
         <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.jobIcon(job)}</span><b class="small">${this.esc(r.name || '喂养畜群')}</b></div>
@@ -833,14 +827,12 @@ const UI = {
       </div>
       <div class="io">产出：<span class="badge io" data-tip-hub="1">🐾 畜牧产物</span>
         <br>消耗：${costHtml}</div>
-      <div class="tiny dim" style="margin-top:3px">进度条满只扣草料；物品由下方「畜牧」区每只动物自己的进度条产出</div>
       <div class="row tiny" style="justify-content:space-between;margin-top:6px">
         <span>${c ? `<span class="green">${this.esc(E.charName(c))}</span> · 精通 <b class="mono" data-live="masterylvl" data-i="${i}">${mastery}</b>${bonus ? ' · +' + bonus + '%' : ''}` : '<span class="dim">空置 · 拖入角色</span>'}</span>
         <span class="mono">${isFinite(dur) ? dur.toFixed(1) + 's' : '停滞'}</span>
       </div>
       <div class="bar sm" style="margin-top:6px" data-live="rec" data-job="${job.id}" data-i="${i}"><i style="width:${(prog * 100).toFixed(1)}%"></i></div>
       ${c ? `<div class="row" style="margin-top:5px;gap:6px"><span class="tiny muted" style="width:52px">精通经验</span><div class="bar xp" style="flex:1" data-live="mastery" data-job="${job.id}" data-i="${i}"><i style="width:${(mnext * 100).toFixed(1)}%"></i></div></div>` : ''}
-      ${!animals.length ? '<div class="tiny dim" style="margin-top:4px">还没有动物：先到下方「畜牧」区点「＋」</div>' : ''}
       ${blocked === 'input' ? `<div class="tiny red" style="margin-top:4px">草料不足（每次需要 ${E.fmt(cost)}）</div>` : ''}
       ${blocked === 'injury' ? '<div class="tiny red" style="margin-top:4px">角色重伤，喂养暂停</div>' : ''}
     </div>`;
@@ -865,7 +857,8 @@ const UI = {
           ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
         </div>
       </div>
-      <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.ioList(r.inputs, true) : ''}</div>
+      <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.recipeInputList(job, r, i) : ''}</div>
+      ${this.inputFilterPanel(job, r, i)}
       <div class="row tiny" style="justify-content:space-between;margin-top:6px">
         <span>${c ? `<span class="green">${this.esc(E.charName(c))}</span> · 精通 <b class="mono" data-live="masterylvl" data-i="${i}">${mastery}</b>${bonus ? ' · +' + bonus + '%' : ''}` : '<span class="dim">空置 · 拖入角色</span>'}</span>
         <span class="mono">${isFinite(dur) ? dur.toFixed(1) + 's' : '停滞'}</span>
@@ -874,6 +867,55 @@ const UI = {
       ${c ? `<div class="row" style="margin-top:5px;gap:6px"><span class="tiny muted" style="width:52px">精通经验</span><div class="bar xp" style="flex:1" data-live="mastery" data-job="${job.id}" data-i="${i}"><i style="width:${(mnext * 100).toFixed(1)}%"></i></div></div>` : ''}
       ${blocked ? '<div class="tiny red" style="margin-top:4px">材料不足</div>' : ''}
     </div>`;
+  },
+  /* v0.0.34：模糊描述的投入（素食食材 / 肉食食材 / 种子）可以点开下拉面板勾选。
+     没勾选的组成物品不计入消耗，也不参与「够不够料」的判断。 */
+  recipeInputList(job, r, i) {
+    const ent = Object.entries(r.inputs || {});
+    if (!ent.length) return '<span class="dim">无</span>';
+    return ent.map(([n, q]) => this.inputBadge(job, r, i, n, q)).join(' ');
+  },
+  inputBadge(job, r, i, n, q) {
+    const generic = !!(E.GENERIC_IN && E.GENERIC_IN[n]);
+    if (!generic) {
+      const id = this.itemIdOf(n);
+      const it = id ? E.ITEMS[id] : null;
+      const lack = E.stockOf(n) < q;
+      const name = lack ? `<span class="red">${this.esc(n)}</span>` : this.esc(n);
+      return `<span class="badge io"${id ? ` data-tip-item="${id}"` : ''}>${it ? this.itemIcon(it) + ' ' : ''}${name} ×${E.fmt(q)}</span>`;
+    }
+    const sel = E.inputSelection(job.id, r, n);
+    const lack = E.stockOf(n, sel) < q;
+    const key = E.inputFilterKey(job.id, r, n);
+    const open = !!(E.S.ui.inpOpen && E.S.ui.inpOpen[key]);
+    const icons = sel.slice(0, 4).map(id => (E.ITEMS[id] ? this.itemIcon(E.ITEMS[id]) : '')).join('');
+    const more = sel.length > 4 ? `<span class="tiny dim">+${sel.length - 4}</span>` : '';
+    return `<button type="button" class="badge io inp ${lack ? 'bad' : ''} ${open ? 'open' : ''} ${sel.length ? '' : 'empty'}"
+      data-act="inpfilter" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}" title="点击筛选「${this.esc(n)}」">
+      ${icons}${more}<span class="${lack ? 'red' : ''}">${this.esc(n)} ×${E.fmt(q)}</span><span class="caret">▾</span></button>`;
+  },
+  inputFilterPanel(job, r, i) {
+    const S = E.S;
+    return Object.keys(r.inputs || {}).filter(n => E.GENERIC_IN && E.GENERIC_IN[n]).map(n => {
+      const key = E.inputFilterKey(job.id, r, n);
+      if (!S.ui.inpOpen || !S.ui.inpOpen[key]) return '';
+      const sel = E.inputSelection(job.id, r, n);
+      const all = E.genericItemIds(n);
+      return `<div class="inpPanel" data-act="noop">
+        <div class="inpTip">「${this.esc(n)}」只用勾选的材料；没勾选的不计入消耗。</div>
+        <div class="inpOpts">${all.map(id => {
+          const it = E.ITEMS[id]; if (!it) return '';
+          const on = sel.indexOf(id) >= 0;
+          return `<button type="button" class="inpOpt ${on ? 'on' : ''}" data-act="inptoggle" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}" data-id="${id}">
+            ${this.itemIcon(it)}<span class="inpNm">${this.esc(it.name)}</span><span class="tiny dim">×${E.fmt(E.count(id))}</span><span class="inpTick">${on ? '✓' : '＋'}</span>
+          </button>`;
+        }).join('')}</div>
+        <div class="row" style="justify-content:flex-end;gap:6px;margin-top:6px">
+          <button type="button" data-act="inpall" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}">全选</button>
+          <button type="button" data-act="inpnone" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}">全不选</button>
+        </div>
+      </div>`;
+    }).join('');
   },
   ioList(obj, checkStock) {
     const ent = Object.entries(obj || {});
@@ -895,7 +937,7 @@ const UI = {
       ${pool.filter(o => E.jobVisible(job)).map(o => {
         const id = E.iid(o.name); const it = E.ITEMS[id];
         const unlocked = this.oreUnlocked(o.name);
-        return `<tr style="${unlocked ? '' : 'opacity:.4'}"><td>${this.itemIcon(it)} ${this.esc(o.name)}${unlocked ? '' : ' 🔒'}</td><td class="r mono">${o.weight}</td><td class="r mono">${unlocked ? (o.weight / total * 100).toFixed(1) + '%' : '—'}</td><td class="r mono">${it ? E.fmt(it.price) : '—'}</td></tr>`;
+        return `<tr style="${unlocked ? '' : 'opacity:.4'}"><td>${this.itemIcon(it)} ${this.esc(o.label || o.name)}${unlocked ? '' : ' 🔒'}</td><td class="r mono">${o.weight}</td><td class="r mono">${unlocked ? (o.weight / total * 100).toFixed(1) + '%' : '—'}</td><td class="r mono">${it ? E.fmt(it.price) : '—'}</td></tr>`;
       }).join('')}
       </tbody></table>
       <div class="tiny dim" style="margin-top:6px">稀有矿需要对应科技解锁。</div>
@@ -1117,8 +1159,7 @@ const UI = {
     const S = E.S;
     const tab = S.ui.tab.wh || 'warehouse';
     let h = `<div class="wrap"><div class="pagehead"><h2>仓库</h2>
-      <span class="badge">${tab === 'warehouse' ? E.warehouseUsed() + ' / ' + E.warehouseCap() + ' 格' : E.fmt(E.granaryTotal(), 0) + ' / ' + E.granaryCap() + ' 份'}</span>
-      <span class="badge gold">金币 ${E.fmt(S.gold)}</span></div>
+      <span class="badge">${tab === 'warehouse' ? E.warehouseUsed() + ' / ' + E.warehouseCap() + ' 格' : E.fmt(E.granaryTotal(), 0) + ' 份'}</span></div>
       <div class="tabs">
         <div class="tab ${tab === 'warehouse' ? 'active' : ''}" data-act="tab" data-k="wh" data-v="warehouse">仓库</div>
         <div class="tab ${tab === 'granary' ? 'active' : ''}" data-act="tab" data-k="wh" data-v="granary">粮仓 ${E.fmt(E.granaryTotal(), 0)}</div>
@@ -1136,11 +1177,10 @@ const UI = {
     if (sort === 'name') ids.sort((a, b) => E.ITEMS[a].name.localeCompare(E.ITEMS[b].name, 'zh'));
     else if (sort === 'value') ids.sort((a, b) => (S.items[b] * E.ITEMS[b].price) - (S.items[a] * E.ITEMS[a].price));
     else ids.sort((a, b) => orderIdx(a) - orderIdx(b));
-    let h = `<div class="card"><div class="row" style="justify-content:space-between">
+    let h = `<div class="card"><div class="row">
       <div class="row">排序：<button class="${sort === 'order' ? 'primary' : ''}" data-act="sort" data-v="order">默认</button>
       <button class="${sort === 'name' ? 'primary' : ''}" data-act="sort" data-v="name">名称</button>
-      <button class="${sort === 'value' ? 'primary' : ''}" data-act="sort" data-v="value">总价值</button></div>
-      <span class="tiny dim">仓库只查看与卖出；买入在商店</span></div>
+      <button class="${sort === 'value' ? 'primary' : ''}" data-act="sort" data-v="value">总价值</button></div></div>
       ${!ids.length ? '<div class="empty">仓库空空如也。去「工作」派角色采集吧。</div>' : `
       <table class="t" style="margin-top:10px"><thead><tr><th>物品</th><th class="r">数量</th><th class="r">单价</th><th class="r">总价值</th><th class="r">操作</th></tr></thead><tbody>
       ${ids.map(id => {
@@ -1171,21 +1211,25 @@ const UI = {
     const ids = Object.keys(S.items).filter(id => (S.items[id] || 0) > 0 && E.ITEMS[id] && E.ITEMS[id].storage === 'granary');
     const chars = E.onFieldChars().length;
     const left = chars ? E.granaryTotal() / (chars * E.GAME.foodPerCharSec) : Infinity;
+    const spoilt = E.granarySpoilMul() <= 0;
+    const spoilText = spoilt ? '不腐坏' : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半';
+    const spoilCell = spoilt ? '<span class="green">不腐坏</span>' : '<span class="red">腐坏中</span>';
     let h = `<div class="card">
-      <div class="row" style="justify-content:space-between"><b>剩余 ${E.fmt(E.granaryTotal(), 0)} / ${E.granaryCap()} 份</b>
+      <div class="row" style="justify-content:space-between"><b>当前 ${E.fmt(E.granaryTotal(), 0)} 份</b>
       <span class="small ${left < 60 ? 'red' : 'muted'}">${chars ? '约可支撑 ' + E.fmtTime(left) : '无人在场'}</span></div>
-      <div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, E.granaryTotal() / E.granaryCap() * 100).toFixed(1)}%"></i></div>
+      <div class="tiny muted" style="margin-top:4px">容量无限 · 腐坏 ${spoilText}</div>
       ${!ids.length ? '<div class="empty">粮仓是空的。派角色去采集 / 种植 / 烹饪。</div>' : `
-      <table class="t" style="margin-top:10px"><thead><tr><th>食物</th><th class="r">数量</th><th class="r">单价</th><th class="r">腐坏速率</th><th class="r">操作</th></tr></thead><tbody>
-      ${ids.map(id => { const it = E.ITEMS[id]; return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono red">${(100 - Math.pow(0.5, 1 / 2400) * 100).toFixed(2)}%/s</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`; }).join('')}
+      <table class="t" style="margin-top:10px"><thead><tr><th>食物</th><th class="r">数量</th><th class="r">单价</th><th class="r">腐坏</th><th class="r">操作</th></tr></thead><tbody>
+      ${ids.map(id => { const it = E.ITEMS[id]; return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono">${spoilCell}</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`; }).join('')}
       </tbody></table>`}
     </div>
     <div style="margin-top:14px"><h3 style="font-size:15px">粮仓升级</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:8px">`;
     E.GR_UPG.forEach((u, i) => {
       const done = i < S.granary, cur = i === S.granary;
       if (!done && (!cur || !E.everOwnedAll(u.cost))) return;
+      const eff = u.spoilMul === 0 ? '不腐坏' : '腐坏 −' + Math.round((1 - (u.spoilMul == null ? 1 : u.spoilMul)) * 100) + '%';
       h += `<div class="card upg ${done ? 'done' : ''}">
-        <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name)}</b><span class="badge ${done ? 'on' : ''}">${u.capMul ? '×' + u.capMul + ' 容量' : ''}</span></div>
+        <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name)}</b><span class="badge ${done ? 'on' : ''}">${eff}</span></div>
         ${done ? '<div class="tiny green" style="margin-top:6px">✓ 已建成</div>' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>
         <button class="primary" style="margin-top:8px;width:100%" data-act="buygr" ${E.affordCost(u.cost) ? '' : 'disabled'}>建造</button>`}
       </div>`;
@@ -1391,9 +1435,7 @@ const UI = {
             <div class="statrow"><span class="k">伤害减免</span><span class="mono">${st.dr.toFixed(0)}%</span></div>
             <div class="statrow"><span class="k">攻击间隔</span><span class="mono">${st.interval.toFixed(1)}s</span></div>
             <div class="statrow"><span class="k">最大伤害</span><span class="mono">${st.maxHit}</span></div>
-            <div class="statrow"><span class="k">DPS（对当前敌人）</span><span class="mono">${E.fmt(E.charDps(c, (E.combatState('hunting').enemy) || { def: 5 }), 1)}</span></div>
             ${E.foodAtkStrBonus(c) ? `<div class="statrow"><span class="k">食物增益</span><span class="mono green">命中 / 力量 +${E.foodAtkStrBonus(c)} 级</span></div>` : ''}
-            ${c.med && E.ITEMS[c.med] && E.ITEMS[c.med].med ? `<div class="statrow"><span class="k">医物</span><span class="mono ${c.injured ? 'green' : 'muted'}">${this.esc(E.ITEMS[c.med].name)} ×${E.ITEMS[c.med].med.healMul} 回血</span></div>` : ''}
           </div>
           <div class="card" style="margin-top:12px">
             <h3>精通</h3>
@@ -1404,7 +1446,7 @@ const UI = {
         </div>
       </div>
       <div style="margin-top:14px">
-        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">角色列表</h3><span class="tiny dim">拖拽排序决定上场顺位</span></div>
+        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">角色列表</h3></div>
         <div class="charlist">
           ${S.order.map((cid, i) => {
             const ch = S.chars[cid]; if (!ch) return '';
@@ -1696,15 +1738,8 @@ const UI = {
         const used = E.husbandryUsed(), cap = E.husbandryCapacity();
         document.querySelectorAll('[data-live="hubused"]').forEach(el => { el.textContent = '畜牧容量 ' + E.fmt(used) + ' / ' + E.fmt(cap); });
         const fodderNow = E.count('草料'), feedCostNow = E.husbandryFeedCost();
-        document.querySelectorAll('[data-live="hubstock"]').forEach(el => {
-          el.textContent = '草料 ' + E.fmt(fodderNow);
-          el.classList.toggle('bad', fodderNow < feedCostNow);
-        });
         document.querySelectorAll('[data-live="hubcost"]').forEach(el => {
           el.classList.toggle('bad', feedCostNow > 0 && fodderNow < feedCostNow);
-        });
-        document.querySelectorAll('[data-live="hubfeed"]').forEach(el => {
-          el.textContent = '每次 ' + E.fmt(feedCostNow) + ' 草料 · ' + E.fmt(E.husbandryFeedPerSec() * 60, 1) + ' / 分钟 · 速度 ×' + E.husbandrySpeed().toFixed(2);
         });
       }
       if (job.special === 'research') {

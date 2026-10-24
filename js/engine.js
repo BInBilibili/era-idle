@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.33';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.35';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -227,6 +227,7 @@ function newChar(cid, opts) {
 function newState(name) {
   const st = {
     v: 1, name: name || '无名者', created: Date.now(), lastSave: Date.now(),
+    dataVer: 34,       // 工作数据版本：迁移时据此重排配方槽位（v0.0.34 采集新增两个项目）
     playtime: 0,
     gold: 0, research: 0,
     items: {}, seen: { items:{}, enemies:{}, chars:{} },
@@ -243,7 +244,7 @@ function newState(name) {
     combat: {},
     raid: { next: GAME.raidPeriod, last: null, count: 0 },
     power: { built: {}, on: {} },
-    ui: { page: 'warehouse', charSel: null, tab: {} },
+    ui: { page: 'warehouse', charSel: null, tab: {}, inpOpen: {} },
     settings: { theme: 'dark' },
     discoveredShard: false,
     log: [],
@@ -251,6 +252,8 @@ function newState(name) {
   };
   JOBS.forEach(j => {
     st.jobs[j.id] = { slots: [], prog: [], blocked: [], up: new Array((j.upgrades || []).length).fill(0), upVer: 2 };
+    // 配方名快照：装备配方表调整时，旧存档按名字把入驻角色搬回同一件装备（见 migrate）
+    st.jobs[j.id].rnames = jobRecipes(j).map(r => (r && r.name) || '');
   });
   st.jobs.husbandry.animals = [];
   const pc = newChar('player', { name: st.name, kind:'player', hp:1, atk:1, str:1, def:1 });
@@ -332,18 +335,23 @@ function warehouseCap() {
 }
 function warehouseUsed() { return Object.keys(S.items).filter(id => (S.items[id]||0) > 0 && (ITEMS[id] ? ITEMS[id].storage !== 'granary' : true)).length; }
 function warehouseFull() { return warehouseUsed() >= warehouseCap(); }
-function granaryCap() {
-  let base = PR.granaryCap || 60, mul = 1;
-  GR_UPG.slice(0, S.granary).forEach(u => { if (u.capMul) mul *= u.capMul; });
-  return Math.floor(base * mul);
-}
+/* v0.0.35：粮仓改为无限容量，不再有「份数上限」，生产多少收多少 */
+function granaryCap() { return Infinity; }
 function granaryTotal() { let t=0; for (const id in S.items) if (ITEMS[id] && ITEMS[id].storage==='granary') t += S.items[id]; return t; }
 function addFood(id, n) {
-  const cap = granaryCap(), cur = granaryTotal();
-  const room = Math.max(0, cap - cur);
-  const amt = Math.min(n, room);
-  if (amt > 0) addItem(id, amt);
-  return amt;
+  if (n > 0) addItem(id, n);
+  return n > 0 ? n : 0;
+}
+/* 粮仓升级项只改腐坏效率：spoilMul 是「当前档的全局腐坏倍率」（0 = 完全不腐坏）。
+ * 陶器 ×0.7（−30%）、地窖 ×0.4（−60%）、冷库 ×0（−100%）。 */
+function granarySpoilMul() {
+  const t = S.granary > 0 ? GR_UPG[S.granary - 1] : null;
+  return t && t.spoilMul != null ? t.spoilMul : 1;
+}
+/* 有效半衰期：基础 600 秒 ÷ 腐坏倍率（冷库 = 永不腐坏） */
+function granaryHalfLife() {
+  const mul = granarySpoilMul();
+  return mul > 0 ? 600 / mul : Infinity;
 }
 
 /* ---------- 永久解锁 / 曾经拥有 ---------- */
@@ -397,7 +405,7 @@ function isFoodItem(id) {
   const it = ITEMS[id];
   return !!(it && it.storage === 'granary' && it.cat !== 'seed');
 }
-/* 只有「选中的食物 + 粮仓里还有货」才生效；其它食物没有特殊效果 */
+/* 只有「选中的食物 + 粮仓里还有货」才生效；其它食物没有特殊效果（v0.0.35 不再写「无特殊效果」） */
 function activeFoodId(c) {
   if (!c || !c.food || !isFoodItem(c.food)) return null;
   if ((S.items[c.food] || 0) <= 0) return null;
@@ -410,7 +418,7 @@ function foodEffectText(id) {
   if (id === 'vegetarian_meal') return '精通经验 +25%';
   if (id === 'meat_meal') return '命中、力量 +10 级';
   if (id === 'balanced_meal') return '工作速度 +25%';
-  return '无特殊效果';
+  return '';
 }
 function activeMedDef(c) {
   if (!c || !c.injured || !c.med) return null;
@@ -650,11 +658,12 @@ function powerEfficiency() {
 function powerNow() { return powerProduced(); }
 
 /* ---------- 工作 ---------- */
-/* 采矿：每种矿石一条配方，各自按科技解锁；时长与权重成反比（权重 100 = 基础 3 秒） */
+/* 采矿：每种矿石一条配方，各自按科技解锁；时长与权重成反比（权重 100 = 基础 3 秒）。
+   o.label = 项目显示名（石头 → 采石），o.qty = 每次产量（默认 1）。 */
 function miningRecipes(job) {
   return (job.ores || []).map(o => ({
-    name: o.name,
-    outputs: { [o.name]: 1 },
+    name: o.label || o.name,
+    outputs: { [o.name]: o.qty || 1 },
     inputs: {},
     era: job.era,
     tech: o.tech || null,
@@ -662,19 +671,18 @@ function miningRecipes(job) {
     duration: Math.round((GAME.mineBaseSec * 100 / (o.weight || 1)) * 10) / 10,
   }));
 }
-/* 装备制造：三份工作按「主材料」分 85 件；配方直接由物品表造价生成，避免两处维护。 */
-const TAILORING_ITEMS = new Set([
-  '布帽', '布衬衣', '布衬裤', '羊毛袜', '银项链',
-  '棉帽', '棉衬衣', '棉衬裤', '棉袜',
-  '战术内衬', '战术内衬裤', '恒温内衬', '恒温袜',
-  '超织物头套', '超织物内衬', '超织物护腿', '超织物袜',
-]);
+/* 装备制造：五份工作按「主材料 + 衣物栏位」分 85 件；配方直接由物品表造价生成，避免两处维护。
+   v0.0.34：布料衣物（内衬 / 袜子栏位）全部归裁缝；工业 / 信息武器盔甲归机械加工；太空武器盔甲归精密装配。 */
+const TAILORING_ITEMS = new Set(['银项链']);
+const CLOTH_SLOTS = new Set(['headInner', 'bodyInner', 'legsInner', 'socks']);
 const EQUIP_RECIPE_CACHE = {};
 function equipmentJobId(it) {
   if (it.era === 'stone') return 'crafting';
   if (it.name === '长弓' || it.name === '弩') return 'crafting';
-  // v0.0.30：工业时代后的装备制造统一挪到机械加工
-  if (it.era === 'industrial' || it.era === 'info' || it.era === 'space') return 'machining';
+  // 布料 / 亚麻 / 棉 / 战术内衬 / 恒温 / 超织物衣物：不分时代都归裁缝
+  if (CLOTH_SLOTS.has(it.slot)) return 'tailoring';
+  if (it.era === 'space') return 'precision_assembly';
+  if (it.era === 'industrial' || it.era === 'info') return 'machining';
   return TAILORING_ITEMS.has(it.name) ? 'tailoring' : 'forging';
 }
 function equipmentRecipes(job) {
@@ -692,7 +700,7 @@ function equipmentRecipes(job) {
     if (it.name === '弩') unlockTech = '金属冶炼';
     list.push({
       name: it.name, inputs, outputs: { [it.name]: 1 },
-      era: it.era, unlockTech, duration: job.duration || 3,
+      era: it.era, unlockTech, duration: job.equipDuration || job.duration || 3,
     });
   }
   EQUIP_RECIPE_CACHE[job.id] = list;
@@ -808,27 +816,61 @@ function recipeOutputs(r) { const o = {}; for (const k in (r.outputs||{})) { con
 const GENERIC_IN = {
   '素食食材': ['浆果', '块根', '野菌', '坚果'],
   '肉食食材': ['肉类食材'],
-  '种子': ['谷物种子', '豆类种子', '蔬菜种子', '甜菜种子', '药草种子'],
+  '种子': ['谷物种子', '大豆种子', '蔬菜种子', '甜菜种子', '药草种子'],
 };
-function genericCount(name) {
-  const list = GENERIC_IN[name] || [];
-  return list.reduce((a, n) => a + (S.items[iid(n)] || 0), 0);
+function genericItems(name) { return (GENERIC_IN[name] || []).slice(); }
+function genericItemIds(name) { return genericItems(name).map(n => iid(normName(n))).filter(Boolean); }
+/* 模糊投入的筛选状态存在 S.jobs[jobId].inputSel：键 = 工作 + 配方名 + 投入名；
+   没有记录 = 全选。v0.0.34：素食食材 / 肉食食材 / 种子 可以点开下拉面板勾选。 */
+function inputFilterKey(jobId, r, inputName) {
+  return jobId + '|' + ((r && r.name) || '') + '|' + inputName;
+}
+function inputSelection(jobId, r, inputName) {
+  const all = genericItemIds(inputName);
+  if (!all.length) return [];
+  const js = jobId && S && S.jobs ? S.jobs[jobId] : null;
+  const saved = js && js.inputSel ? js.inputSel[inputFilterKey(jobId, r, inputName)] : null;
+  if (!Array.isArray(saved)) return all;
+  return all.filter(id => saved.indexOf(id) >= 0);
+}
+function setInputSelection(jobId, r, inputName, ids) {
+  const js = jobId && S && S.jobs ? S.jobs[jobId] : null;
+  if (!js) return null;
+  if (!js.inputSel) js.inputSel = {};
+  const all = genericItemIds(inputName);
+  const keep = all.filter(id => (ids || []).indexOf(id) >= 0);
+  js.inputSel[inputFilterKey(jobId, r, inputName)] = keep;
+  return keep;
+}
+function toggleInputSelection(jobId, r, inputName, itemId) {
+  const cur = inputSelection(jobId, r, inputName);
+  const all = genericItemIds(inputName);
+  const next = cur.indexOf(itemId) >= 0
+    ? cur.filter(id => id !== itemId)
+    : all.filter(id => cur.indexOf(id) >= 0 || id === itemId);
+  return setInputSelection(jobId, r, inputName, next);
+}
+/* 通用投入的实际可用量：不传 sel 时算全部组成物品；传物品 id 数组时只算被勾选的。 */
+function genericCount(name, sel) {
+  const list = Array.isArray(sel) ? sel : genericItemIds(name);
+  return list.reduce((a, id) => a + (S.items[id] || 0), 0);
 }
 /* 需求行的实际可用量：通用分类（素食食材 / 肉食食材 / 种子）按组成物品合计，
    其余按物品 id 取库存；名字不认识时返回 0（宁可标缺料，也不假装充足）。 */
-function stockOf(name) {
-  if (GENERIC_IN[name]) return genericCount(name);
+function stockOf(name, sel) {
+  if (GENERIC_IN[name]) return genericCount(name, sel);
   const id = iid(normName(name));
   return id ? (S.items[id] || 0) : 0;
 }
-function consumeInputs(r) {
+function consumeInputs(r, jobId) {
   const ins = r.inputs || {};
   for (const name in ins) {
     let need = ins[name];
     if (GENERIC_IN[name]) {
-      for (const real of GENERIC_IN[name]) {
+      const list = jobId ? inputSelection(jobId, r, name) : genericItemIds(name);
+      for (const id of list) {
         if (need <= 0) break;
-        const id = iid(real), take = Math.min(S.items[id] || 0, need);
+        const take = Math.min(S.items[id] || 0, need);
         if (take > 0) { removeItem(id, take); need -= take; }
       }
       if (need > 0) return false;
@@ -839,11 +881,14 @@ function consumeInputs(r) {
   }
   return true;
 }
-function canMake(r, mult) {
+function canMake(r, mult, jobId) {
   const ins = r.inputs || {}; mult = mult || 1;
   for (const name in ins) {
     const need = ins[name] * mult;
-    if (GENERIC_IN[name]) { if (genericCount(name) < need) return false; }
+    if (GENERIC_IN[name]) {
+      const sel = jobId ? inputSelection(jobId, r, name) : null;
+      if (genericCount(name, sel) < need) return false;
+    }
     else { const id = iid(normName(name)); if (!id || (S.items[id] || 0) < need) return false; }
   }
   return true;
@@ -1008,15 +1053,15 @@ function produceJob(jobId, dt) {
     if (c.injured) { js.blocked[i] = 'injury'; continue; }
     const ins = r.inputs || {};
     const rawOuts = r.outputs || {};
-    if (Object.keys(ins).length && !canMake(r)) { js.blocked[i] = 'input'; continue; }
+    if (Object.keys(ins).length && !canMake(r, 1, jobId)) { js.blocked[i] = 'input'; continue; }
     js.blocked[i] = null;
     const speed = jobSpeed(jobId, i);
     const dur = Math.max(0.4, recipeDuration(job, r)) / speed;
     js.prog[i] = (js.prog[i] || 0) + dt / dur;
     while (js.prog[i] >= 1) {
       js.prog[i] -= 1;
-      if (Object.keys(ins).length && !canMake(r)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
-      if (!consumeInputs(r)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
+      if (Object.keys(ins).length && !canMake(r, 1, jobId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
+      if (!consumeInputs(r, jobId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
       if (job.special === 'power') {
         // 电力的产出由 powerProduced() 统一结算（10 瓦），这里只消耗燃料
         gainMastery(c, jobId, recipeDuration(job, r)); js.done = (js.done||0) + 1; continue;
@@ -1063,7 +1108,7 @@ const PICK = arr => arr[Math.floor(Math.random() * arr.length)];
 const GENERIC_OUT = {
   '素食食材': () => PICK(['浆果', '块根', '野菌', '坚果']),
   '肉食食材': () => '肉类食材',
-  '种子': () => PICK(['谷物种子', '豆类种子', '蔬菜种子', '甜菜种子', '药草种子']),
+  '种子': () => PICK(['谷物种子', '大豆种子', '蔬菜种子', '甜菜种子', '药草种子']),
   '石器装备': () => pickItem(it => it.era === 'stone' && (it.cat === 'equip' || it.cat === 'weapon')),
   '金属装备': () => pickItem(it => ['medieval', 'industrial'].includes(it.era) && (it.cat === 'equip' || it.cat === 'weapon')),
   '衣物': () => pickItem(it => it.cat === 'equip' && /布|衣|袜|衬|帽|巾/.test(it.name)),
@@ -1907,8 +1952,10 @@ function healerPresent() {
   return js.slots.some(id => id && S.chars[id]);
 }
 function granaryDecay(dt) {
-  // 每 60 秒腐坏 1%（半衰期约 40 分钟），堆肥产出
-  const rate = Math.pow(0.5, dt / 2400);
+  // v0.0.35：基础腐坏 = 每 600 秒减半；粮仓升级项按 spoilMul 整体拉低腐坏效率（冷库 0 = 不腐坏）
+  const mul = granarySpoilMul();
+  if (!(mul > 0) || !(dt > 0)) return;
+  const rate = Math.pow(0.5, (dt * mul) / 600);
   let compost = 0;
   for (const id in S.items) {
     const it = ITEMS[id]; if (!it || it.storage !== 'granary') continue;
@@ -2021,6 +2068,7 @@ function migrate(st) {
   });
   merged.jobs = merged.jobs || {};
   delete merged.jobs.pharmacy;   // v0.0.30：药剂工作已并入医疗
+  const eqMoved = [];            // v0.0.34：装备换工作后，被顶掉的入驻者（按装备名跨工作搬回去）
   JOBS.forEach(j => {
     let js = merged.jobs[j.id];
     if (!js) js = merged.jobs[j.id] = {};
@@ -2034,7 +2082,35 @@ function migrate(st) {
     }
     if (typeof js.prog === 'number') { js.prog = []; js.prog[clamp(js.recipe || 0, 0, Math.max(0, jobRecipes(j).length - 1))] = js.prog; }
     delete js.char; delete js.recipe;
-    const nR = Math.max(1, jobRecipes(j).length);
+    // v0.0.34：采集在列表最前新增「灌木」「捡石头」两个项目 → 旧存档的 3 个槽位整体后移 2 格
+    if (j.id === 'gathering' && (Number(st.dataVer) || 0) < 34) {
+      const pad = 2;
+      js.slots = new Array(pad).fill(null).concat(js.slots);
+      js.prog = new Array(pad).fill(0).concat(js.prog);
+      js.blocked = new Array(pad).fill(null).concat(js.blocked);
+    }
+    const rs = jobRecipes(j);
+    const nR = Math.max(1, rs.length);
+    /* v0.0.34：装备配方在 加工 / 锻造 / 裁缝 / 机械加工 / 精密装配 之间重新分配。
+       有配方名快照时按名字把入驻角色搬回同一件装备；没有快照的旧存档无法判断，清掉装备槽
+       （保留基础配方槽，如机械加工的机械零件 / 精密装配的精密零件）。 */
+    if (j.equipment || j.equipmentMixed) {
+      const names = rs.map(r => (r && r.name) || '');
+      if (Array.isArray(js.rnames)) {
+        const oldNames = js.rnames, oldSlots = js.slots.slice(), oldProg = js.prog.slice();
+        oldSlots.forEach((cid, oi) => {
+          const nm = oldNames[oi];
+          if (cid && nm && names.indexOf(nm) < 0 && merged.chars[cid]) eqMoved.push({ cid, name: nm, prog: Number(oldProg[oi]) || 0 });
+        });
+        js.slots = names.map(n => { const oi = oldNames.indexOf(n); return oi >= 0 ? (oldSlots[oi] || null) : null; });
+        js.prog = names.map(n => { const oi = oldNames.indexOf(n); return oi >= 0 ? (Number(oldProg[oi]) || 0) : 0; });
+        js.blocked = names.map(() => null);
+      } else {
+        const base = (j.recipes || []).length;
+        for (let k = base; k < js.slots.length; k++) js.slots[k] = null;
+      }
+      js.rnames = names;
+    }
     ensureSlots(js, nR);
     // v0.0.30：锻造 51→16、裁缝 17→5，旧存档里指向已移走装备的槽位必须清掉，
     // 否则角色会卡在一个不会推进的幽灵槽里（assignedCount 也会多算）。
@@ -2072,7 +2148,26 @@ function migrate(st) {
       }));
     }
   });
-  merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{} }, st.ui || {});
+  /* v0.0.34：旧存档里被移到别的工作的装备（例如工业棉衣：机械加工 → 裁缝）。
+     按装备名把入驻者搬到新工作对应槽位；目标槽已有人则保持空闲，不覆盖别人。 */
+  if (eqMoved.length) {
+    const eqJobs = JOBS.filter(j => j.equipment || j.equipmentMixed);
+    eqMoved.forEach(mv => {
+      let already = false;
+      JOBS.forEach(j => { const js = merged.jobs[j.id]; if (js && Array.isArray(js.slots) && js.slots.indexOf(mv.cid) >= 0) already = true; });
+      if (already || !merged.chars[mv.cid]) return;
+      for (const j of eqJobs) {
+        const rs = jobRecipes(j);
+        const idx = rs.findIndex(r => r && r.name === mv.name);
+        if (idx < 0) continue;
+        const js = merged.jobs[j.id];
+        ensureSlots(js, Math.max(1, rs.length));
+        if (!js.slots[idx]) { js.slots[idx] = mv.cid; js.prog[idx] = mv.prog; js.blocked[idx] = null; break; }
+      }
+    });
+  }
+  merged.dataVer = Math.max(Number(merged.dataVer) || 0, 34);
+  merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{}, inpOpen:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
   merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, genSeq:0 }, st.gacha || {});
   if (!merged.gacha.genSeq) merged.gacha.genSeq = 0;
@@ -2116,7 +2211,7 @@ window.Engine = {
   fmt, fmtTime, count, addItem, removeItem, itemName, sellPrice, buyPrice, iid, N2I,
   itemEver, everOwnedAll, refreshMilestones, markInjured, addProducedItem, bundleItemSeen, markBundleSeen,
   isFoodItem, activeFoodId, foodXpMult, foodSpeedMult, foodAtkStrBonus, foodEffectText, activeMedDef, healChar,
-  warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood,
+  warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood, granarySpoilMul, granaryHalfLife, granaryDecay,
   currentEra, eraName, eraProgress, techDone, techAvailable, researched, techsDone, researchTech,
   jobUnlocked, jobVisible, unlockedJobs, JOB_BY_ID, JOB_BY_NAME,
   onFieldCap, onFieldChars, isOnField, charPower, gearPower, charStats, charDps, weaponOf,
@@ -2124,7 +2219,9 @@ window.Engine = {
   comfortValue, comfortMult, fortPower, fortWatts, fortReduce, powerProduced, powerDemand, powerEfficiency, powerNow,
   jobRecipe, jobRecipes, recipeVisible, recipeDuration, ensureSlots, slotChar, assignedCount, isWorking, assignSlot, clearSlot,
   jobRecipeGate, upgradeBonus, jobProjectLabel, upgradeDesc,
-  recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
+  recipeInputs, recipeOutputs, canMake, stockOf, GENERIC_IN, genericItems, genericItemIds,
+  inputFilterKey, inputSelection, setInputSelection, toggleInputSelection,
+  jobSpeed, jobGate, produceJob, combatState, healerPresent,
   HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
   addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandryFeedCost, husbandryFeedDuration, husbandrySpeed,
   refreshShop, buyShopSlot, sellItem, shopPool,

@@ -283,6 +283,10 @@ table.t td.c,table.t th.c{text-align:center}
 .slotmenu .pmitem.on{border-color:var(--green);background:#12281d}
 .slotmenu .pmitem.dim{opacity:.45}
 .slotmenu .pmitem .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.slotmenu .pmitem .where{display:block;margin-top:1px;font-size:10px;line-height:1.3;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slotmenu .pmitem .where .icSvg{width:12px;height:12px;vertical-align:-2px;margin-right:2px}
+.slotmenu .pmitem .where.here{color:var(--green)}
+.slotmenu .pmitem .where.idle{opacity:.75}
 .slotmenu .pmitem .mm{font-size:10.5px;color:var(--dim);white-space:nowrap}
 .slotmenu .pmempty{padding:16px 8px;text-align:center;color:var(--dim);font-size:12px}
 .slotmenu .pmfoot{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
@@ -540,3 +544,20 @@ html[data-theme="light"] .poolodds b{color:#2c3a4b}
 .giftmenu .pmfoot{justify-content:space-between;align-items:center}
 .giftmenu .favnow{font-size:11px;color:var(--muted)}
 .giftmenu .favnow b{color:var(--violet)}
+
+/* ===== v0.0.34 模糊投入筛选（素食食材 / 肉食食材 / 种子） ===== */
+.badge.io.inp{cursor:pointer;font:inherit;font-size:11px;line-height:1.5;background:transparent;display:inline-flex;align-items:center;gap:1px}
+.badge.io.inp .caret{font-size:9px;color:var(--dim);margin-left:2px}
+.badge.io.inp.open{border-color:var(--green);color:var(--green)}
+.badge.io.inp.empty{opacity:.75}
+.inpPanel{margin-top:7px;padding:8px;border:1px solid var(--line2);border-radius:8px;background:var(--panel2)}
+.inpPanel .inpTip{font-size:11px;color:var(--muted)}
+.inpPanel .inpOpts{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.inpOpt{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;font-size:11px;border:1px solid var(--line2);border-radius:7px;background:transparent;color:var(--muted)}
+.inpOpt:hover:not(:disabled){background:var(--panel);border-color:var(--green)}
+.inpOpt.on{border-color:var(--green);background:#12281d;color:var(--text)}
+.inpOpt .inpNm{color:inherit}
+.inpOpt .inpTick{font-size:10px;color:var(--green)}
+.inpOpt:not(.on) .inpTick{color:var(--dim)}
+html[data-theme="light"] .inpPanel{background:#f6f8fb}
+html[data-theme="light"] .inpOpt.on{background:#eaf8f0;border-color:#8ec7aa}

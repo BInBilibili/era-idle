@@ -126,7 +126,7 @@
 
   function showTips() {
     U.modal(`<h3>🏛️ 三步开始</h3>
-      <div class="card" style="margin-bottom:8px"><b>1 · 先采集</b><div class="sub">开局只有「采集」。把玩家角色拖到「平原」项目上，攒出木材和石头；丰饶的草地与沼泽会随着进度慢慢出现。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>1 · 先采集</b><div class="sub">开局只有「采集」。把玩家角色拖到「灌木」或「捡石头」项目上，直接攒木材和石头；草地 / 平原 / 沼泽三个资源包项目会随着进度慢慢出现。</div></div>
       <div class="card" style="margin-bottom:8px"><b>2 · 做第一把工具</b><div class="sub">有了 1 木材 + 1 石头，伐木 / 采矿会永久出现。先买「石斧」（2 木材 + 2 石头）才会出现木材项目；石镐同理。</div></div>
       <div class="card" style="margin-bottom:8px"><b>3 · 滚起来</b><div class="sub">把食物 / 医物放进角色的补给栏；食物要粮仓有货才生效。科研需要攒到基础研究桌 30% 材料、并先买桌子，才会出现科研项目。右上角 ⚙ 设置里可以切换浅色主题。</div></div>
       <div class="acts"><button class="primary" data-act="closeModal">开始</button></div>`);
@@ -270,6 +270,29 @@
         break;
       }
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
+      /* v0.0.34：模糊投入的筛选面板（素食食材 / 肉食食材 / 种子） */
+      case 'inpfilter': {
+        const job = E.JOB_BY_ID[el.dataset.job];
+        const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
+        if (!r) break;
+        S.ui.inpOpen = S.ui.inpOpen || {};
+        const key = E.inputFilterKey(job.id, r, el.dataset.in);
+        S.ui.inpOpen[key] = !S.ui.inpOpen[key];
+        U.render(); break;
+      }
+      case 'inptoggle': {
+        const job = E.JOB_BY_ID[el.dataset.job];
+        const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
+        if (r) E.toggleInputSelection(job.id, r, el.dataset.in, el.dataset.id);
+        U.render(); break;
+      }
+      case 'inpall':
+      case 'inpnone': {
+        const job = E.JOB_BY_ID[el.dataset.job];
+        const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
+        if (r) E.setInputSelection(job.id, r, el.dataset.in, act === 'inpall' ? E.genericItemIds(el.dataset.in) : []);
+        U.render(); break;
+      }
       case 'hubPanel': openHusbandryPanel(); break;
       case 'hubRemove': {
         const r = E.removeHusbandryAnimal(+i);
@@ -450,6 +473,23 @@
       };
     });
   }
+  /* v0.0.34：查角色当前入驻的岗位（工作 + 具体项目），入驻下拉里用来说明「他现在在哪」。
+     每个角色同一时间只占一个槽（assignSlot 会先清掉旧槽），所以找到第一个即可。 */
+  function currentJobOf(cid) {
+    const S = E.S;
+    for (const jobId in S.jobs) {
+      const js = S.jobs[jobId];
+      if (!js || !Array.isArray(js.slots)) continue;
+      const idx = js.slots.indexOf(cid);
+      if (idx < 0) continue;
+      const job = E.JOB_BY_ID[jobId];
+      if (!job) continue;
+      const rs = E.jobRecipes(job);
+      const recipe = rs[idx] || (rs.length === 1 ? rs[0] : null);
+      return { job, idx, recipe };
+    }
+    return null;
+  }
   function openJobSlot(jobId, slotIdx, anchor) {
     closeSlotMenu();
     const S = E.S, job = E.JOB_BY_ID[jobId];
@@ -468,8 +508,15 @@
         let ok = true, why = '';
         if (job.special === 'blackSoul' && c.cid !== 'yuki') { ok = false; why = '仅星见由岐'; }
         if (job.special === 'eraSim' && c.cid !== 'dashao') { ok = false; why = '仅大少'; }
+        const work = currentJobOf(c.cid);
+        const here = work && work.job.id === jobId && work.idx === idx;
+        const where = here
+          ? '<span class="where here">当前岗位</span>'
+          : (work
+            ? `<span class="where">${U.jobIcon(work.job)}${U.esc(work.job.name)}${work.recipe && work.recipe.name && work.recipe.name !== work.job.name ? ' · ' + U.esc(work.recipe.name) : ''}</span>`
+            : '<span class="where idle">闲置</span>');
         return `<button type="button" class="pmitem ${c.cid === curId ? 'on' : ''} ${ok ? '' : 'dim'}" data-pickchar data-id="${c.cid}" ${ok ? '' : 'disabled'}>
-          ${U.avatar(c, 'sm')}<span class="nm">${U.esc(E.charName(c))}</span><span class="mm">${why || '精通 ' + E.masteryLvl(c, jobId)}</span>
+          ${U.avatar(c, 'sm')}<span class="nm">${U.esc(E.charName(c))}${where}</span><span class="mm">${why || '精通 ' + E.masteryLvl(c, jobId)}</span>
         </button>`;
       }).join('') : '<div class="pmempty">没有可上场的角色</div>'}</div>
       <div class="pmfoot">
