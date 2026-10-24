@@ -34,7 +34,7 @@ window.ITEMS = {
   stone_block:   { name: '石材',     era: 'stone', cat: 'material', storage: 'warehouse', price: 5,   src: '切石机', use: '建造、仓库升级' },
   plant_fiber:   { name: '植物纤维', era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '加工（内衬衣物）、编织（地毯）、裁缝（弓）' },
   fodder:        { name: '草料',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植 / 畜牧（加工草料）', use: '畜牧饲料' },
-  herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集 / 种植', use: '医疗（捣成草药）' },
+  herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集 / 种植', use: '医疗' },
   bone_horn:     { name: '骨 / 角',  era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.5, src: '狩猎', use: '加工（骨项链 + 骨器升级项）' },
   compost:       { name: '堆肥',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.1, src: '腐坏转化', use: '种植化肥（+50% 产出）' },
   pottery:       { name: '陶器',     era: 'stone', cat: 'material', storage: 'warehouse', price: 8.5, src: '制陶（沙）', use: '粮仓容量升级项' },

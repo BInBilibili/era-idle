@@ -163,7 +163,7 @@ window.JOBS = [
       { name: "蔬菜", inputs: { "蔬菜种子": 1 }, outputs: { "蔬菜": 6 }, era: "stone", unlockTech: null, duration: 3 },
       { name: "甜菜", inputs: { "甜菜种子": 1 }, outputs: { "甜菜": 6 }, era: "stone", unlockTech: null, duration: 3 },
       { name: "药草", inputs: { "药草种子": 1 }, outputs: { "药草": 6 }, era: "stone", unlockTech: null, duration: 3,
-        note: "药草种子 → 6 药草（进仓库，供医疗捣成草药），不产食材" },
+        note: "药草种子 → 6 药草（进仓库，供医疗），不产食材" },
       { name: "干草", inputs: {}, outputs: { "草料": 6 }, era: "stone", unlockTech: null, duration: 4,
         note: "不消耗种子 / 食材，4 秒晒制 6 草料" }
     ],
@@ -174,7 +174,7 @@ window.JOBS = [
       { name: "化肥", watt: 0, bonusPct: 100, cost: { "堆肥": 1 }, note: "每次消耗 1 堆肥" }
     ],
     special: null,
-    note: "1 种子 → 6 对应作物，不再附赠草料；收成由播的种子决定：谷物 / 豆类 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 6 药草（仓库材料，医疗捣成草药，不是食材）。草料只由「干草」项目产出：不消耗任何物品，4 秒产 6 草料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
+    note: "1 种子 → 6 对应作物，不再附赠草料；收成由播的种子决定：谷物 / 豆类 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 6 药草（仓库材料，供医疗，不是食材）。草料只由「干草」项目产出：不消耗任何物品，4 秒产 6 草料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
   },
   {
     id: "hunting",
