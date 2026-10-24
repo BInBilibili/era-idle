@@ -732,7 +732,7 @@ const UI = {
             <span class="badge" data-live="hubfeed">每次 ${E.fmt(cost)} 草料 · ${E.fmt(feedMin, 1)} / 分钟 · 速度 ×${speed.toFixed(2)}</span>
           </div>
         </div>
-        <div class="tiny dim" style="margin-top:4px">喂养一次消耗 = 所有动物草料消耗之和（每只 1 / 天）；先买圈舍，这个区才会出现。</div>
+        <div class="tiny dim" style="margin-top:4px">喂养一次消耗 = 所有动物草料消耗之和（每只 1 / 天）；喂养条只扣草料，不产物品。</div>
         ${blocked === 'input' ? '<div class="tiny red" style="margin-top:5px">草料不足，全部动物停产</div>' : ''}
         ${blocked === 'worker' ? '<div class="tiny dim" style="margin-top:5px">「喂养畜群」派驻角色后，动物进度条才会推进</div>' : ''}
         ${blocked === 'injury' ? '<div class="tiny red" style="margin-top:5px">角色重伤，喂养与动物进度暂停</div>' : ''}
