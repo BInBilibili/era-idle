@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.35';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.36';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -352,6 +352,11 @@ function granarySpoilMul() {
 function granaryHalfLife() {
   const mul = granarySpoilMul();
   return mul > 0 ? 600 / mul : Infinity;
+}
+/* 每秒腐坏比例（0~1）：基础半衰期 600 秒 ≈ 0.1155%/秒；冷库 = 0 */
+function granaryDecayRate() {
+  const mul = granarySpoilMul();
+  return mul > 0 ? 1 - Math.pow(0.5, mul / 600) : 0;
 }
 
 /* ---------- 永久解锁 / 曾经拥有 ---------- */
@@ -2211,7 +2216,7 @@ window.Engine = {
   fmt, fmtTime, count, addItem, removeItem, itemName, sellPrice, buyPrice, iid, N2I,
   itemEver, everOwnedAll, refreshMilestones, markInjured, addProducedItem, bundleItemSeen, markBundleSeen,
   isFoodItem, activeFoodId, foodXpMult, foodSpeedMult, foodAtkStrBonus, foodEffectText, activeMedDef, healChar,
-  warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood, granarySpoilMul, granaryHalfLife, granaryDecay,
+  warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood, granarySpoilMul, granaryHalfLife, granaryDecayRate, granaryDecay,
   currentEra, eraName, eraProgress, techDone, techAvailable, researched, techsDone, researchTech,
   jobUnlocked, jobVisible, unlockedJobs, JOB_BY_ID, JOB_BY_NAME,
   onFieldCap, onFieldChars, isOnField, charPower, gearPower, charStats, charDps, weaponOf,

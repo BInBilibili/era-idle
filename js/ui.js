@@ -330,8 +330,10 @@ const UI = {
     if (it.kind) h += row('类别', esc(ITEM_KIND_NAME[it.kind] || it.kind));
     if (it.gift) h += row('送礼好感', '+' + it.gift, 'gold');
     if (it.storage === 'granary') {
-      const spoilt = E.granarySpoilMul() <= 0;
-      h += row('腐坏', spoilt ? '不腐坏' : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半', 'red');
+      const rate = E.granaryDecayRate();
+      h += row('腐坏', rate <= 0
+        ? '不腐坏'
+        : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半（−' + (rate * 100).toFixed(3) + '%/秒）', 'red');
     }
 
     const srcText = it.src ? this.srcText(it.src) : '';
@@ -1212,14 +1214,16 @@ const UI = {
     const chars = E.onFieldChars().length;
     const left = chars ? E.granaryTotal() / (chars * E.GAME.foodPerCharSec) : Infinity;
     const spoilt = E.granarySpoilMul() <= 0;
+    const rate = E.granaryDecayRate();
+    const rateText = rate > 0 ? '−' + (rate * 100).toFixed(3) + '%/秒' : '不腐坏';
     const spoilText = spoilt ? '不腐坏' : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半';
-    const spoilCell = spoilt ? '<span class="green">不腐坏</span>' : '<span class="red">腐坏中</span>';
+    const spoilCell = spoilt ? '<span class="green">不腐坏</span>' : `<span class="red">${rateText}</span>`;
     let h = `<div class="card">
       <div class="row" style="justify-content:space-between"><b>当前 ${E.fmt(E.granaryTotal(), 0)} 份</b>
       <span class="small ${left < 60 ? 'red' : 'muted'}">${chars ? '约可支撑 ' + E.fmtTime(left) : '无人在场'}</span></div>
-      <div class="tiny muted" style="margin-top:4px">容量无限 · 腐坏 ${spoilText}</div>
+      <div class="tiny muted" style="margin-top:4px">容量无限 · 腐坏 ${spoilText}${rate > 0 ? '（' + rateText + '）' : ''}</div>
       ${!ids.length ? '<div class="empty">粮仓是空的。派角色去采集 / 种植 / 烹饪。</div>' : `
-      <table class="t" style="margin-top:10px"><thead><tr><th>食物</th><th class="r">数量</th><th class="r">单价</th><th class="r">腐坏</th><th class="r">操作</th></tr></thead><tbody>
+      <table class="t" style="margin-top:10px"><thead><tr><th>食物</th><th class="r">数量</th><th class="r">单价</th><th class="r">腐坏速度</th><th class="r">操作</th></tr></thead><tbody>
       ${ids.map(id => { const it = E.ITEMS[id]; return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono">${spoilCell}</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`; }).join('')}
       </tbody></table>`}
     </div>

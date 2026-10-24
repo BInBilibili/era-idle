@@ -1037,6 +1037,27 @@ const granTiers = E.GR_UPG.map(u => u.spoilMul);
 ok(granTiers.join(',') === '0.7,0.4,0', '粮仓三档腐坏倍率 = 0.7 / 0.4 / 0');
 
 
+console.log('== v0.0.36：粮仓每行显示腐坏速度 ==');
+E.S = E.newState('v036粮仓');
+ok(Math.abs(E.granaryDecayRate() * 100 - 0.1155) < 0.001,
+  '基础腐坏速度 ≈ 0.115%/秒：' + (E.granaryDecayRate() * 100).toFixed(3));
+E.S.granary = 1;
+ok(Math.abs(E.granaryDecayRate() * 100 - 0.0808) < 0.001,
+  '陶器后 ≈ 0.081%/秒：' + (E.granaryDecayRate() * 100).toFixed(3));
+E.S.granary = 2;
+ok(Math.abs(E.granaryDecayRate() * 100 - 0.0462) < 0.001,
+  '地窖后 ≈ 0.046%/秒：' + (E.granaryDecayRate() * 100).toFixed(3));
+E.S.granary = 3;
+ok(E.granaryDecayRate() === 0, '冷库腐坏速度 = 0');
+E.S = E.newState('v036界面');
+E.S.ui.tab.wh = 'granary';
+E.addFood(E.N2I('浆果'), 100);
+['陶器', '木材', '沙'].forEach(n => E.addItem(n, 1));
+const gr036 = U.pageWarehouse();
+ok(gr036.includes('腐坏速度') && gr036.includes('−0.115%/秒'), '粮仓表格显示腐坏速度而不是只写「腐坏中」');
+const berryTip036 = U.itemTipHtml(E.N2I('浆果'));
+ok(berryTip036.includes('−0.115%/秒') && !berryTip036.includes('腐坏中'), '物品面板显示腐坏速度小字');
+
 console.log('== 英雄立绘（v0.0.25）==');
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
