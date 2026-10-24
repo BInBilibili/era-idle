@@ -9,11 +9,12 @@ require('../js/engine.js');
 require('../js/icons.js');
 
 const E = window.Engine;
+function unlockWood(S) { S.milestones.wood_stone = true; S.jobs.woodcutting.up[0] = 1; }
 let fails = 0;
 function ok(cond, msg) { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); if (!cond) fails++; }
 
 console.log('== 数据 ==');
-ok(Object.keys(E.ITEMS).length === 212, '物品 212：' + Object.keys(E.ITEMS).length);
+ok(Object.keys(E.ITEMS).length === 216, '物品 216（新增草药 + 3 个资源包）：' + Object.keys(E.ITEMS).length);
 ok(E.JOBS.length === 33, '工作 33：' + E.JOBS.length);
 ok(E.TECHS.length === 42, '科技 42：' + E.TECHS.length);
 ok(E.ENEMIES.length === 26, '敌人 26：' + E.ENEMIES.length);
@@ -60,6 +61,8 @@ ok(E.onFieldCap() === 5, '初始角色上限 5');
 ok(E.granaryTotal() > 0, '开局有食物：' + E.granaryTotal().toFixed(1));
 ok(E.warehouseCap() === 20, '初始仓库 20 格');
 ok(S.settings && S.settings.theme === 'dark', '默认深色主题');
+ok(E.JOBS.filter(E.jobVisible).map(j => j.id).join(',') === 'gathering', '开局只显示采集：' + E.JOBS.filter(E.jobVisible).map(j => j.id).join(','));
+ok(!S.milestones.wood_stone && !S.milestones.research_ready && !S.milestones.injured, '开局里程碑都是未解锁');
 
 console.log('== 住房：6 档住满 = 18 人 ==');
 ok(E.HOUSING.map(h => h.cap).join(',') === '7,9,11,13,15,18', '每档可上场人数 7/9/11/13/15/18');
@@ -84,6 +87,10 @@ ok(E.ENEMIES.filter(e => e.type === 'blackSoul').length === 4 && E.ENEMIES.filte
 ok(['soul', 'ember', 'undead_chainmail', 'ashen_legs', 'abyss_helmet', 'abyss_greatsword'].every(id => E.ITEMS[id] && E.ITEMS[id].hidden), '灵魂/余火/黑魂套 6 件隐藏');
 
 console.log('== 伐木 600 秒 ==');
+// 先凑齐 1 木材 + 1 石头 → 工作永久显示；再买石斧 → 木材项目出现
+E.addItem('木材', 2); E.addItem('石头', 2);
+ok(E.jobVisible(E.JOB_BY_ID.woodcutting) && E.jobVisible(E.JOB_BY_ID.mining), '拥有木材 + 石头后伐木 / 采矿永久显示');
+ok(E.buyUpgrade('woodcutting', 0).ok, '购买石斧（2 木材 + 2 石头）');
 E.assignSlot('woodcutting', 0, 'player');
 for (let i = 0; i < 3000; i++) E.tick(0.2);
 const wood = E.count('木材');
@@ -91,12 +98,20 @@ ok(wood > 100, '木材产出 ' + E.fmt(wood));
 ok(E.masteryLvl(S.chars.player, 'woodcutting') > 1, '精通升到 ' + E.masteryLvl(S.chars.player, 'woodcutting'));
 ok(E.assignedCount(E.JOB_BY_ID.woodcutting) === 1, '伐木显示 1 人在工作');
 
-console.log('== 采集 / 烹饪 ==');
+console.log('== 采集 / 资源包 / 烹饪 ==');
 E.clearSlot('woodcutting', 0);
-E.assignSlot('gathering', 0, 'player');
+E.assignSlot('gathering', 1, 'player');   // 平原资源：石头 / 木材 / 浆果 / 块根 / 坚果
 for (let i = 0; i < 500; i++) E.tick(0.2);
-const veg = ['浆果', '块根', '野菌', '坚果'].reduce((a, n) => a + E.count(n), 0);
-ok(veg > 0, '采集产出食物 ' + veg.toFixed(1));
+const plainsGain = ['石头', '木材', '浆果', '块根', '坚果'].reduce((a, n) => a + E.count(n), 0);
+ok(plainsGain > 0, '平原资源随机产出其中一种：' + plainsGain.toFixed(1));
+ok(E.count('草地资源') === 0 && E.count('平原资源') === 0, '资源包本身不会进仓库');
+ok(E.jobRecipes(E.JOB_BY_ID.gathering).map(r => r.name).join('/') === '草地/平原/沼泽', '采集项目 = 草地 / 平原 / 沼泽');
+const grassPool = E.ITEMS[E.N2I('草地资源')].pool;
+ok(grassPool.find(p => p.id === 'plant_fiber').weight === 90 && grassPool.length === 6, '草地：植物纤维 90% + 5 种种子合计 10%');
+ok(E.ITEMS[E.N2I('平原资源')].pool.every(p => p.weight === 1), '平原：五种产物等概率');
+ok(E.ITEMS[E.N2I('沼泽资源')].pool.map(p => p.id).join(',') === 'wild_mushroom,herb', '沼泽：野菌 / 药草各半');
+ok(!E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[2], E.JOB_BY_ID.gathering), '没受伤时沼泽项目隐藏');
+E.addItem('浆果', 40);
 S.research = 500;
 E.researchTech('fire');
 E.clearSlot('gathering', 0);
@@ -106,6 +121,11 @@ ok(E.count('素餐') + E.count('均衡餐') + E.count('肉餐') > 0, '烹饪有�
 
 console.log('== 科研 / 科技 ==');
 E.clearSlot('cooking', 0);
+E.addItem('木材', 100); E.addItem('石头', 50);
+ok(S.milestones.research_ready && E.jobVisible(E.JOB_BY_ID.research), '攒到基础研究桌 30% 材料后科研永久显示');
+ok(!E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.research)[0], E.JOB_BY_ID.research), '没买基础研究桌时科研项目隐藏');
+ok(E.buyUpgrade('research', 0).ok, '购买基础研究桌');
+ok(E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.research)[0], E.JOB_BY_ID.research), '买完基础研究桌后科研项目出现');
 E.assignSlot('research', 0, 'player');
 for (let i = 0; i < 400; i++) E.tick(0.2);
 ok(S.research > 0, '科研点 ' + E.fmt(S.research));
@@ -122,6 +142,10 @@ const goldR = mrs.find(r => r.name === '金矿');
 ok(stoneR.duration === 3, '石头时长 3 秒（权重 100）');
 ok(Math.abs(goldR.duration - 75) < 0.01, '金矿时长 75 秒（权重 4，与权重成反比）');
 ok(stoneR.duration < goldR.duration, '权重越高时长越短');
+ok(!E.recipeVisible(stoneR, mining) && !E.recipeVisible(mrs.find(r => r.name === '铜矿'), mining), '没买石镐时石头 / 铜矿项目隐藏');
+E.addItem('木材', 2); E.addItem('石头', 2);
+ok(E.buyUpgrade('mining', 0).ok, '购买石镐（2 木材 + 2 石头）');
+ok(E.recipeVisible(stoneR, mining) && E.recipeVisible(mrs.find(r => r.name === '铜矿'), mining), '买完石镐后最基础的石头 / 铜矿项目出现');
 E.clearSlot('research', 0);
 E.assignSlot('mining', mrs.indexOf(stoneR), 'player');
 for (let i = 0; i < 500; i++) E.tick(0.2);
@@ -131,8 +155,8 @@ console.log('== 多配方独立入驻 ==');
 S.research = 5000;
 S.techs['pottery'] = true; S.techs['metal_smelting'] = true;
 const sandR = mrs.find(r => r.name === '沙');
-ok(E.recipeVisible(sandR), '陶器科技后 沙 配方可见');
-ok(!E.recipeVisible(mrs.find(r => r.name === '铀矿')), '核能未研究时 铀矿 配方不可见');
+ok(E.recipeVisible(sandR, mining), '陶器科技后 沙 配方可见');
+ok(!E.recipeVisible(mrs.find(r => r.name === '铀矿'), mining), '核能未研究时 铀矿 配方不可见');
 E.assignSlot('mining', mrs.indexOf(sandR), 'player');
 ok(E.assignedCount(mining) === 1, '同一角色只占一条配方（沙），石头被顶掉');
 
@@ -327,6 +351,7 @@ ok(!isNaN(S.gold) && !isNaN(S.research), '金币/科研点无 NaN');
 
 console.log('== 离线结算 ==');
 E.S = E.newState('离线测试');
+unlockWood(E.S);
 E.assignSlot('woodcutting', 0, 'player');
 const beforePlay = E.S.playtime;
 let rep = E.settleOffline(3600);
@@ -346,6 +371,7 @@ ok(Object.values(E.S.items).every(v => v >= 0 && !isNaN(v)), '离线后物品无
 
 // 精通：离线按 15 秒块推进，1 小时后的等级 / 经验应与在线一致
 E.S = E.newState('在线对照');
+unlockWood(E.S);
 E.assignSlot('woodcutting', 0, 'player');
 for (let i = 0; i < 18000; i++) E.tick(0.2);
 const onMLvl = E.masteryLvl(E.S.chars.player, 'woodcutting');
@@ -448,7 +474,8 @@ ok(JSON.stringify(migSave.jobs.woodcutting.up) === JSON.stringify([1, 0, 0, 1, 0
 ok(JSON.stringify(migSave.jobs.mining.up) === JSON.stringify([1, 0, 0, 0, 1, 0, 0, 1]), '旧采矿档位按名字迁移：石镐 + 采矿场 + 电动矿钻');
 // 界面：上一档没买 / 科技没点亮时，下一档卡不出现
 E.S = E.newState('链式卡片');
-['木材', '石头', '铜锭', '铁锭'].forEach(n => { E.S.items[E.N2I(n)] = 500; });
+E.S.milestones.wood_stone = true;
+['木材', '石头', '铜锭', '铁锭'].forEach(n => E.addItem(n, 500));
 const lockedHtml = U.pageJob('woodcutting');
 ok(lockedHtml.includes('石斧') && !lockedHtml.includes('铜斧'), '未点亮 *金属冶炼：只显示石斧');
 E.S.techs[metalTech] = 1;
@@ -457,6 +484,54 @@ ok(!stillLocked.includes('铜斧'), '科技有了但石斧没买：铜斧仍不�
 E.buyUpgrade('woodcutting', 0);
 const chainHtml = U.pageJob('woodcutting');
 ok(chainHtml.includes('铜斧'), '石斧买完：铜斧出现');
+
+console.log('== 升级项：首次拥有 1 份资源后永久显示（v0.0.27）==');
+E.S = E.newState('升级显示');
+E.addItem('木材', 1); E.addItem('石头', 1);
+const upHtml1 = U.pageJob('woodcutting');
+ok(upHtml1.includes('石斧'), '拿到 1 木材 + 1 石头后石斧升级项出现');
+E.S.items = {};   // 花光资源
+const upHtml2 = U.pageJob('woodcutting');
+ok(upHtml2.includes('石斧'), '资源花光后石斧升级项仍然显示（永久）');
+ok(upHtml1.includes('先购买升级项') && !upHtml1.includes('木材 ×1'), '没买石斧时木材项目不出现，只显示提示');
+// 科研 30% 门槛
+E.S = E.newState('科研门槛');
+E.addItem('木材', 30); E.addItem('石头', 15);
+ok(E.S.milestones.research_ready && E.jobVisible(E.JOB_BY_ID.research), '30 木材 + 15 石头 → 科研永久显示');
+E.S.items = {};
+ok(E.jobVisible(E.JOB_BY_ID.research), '花光后科研仍然显示（永久）');
+
+console.log('== 补给栏：食物增益 / 医物消耗（v0.0.27）==');
+E.S = E.newState('补给测试');
+const pc = E.S.chars.player;
+E.addItem('素餐', 10);
+pc.food = E.N2I('素餐');
+ok(E.foodXpMult(pc) === 1.25, '素餐：精通经验 ×1.25');
+E.addItem('肉餐', 10);
+pc.food = E.N2I('肉餐');
+ok(E.charStats(pc).str === 11 && E.charStats(pc).atk === 11, '肉餐：命中 / 力量 +10 级（1 → 11）');
+E.addItem('均衡餐', 10);
+pc.food = E.N2I('均衡餐');
+ok(E.foodSpeedMult(pc) === 1.25, '均衡餐：工作速度 ×1.25');
+pc.food = E.N2I('素餐'); E.S.items[E.N2I('素餐')] = 0;
+ok(E.foodXpMult(pc) === 1 && !E.activeFoodId(pc), '选中的食物粮仓没货 → 不生效');
+E.S.items[E.N2I('素餐')] = 3;
+const beforeMeal = E.count('素餐');
+for (let i = 0; i < 10; i++) E.tick(0.2);
+ok(E.count('素餐') < beforeMeal, '选中食物被优先消耗：' + beforeMeal.toFixed(2) + ' → ' + E.count('素餐').toFixed(2));
+E.addItem('草药', 3);
+pc.med = E.N2I('草药'); pc.hpNow = 1;
+E.markInjured(pc);
+const beforeHerb = E.count('草药');
+for (let i = 0; i < 10; i++) E.tick(0.2);
+ok(pc.injured && pc.hpNow > 1, '受伤后医物提高回血：HP ' + pc.hpNow.toFixed(3));
+ok(E.count('草药') < beforeHerb, '受伤后消耗草药：' + beforeHerb + ' → ' + E.count('草药'));
+ok(E.jobVisible(E.JOB_BY_ID.medicine), '有人受伤后医疗永久显示');
+ok(E.recipeVisible(E.jobRecipes(E.JOB_BY_ID.gathering)[2], E.JOB_BY_ID.gathering), '有人受伤后沼泽项目永久显示');
+const medTip = U.itemTipHtml(E.N2I('草药'));
+ok(medTip.includes('医物效果') && medTip.includes('×2'), '草药悬浮面板显示医物 ×2 回血');
+const bundleTip = U.itemTipHtml(E.N2I('草地资源'));
+ok(bundleTip.includes('产物列表') && bundleTip.includes('植物纤维') && bundleTip.includes('90%'), '资源包悬浮面板显示产物 + 概率');
 
 console.log('== 英雄立绘（v0.0.25）==');
 const fs = require('fs'), path = require('path');

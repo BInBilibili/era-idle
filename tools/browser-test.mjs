@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const url = process.argv[2] || 'file:///D:/game/%E4%BB%BF%E6%A2%85%E5%B0%94%E6%B2%83%E6%94%BE%E7%BD%AE%E6%B8%B8%E6%88%8F/index.html?demo&page=job:mining';
+const url = process.argv[2] || 'file:///D:/game/%E4%BB%BF%E6%A2%85%E5%B0%94%E6%B2%83%E6%94%BE%E7%BD%AE%E6%B8%B8%E6%88%8F/index.html?demo&page=job:gathering';
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const port = 9400 + Math.floor(Math.random() * 200);
 const prof = process.env.ERA_PROFILE || mkdtempSync(join(tmpdir(), 'era-bt-'));
@@ -68,13 +68,14 @@ try {
   const rate = await js(`(document.querySelector('.res.food .rate')||{}).textContent||''`);
   ok(/-\d+\.\d\d\/秒|0\/秒/.test(rate), '食物显示每秒消耗：' + rate);
 
-  console.log('== 导航：科研在工作组 ==');
+  console.log('== 开局导航：只显示采集 ==');
   const nav = await js(`(function(){
     const items=[...document.querySelectorAll('#side .nav')].map(n=>(n.querySelector('.nm')||{}).textContent||'');
-    const research=items.filter(t=>t.indexOf('科研')===0);
-    return research.length + '|' + (research[0]||'');
+    return JSON.stringify(items);
   })()`);
-  ok(nav.startsWith('1|') && !nav.includes('科技树'), '科研只出现一次且名称为「科研」：' + nav);
+  const navNames = JSON.parse(nav);
+  ok(navNames.includes('采集'), '开局有采集：' + navNames.join('/'));
+  ok(!navNames.includes('科研') && !navNames.includes('伐木') && !navNames.includes('采矿') && !navNames.includes('医疗'), '开局不显示科研 / 伐木 / 采矿 / 医疗');
 
   console.log('== 点击入驻槽：下拉菜单 ==');
   const dropdown = await js(`(function(){
@@ -91,24 +92,25 @@ try {
     const chip=document.querySelector('#slotMenu [data-pickchar]');
     if(!chip) return 'NO_CHIP';
     chip.click();
-    return 'menu=' + (document.getElementById('slotMenu')?'OPEN':'CLOSED') + ' n=' + Engine.assignedCount(Engine.JOB_BY_ID.mining);
+    return 'menu=' + (document.getElementById('slotMenu')?'OPEN':'CLOSED') + ' n=' + Engine.assignedCount(Engine.JOB_BY_ID.gathering);
   })()`);
-  ok(picked.startsWith('menu=CLOSED') && picked.endsWith('n=1'), '下拉选人后入驻成功：' + picked);
+  ok(picked.startsWith('menu=CLOSED') && picked.endsWith('n=1'), '下拉选人后入驻成功（采集）：' + picked);
 
   console.log('== 整张项目卡拖拽 ==');
   const dropped = await js(`(function(){
-    Engine.clearSlot('mining',0);
+    const S=Engine.S;
+    Object.keys(S.jobs.gathering.slots).forEach((_,i)=>{ Engine.clearSlot('gathering',i); });
     UI.render();
     const chip=document.querySelector('[data-drag="char"]');
     const cards=[...document.querySelectorAll('[data-drop-job]')];
-    const card=cards[3]||cards[1];
+    const card=cards[1]||cards[0];
     if(!chip||!card) return 'MISSING';
     const dt=new DataTransfer();
     chip.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));
     card.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:dt}));
     const highlighted=card.classList.contains('dropok');
     card.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt}));
-    return 'hl=' + highlighted + ' n=' + Engine.assignedCount(Engine.JOB_BY_ID.mining) + ' slots=' + JSON.stringify(Engine.S.jobs.mining.slots);
+    return 'hl=' + highlighted + ' n=' + Engine.assignedCount(Engine.JOB_BY_ID.gathering) + ' slots=' + JSON.stringify(Engine.S.jobs.gathering.slots);
   })()`);
   ok(/^hl=true/.test(dropped) && / n=1/.test(dropped), '整张项目卡片可拖入：' + dropped);
 
@@ -168,9 +170,10 @@ try {
   console.log('== 精通条实时更新 ==');
   const mastery = await js(`(function(){
     UI.closeModal();
-    Engine.S.ui.page='job:woodcutting';
+    Engine.S.ui.page='job:gathering';
+    Engine.S.ui.scroll=0;
     UI.render();
-    Engine.assignSlot('woodcutting',0,'player');
+    Engine.assignSlot('gathering',1,'player');
     UI.render();
     const bar=document.querySelector('[data-live="mastery"]');
     if(!bar) return 'NO_BAR';
@@ -185,7 +188,10 @@ try {
 
   console.log('== 科技树在科研页 ==');
   const tech = await js(`(function(){
-    Engine.S.ui.page='job:research'; UI.render();
+    const S=Engine.S;
+    S.milestones.research_ready=true;
+    S.jobs.research.up[0]=1;
+    S.ui.page='job:research'; S.ui.scroll=0; UI.render();
     return (document.body.textContent.indexOf('科技树')>=0) + '|' + document.querySelectorAll('[data-act="tech"]').length;
   })()`);
   ok(/^true\|/.test(tech), '科研页含科技树：' + tech);
@@ -221,15 +227,14 @@ try {
     return JSON.stringify({
       pools: btns.map(b=>b.dataset.id),
       btn: btns.map(b=>b.textContent.trim()),
-      hasRatio: txt.includes('10 : 1'),
-      normal: txt.includes('随机普通角色'),
-      infinite: txt.includes('无限')
+      hint: txt.includes('使用招募券概率获取到角色'),
+      normal: txt.includes('随机普通角色')
     });
   })()`);
   const rc = JSON.parse(recruit);
   ok(rc.pools.join(',') === 'limited,standard', '招募页只有限定 / 常驻两个池：' + rc.pools.join(','));
   ok(rc.btn.length === 2 && rc.btn.every(t => t.includes('10 招募券')), '每池按钮都是 10 招募券：' + rc.btn.join(' | '));
-  ok(rc.hasRatio && rc.normal && rc.infinite, '招募页写明 10:1、随机普通角色无限生成');
+  ok(rc.hint && rc.normal, '招募页写明招募券概率、随机普通角色');
 
   console.log('== 开除随机普通角色 ==');
   const dismiss = await js(`(function(){
@@ -317,7 +322,7 @@ try {
     card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:300,clientY:300}));
     const tip=document.getElementById('itemTip');
     const badges=[...document.querySelectorAll('#mainWrap .badge.io')];
-    const noIcon=badges.filter(b=>b.textContent.codePointAt(0)<=0x2000).map(b=>b.textContent.trim());
+    const noIcon=badges.filter(b=>!b.querySelector('svg.icSvg') && !b.querySelector('.icSvg')).map(b=>b.textContent.trim());
     return JSON.stringify({show:tip.classList.contains('show'), badges:badges.length,
       noIcon:noIcon.slice(0,3), title:document.body.innerHTML.indexOf('拖入角色到整张卡即可入驻')});
   })()`);
@@ -388,6 +393,104 @@ try {
   ok(!ct.miss && ct.show && ct.name && ct.pen, '悬停已装备的物品弹出面板（含破甲）：' + (ct.miss || JSON.stringify({show:ct.show,name:ct.name,pen:ct.pen})));
   ok(ct.grid, '仓库装备格也挂了面板锚点');
   ok(ct.title === false, '装备槽不再用 title 原生提示（避免双份提示）');
+
+  console.log('== 角色补给栏：食物 / 医物下拉 ==');
+  const supply = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='characters'; S.ui.charSel='player'; S.ui.scroll=0;
+    Engine.addItem('素餐',5); Engine.addItem('草药',3);
+    UI.render();
+    const fs=document.querySelector('[data-act="foodslot"]');
+    if(!fs) return JSON.stringify({miss:'没有食物栏'});
+    fs.click();
+    const foodTxt=(document.getElementById('modalBox')||{}).textContent||'';
+    const foodBtn=[...document.querySelectorAll('#modalBox [data-pick]')].find(b=>b.dataset.pick===Engine.N2I('素餐'));
+    if(!foodBtn) return JSON.stringify({miss:'食物列表没有素餐'});
+    foodBtn.click();
+    const foodSet=S.chars.player.food===Engine.N2I('素餐');
+    const ms=document.querySelector('[data-act="medslot"]');
+    if(!ms) return JSON.stringify({miss:'没有医物栏'});
+    ms.click();
+    const medTxt=(document.getElementById('modalBox')||{}).textContent||'';
+    const medBtn=[...document.querySelectorAll('#modalBox [data-pick]')].find(b=>b.dataset.pick===Engine.N2I('草药'));
+    if(!medBtn) return JSON.stringify({miss:'医物列表没有草药'});
+    medBtn.click();
+    return JSON.stringify({foodTitle:foodTxt.includes('食物栏'), foodList:foodTxt.includes('素餐'), foodSet:foodSet,
+      medTitle:medTxt.includes('医物栏'), medList:medTxt.includes('草药'), medSet:S.chars.player.med===Engine.N2I('草药'),
+      buff:Engine.foodXpMult(S.chars.player)});
+  })()`);
+  const sp = JSON.parse(supply);
+  ok(!sp.miss && sp.foodTitle && sp.foodList && sp.foodSet, '食物栏下拉列出食物并装备成功：' + (sp.miss || JSON.stringify(sp)));
+  ok(!sp.miss && sp.medTitle && sp.medList && sp.medSet, '医物栏下拉列出医物并装备成功');
+  ok(sp.buff === 1.25, '装备素餐且粮仓有货 → 精通经验 ×1.25');
+
+  console.log('== 图鉴：滚动 / 选中文本不会被重绘清掉 ==');
+  const codexScroll = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='codex'; S.ui.tab.codex='items'; S.ui.scroll=0;
+    UI.render();
+    const p=document.getElementById('page');
+    p.scrollTop=180;
+    const sel=window.getSelection();
+    const walker=document.createTreeWalker(document.getElementById('mainWrap'),NodeFilter.SHOW_TEXT);
+    let node=null, guard=0;
+    while((node=walker.nextNode())&&guard++<500){ if(node.nodeValue && node.nodeValue.trim().length>3) break; }
+    if(node){ const r=document.createRange(); r.setStart(node,0); r.setEnd(node,Math.min(4,node.nodeValue.length)); sel.removeAllRanges(); sel.addRange(r); }
+    return JSON.stringify({top:p.scrollTop, sel:sel.toString(), hasNode:!!node});
+  })()`);
+  const cs0 = JSON.parse(codexScroll);
+  ok(cs0.top > 0 && cs0.sel.length > 0, '图鉴已滚动并选中文本：top=' + cs0.top + ' sel=' + cs0.sel);
+  await sleep(2100);
+  const codexAfter = JSON.parse(await js(`JSON.stringify({top:document.getElementById('page').scrollTop, sel:window.getSelection().toString()})`));
+  ok(codexAfter.top === cs0.top, '图鉴滚动位置 2 秒后保持：' + codexAfter.top);
+  ok(codexAfter.sel === cs0.sel, '图鉴选中文本 2 秒后保持：' + codexAfter.sel);
+
+  const warehouseSel = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='warehouse'; S.ui.tab.wh='warehouse'; S.ui.scroll=0;
+    Engine.addItem('石斧',2); Engine.addItem('木材',200);
+    UI.render();
+    const sel=window.getSelection();
+    const walker=document.createTreeWalker(document.getElementById('mainWrap'),NodeFilter.SHOW_TEXT);
+    let node=null, guard=0;
+    while((node=walker.nextNode())&&guard++<1000){ if(node.nodeValue && node.nodeValue.trim().length>3) break; }
+    if(!node) return 'NO_NODE';
+    const r=document.createRange(); r.setStart(node,0); r.setEnd(node,Math.min(4,node.nodeValue.length)); sel.removeAllRanges(); sel.addRange(r);
+    return sel.toString();
+  })()`);
+  ok(warehouseSel !== 'NO_NODE' && warehouseSel.length > 0, '仓库页选中文本：' + warehouseSel);
+  await sleep(2100);
+  const warehouseAfter = await js(`window.getSelection().toString()`);
+  ok(warehouseAfter === warehouseSel, '1.5 秒整页重绘后选中文本仍保持：' + warehouseAfter);
+
+  console.log('== 资源包悬浮显示产物概率 ==');
+  const bundleTip = await js(`(function(){
+    const S=Engine.S;
+    S.ui.page='job:gathering'; S.ui.scroll=0; UI.render();
+    const card=document.querySelector('#mainWrap .card.recipe[data-tip-item]');
+    if(!card) return JSON.stringify({miss:'没有采集项目卡'});
+    card.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,clientX:320,clientY:320}));
+    const txt=document.getElementById('itemTip').textContent;
+    return JSON.stringify({show:document.getElementById('itemTip').classList.contains('show'), list:txt.includes('产物列表'), pct:txt.includes('%'), fiber:txt.includes('植物纤维')});
+  })()`);
+  const bt = JSON.parse(bundleTip);
+  ok(!bt.miss && bt.show && bt.list && bt.pct && bt.fiber, '资源包悬停：产物列表 + 概率 + 物品名：' + (bt.miss || JSON.stringify(bt)));
+
+  console.log('== 开发者模式后门 ==');
+  const dev = await js(`(function(){
+    Engine.S.dev=true;
+    window.DEV.open();
+    const txt=document.getElementById('modalBox').textContent;
+    const before=Engine.S.gold;
+    const btn=document.querySelector('#modalBox [data-dev="gold"]');
+    if(!btn) return JSON.stringify({miss:'没有金币按钮'});
+    btn.click();
+    return JSON.stringify({open:txt.includes('开发者模式'), gain:Engine.S.gold-before, hasUnlock:!!document.querySelector('#modalBox [data-dev="unlock"]')});
+  })()`);
+  const dv = JSON.parse(dev);
+  ok(!dv.miss && dv.open && dv.gain === 100000 && dv.hasUnlock, '开发者面板打开且操作生效：' + (dv.miss || JSON.stringify(dv)));
+  await js('window.DEV.off(); true');
+  ok(await js('Engine.S.dev === false'), '开发者模式可关闭');
 } catch (e) {
   console.error('测试异常：', e.message);
   fails++;

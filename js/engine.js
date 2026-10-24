@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.26';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.27';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -190,6 +190,9 @@ function newChar(cid, opts) {
     xp: { hp:0, atk:0, str:0, def:0 },
     hpNow: 10 + (opts.hp - 1) * 10, injured: false,
     eq: { head:null, headInner:null, body:null, bodyInner:null, legs:null, legsInner:null, feet:null, socks:null, offhand:null, neck:null, belt:null, mainhand:null },
+    food: null,        // 补给栏 · 食物（优先消耗；在粮仓有货时提供对应增益）
+    med: null,         // 补给栏 · 医物（受伤时消耗，提高回血速度）
+    medT: 0,           // 医物消耗计时
     mastery: {},
   };
 }
@@ -200,6 +203,9 @@ function newState(name) {
     playtime: 0,
     gold: 0, research: 0,
     items: {}, seen: { items:{}, enemies:{}, chars:{} },
+    ever: {},          // 物品「曾经拥有过」记录：升级项 / 工作永久解锁只看它
+    milestones: {},    // 永久解锁进度：wood_stone / research_ready / injured
+    dev: false,        // 开发者模式（?dev=1 或连点版本号 5 次）
     chars: {}, order: [],
     jobs: {}, techs: {}, recipes: {},
     housing: 0, comfort: [], forts: [], whUpg: 0, granary: 0,
@@ -224,7 +230,7 @@ function newState(name) {
   st.ui.charSel = 'player';
   // 开局给一点点食物，避免一上来就饿着
   const berry = N2I('浆果') || N2I('野菌');
-  if (berry) st.items[berry] = 8;
+  if (berry) { st.items[berry] = 8; st.ever[berry] = 1; }
   return st;
 }
 
@@ -263,7 +269,10 @@ function addItem(idOrName, qty) {
   if (!id || qty <= 0) return 0;
   S.items[id] = (S.items[id] || 0) + qty;
   S.seen.items[id] = true;
+  if (!S.ever) S.ever = {};
+  S.ever[id] = 1;
   if (ITEMS[id] && ITEMS[id].kind === 'shard') S.discoveredShard = true;
+  refreshMilestones();
   return qty;
 }
 function removeItem(idOrName, qty) {
@@ -296,6 +305,151 @@ function addFood(id, n) {
   const amt = Math.min(n, room);
   if (amt > 0) addItem(id, amt);
   return amt;
+}
+
+/* ---------- 永久解锁 / 曾经拥有 ---------- */
+/* 「曾经拥有过 1 件」只看 ever：花掉 / 卖掉 / 腐坏都不会让升级项重新消失 */
+function itemEver(idOrName) {
+  if (!S) return false;
+  const id = ITEMS[idOrName] ? idOrName : N2I(idOrName);
+  if (!id) return false;
+  return !!((S.ever && S.ever[id]) || (S.items && (S.items[id] || 0) > 0) ||
+            (S.seen && S.seen.items && S.seen.items[id]));
+}
+function everOwnedAll(cost) {
+  for (const name in (cost || {})) {
+    const id = iid(normName(name));
+    if (!id || !itemEver(id)) return false;
+  }
+  return true;
+}
+function researchMilestoneOk() {
+  const job = JOB_BY_ID.research;
+  const u = job && job.upgrades && job.upgrades[0];
+  if (!u || !u.cost) return false;
+  for (const name in u.cost) {
+    const id = iid(normName(name));
+    if (!id || (S.items[id] || 0) < Math.ceil((u.cost[name] || 0) * 0.3)) return false;
+  }
+  return true;
+}
+function refreshMilestones() {
+  if (!S) return;
+  if (!S.ever) S.ever = {};
+  if (!S.milestones) S.milestones = {};
+  if (!S.milestones.wood_stone) {
+    const wood = N2I('木材'), stone = N2I('石头');
+    if (wood && stone && itemEver(wood) && itemEver(stone)) S.milestones.wood_stone = true;
+  }
+  if (!S.milestones.research_ready && researchMilestoneOk()) S.milestones.research_ready = true;
+}
+/* 受伤是永久解锁医疗 / 沼泽的里程碑 */
+function markInjured(c) {
+  if (!c) return;
+  c.injured = true;
+  c.hpNow = 1;
+  if (!S.milestones) S.milestones = {};
+  S.milestones.injured = true;
+}
+
+/* ---------- 食物 / 医物 ---------- */
+/* 食物 = 粮仓里除种子外的可食用物（食材 + 熟食） */
+function isFoodItem(id) {
+  const it = ITEMS[id];
+  return !!(it && it.storage === 'granary' && it.cat !== 'seed');
+}
+/* 只有「选中的食物 + 粮仓里还有货」才生效；其它食物没有特殊效果 */
+function activeFoodId(c) {
+  if (!c || !c.food || !isFoodItem(c.food)) return null;
+  if ((S.items[c.food] || 0) <= 0) return null;
+  return c.food;
+}
+function foodXpMult(c) { return activeFoodId(c) === 'vegetarian_meal' ? 1.25 : 1; }
+function foodSpeedMult(c) { return activeFoodId(c) === 'balanced_meal' ? 1.25 : 1; }
+function foodAtkStrBonus(c) { return activeFoodId(c) === 'meat_meal' ? 10 : 0; }
+function foodEffectText(id) {
+  if (id === 'vegetarian_meal') return '精通经验 +25%';
+  if (id === 'meat_meal') return '命中、力量 +10 级';
+  if (id === 'balanced_meal') return '工作速度 +25%';
+  return '无特殊效果';
+}
+function activeMedDef(c) {
+  if (!c || !c.injured || !c.med) return null;
+  const it = ITEMS[c.med];
+  if (!it || !it.med) return null;
+  if ((S.items[c.med] || 0) <= 0) return null;
+  return it.med;
+}
+/* 每名角色从自己选中的食物吃；没选中 / 吃完了再从最贵的可食用物开始消耗 */
+function eatFoodForChar(c, need) {
+  if (!(need > 0)) return 0;
+  if (c && c.food && isFoodItem(c.food) && (S.items[c.food] || 0) > 0) {
+    const take = Math.min(S.items[c.food], need);
+    if (take > 0) { removeItem(c.food, take); need -= take; }
+  }
+  if (need <= 1e-9) return 0;
+  const foods = Object.keys(S.items).filter(id => isFoodItem(id) && (S.items[id] || 0) > 0);
+  foods.sort((a, b) => (ITEMS[b].price || 0) - (ITEMS[a].price || 0));
+  for (const id of foods) {
+    if (need <= 0) break;
+    const take = Math.min(S.items[id], need);
+    if (take > 0) { removeItem(id, take); need -= take; }
+  }
+  return Math.max(0, need);
+}
+function consumeFoodForChars(chars, dt) {
+  let hungry = false;
+  for (const c of chars) {
+    if (eatFoodForChar(c, GAME.foodPerCharSec * dt) > 1e-6) hungry = true;
+  }
+  S._hungry = hungry;
+}
+/* 兼容旧入口：没有角色上下文时只走统一消耗 */
+function consumeFood(n) {
+  let need = n;
+  const foods = Object.keys(S.items).filter(id => isFoodItem(id) && (S.items[id] || 0) > 0);
+  foods.sort((a, b) => (ITEMS[b].price || 0) - (ITEMS[a].price || 0));
+  for (const id of foods) {
+    if (need <= 0) break;
+    const take = Math.min(S.items[id], need);
+    if (take > 0) { removeItem(id, take); need -= take; }
+  }
+  S._hungry = need > 1e-6;
+}
+/* 受伤时按医物时代消耗，回血速度 ×healMul（石器草药 ×2） */
+function healChar(c, dt, regenPctPerSec) {
+  const st = charStats(c);
+  if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
+  let mul = 1;
+  if (c.injured) {
+    const med = activeMedDef(c);
+    if (med && (c.medT || 0) <= 0) {
+      // 受伤后先付 1 份医物，换来一整个 consumeSec 的加速窗口
+      if (removeItem(c.med, 1)) c.medT = med.consumeSec || 30;
+    }
+    if (med && (c.medT || 0) > 0) {
+      mul = med.healMul || 1;
+      c.medT = Math.max(0, (c.medT || 0) - dt);
+    }
+  } else {
+    c.medT = 0;
+  }
+  c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regenPctPerSec * mul * dt);
+  if (c.injured && c.hpNow > st.maxHp * 0.5) {
+    c.injured = false; c.medT = 0;
+    log('<b class="green">' + charName(c) + '</b> 伤愈归队。');
+  }
+  if (c.hpNow <= 0) c.hpNow = 1;
+  return st;
+}
+/* 离线按秒数折算医物消耗（首份立即消耗，之后每 consumeSec 一份） */
+function consumeMedTime(c, sec) {
+  if (!(sec > 0)) return;
+  const med = activeMedDef(c);
+  if (!med) return;
+  const per = med.consumeSec || 30;
+  const n = Math.min(S.items[c.med] || 0, 1 + Math.floor(Math.max(0, sec - per) / per));
+  if (n > 0) removeItem(c.med, n);
 }
 
 /* ---------- 科技 / 时代 ---------- */
@@ -331,6 +485,8 @@ function jobVisible(j) {
     const c = S.chars[j.unlockBy.hero] || Object.values(S.chars).find(x => x.name === j.unlockBy.hero);
     return !!(c && c.favor >= (j.unlockBy.affection || 50));
   }
+  // v0.0.27：伐木 / 采矿 / 科研 / 医疗改成里程碑永久解锁，不再开局全亮
+  if (j.visibleMilestone) return !!(S.milestones && S.milestones[j.visibleMilestone]);
   if (j.alwaysVisible) return true;
   if (!j.tech) return true;
   return researched(j.tech);
@@ -347,7 +503,7 @@ function onFieldCap() {
 function charPower(c) {
   const st = charStats(c);
   const gear = gearPower(c);
-  return (c.lv.hp + c.lv.atk + c.lv.str + c.lv.def) * 3 + gear;
+  return (c.lv.hp + c.lv.atk + c.lv.str + c.lv.def + 2 * foodAtkStrBonus(c)) * 3 + gear;
 }
 function gearPower(c) {
   let p = 0;
@@ -370,8 +526,9 @@ function charStats(c) {
   const wc = w ? (WEAPON_COMBAT[w.name] || {}) : {};
   const wStr = wc.str !== undefined ? wc.str : (w ? (w.str || 0) : 0);
   const wAtk = wc.atk !== undefined ? wc.atk : (w ? (w.atk || 0) : 0);
-  const strTotal = c.lv.str + str + wStr;
-  const atkTotal = c.lv.atk + atk + wAtk;
+  const foodLv = foodAtkStrBonus(c);   // 肉餐：命中 / 力量 +10 级（临时，只作用于该角色）
+  const strTotal = c.lv.str + str + wStr + foodLv;
+  const atkTotal = c.lv.atk + atk + wAtk + foodLv;
   const interval = wc.interval || (w && w.interval) || GAME.weaponDefaultInterval;
   const range = wc.range !== undefined ? wc.range : (w && w.range) || 0;
   const mh = Math.floor(10 * (2.2 + strTotal/10 + (strTotal + 17) * str / 640));
@@ -507,10 +664,17 @@ function jobRecipes(job) {
   return [{ name: job.name, inputs: job.inputs || {}, outputs: job.outputs || {}, era: job.era, duration: job.duration || 2 }];
 }
 function jobRecipe(job, idx) { const l = jobRecipes(job); return l[clamp(idx, 0, l.length - 1)]; }
-function recipeVisible(r) {
+function recipeVisible(r, job) {
   if (!r) return true;
+  if (r.milestone && !(S.milestones && S.milestones[r.milestone])) return false;
   const tech = r.unlockTech || r.tech;
-  return !tech || researched(tech);
+  if (tech && !researched(tech)) return false;
+  // v0.0.27：最基础的项目要先买对应工具 / 研究桌
+  if (job && job.recipeUpgrade != null) {
+    const js = S.jobs[job.id];
+    if (!(js && Array.isArray(js.up) && js.up[job.recipeUpgrade])) return false;
+  }
+  return true;
 }
 function recipeDuration(job, r) { return (r && r.duration) || job.duration || 2; }
 function ensureSlots(js, n) {
@@ -527,7 +691,7 @@ function assignedCount(job) {
   const js = S.jobs[job.id];
   if (!js || !js.slots) return 0;
   const rs = jobRecipes(job);
-  return js.slots.filter((id, i) => id && S.chars[id] && recipeVisible(rs[i])).length;
+  return js.slots.filter((id, i) => id && S.chars[id] && recipeVisible(rs[i], job)).length;
 }
 function isWorking(cid) {
   for (const id in S.jobs) {
@@ -615,8 +779,9 @@ function jobSpeed(jobId, slotIdx) {
       m *= wave;
     }
     if (c.injured) m *= 0.35;
+    m *= foodSpeedMult(c);           // 均衡餐：工作速度 +25%
   }
-  if (granaryTotal() <= 0) m *= 0.5;
+  if (S._hungry) m *= 0.5;
   return m;
 }
 function produceJob(jobId, dt) {
@@ -632,7 +797,7 @@ function produceJob(jobId, dt) {
     if (!cid) { js.prog[i] = 0; js.blocked[i] = null; continue; }
     const c = S.chars[cid];
     if (!c) { js.slots[i] = null; continue; }
-    if (!recipeVisible(r)) { js.slots[i] = null; js.prog[i] = 0; continue; }
+    if (!recipeVisible(r, job)) { js.slots[i] = null; js.prog[i] = 0; continue; }
     if (c.injured) { js.blocked[i] = 'injury'; continue; }
     const ins = r.inputs || {};
     const rawOuts = r.outputs || {};
@@ -657,15 +822,11 @@ function produceJob(jobId, dt) {
           for (let k = 0; k < n; k++) {
             const real = GENERIC_OUT[name]();
             if (!real) continue;
-            const oid = iid(real);
-            if (ITEMS[oid] && ITEMS[oid].storage === 'granary') addFood(oid, 1); else addItem(oid, 1);
+            addProducedItem(iid(real), 1);
           }
           continue;
         }
-        const id = iid(normName(name));
-        if (!id) continue;
-        if (ITEMS[id] && ITEMS[id].storage === 'granary') addFood(id, n);
-        else addItem(id, n);
+        addProducedItem(iid(normName(name)), n);
       }
       gainMastery(c, jobId, recipeDuration(job, r));
       js.done = (js.done||0) + 1;
@@ -718,10 +879,26 @@ function weightedPick(arr) {
   for (const it of arr) { r -= (it.weight||0); if (r <= 0) return it; }
   return arr[arr.length-1];
 }
+/* 产出结算：资源包（草地 / 平原 / 沼泽）每次随机抽其中 1 种，不会把资源包本身塞进仓库 */
+function addProducedItem(id, n) {
+  if (!id || !(n > 0)) return;
+  const it = ITEMS[id];
+  if (it && it.bundle && Array.isArray(it.pool) && it.pool.length) {
+    let left = Math.floor(n);
+    while (left-- > 0) {
+      const pick = weightedPick(it.pool);
+      if (pick && pick.id) addProducedItem(pick.id, 1);
+    }
+    return;
+  }
+  if (it && it.storage === 'granary') addFood(id, n);
+  else addItem(id, n);
+}
 function gainMastery(c, jobId, sec) {
   const m = masteryOf(c, jobId);
   let mult = 1;
   if (c.cid === 'juju' && c.favor >= 50) mult *= c.favor >= 100 ? 2 : 1.5;
+  mult *= foodXpMult(c);             // 素餐：精通经验 +25%
   m.xp += sec * mult;
   if (c.cid === 'lare' && c.favor >= 100 && jobSpeed(jobId) > 1.5) m.xp += sec * 0.5;
 }
@@ -794,7 +971,7 @@ function combatTick(jobId, dt) {
       c.hpNow = (c.hpNow || st.maxHp) - dmg;
       xpGain(c, 'hp', dmg * 0.133); xpGain(c, 'def', dmg * 0.133);
       if (c.hpNow <= st.maxHp * 0.2) {
-        c.hpNow = 1; c.injured = true;
+        markInjured(c);
         pushCombatLog(cs, '重伤！' + charName(c) + ' 退出战斗');
         cs.enemy = null; cs.respawn = 8;
         c.jobPaused = job.id;
@@ -1241,11 +1418,16 @@ function offlineCombat(jobId, sec, rep) {
   if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
   const regen = offlineRegenPctPerSec();
   let time = sec;
-  // 出发时重伤：先扣掉养伤时间，养好才继续打
+  // 出发时重伤：先扣掉养伤时间（医物按时代加速），养好才继续打
   if (c.injured) {
-    const healSec = Math.max(0, st.maxHp * 0.5 - c.hpNow) / Math.max(1e-6, st.maxHp * regen);
+    const med = activeMedDef(c);
+    const healRegen = regen * (med ? (med.healMul || 1) : 1);
+    const healSec = Math.max(0, st.maxHp * 0.5 - c.hpNow) / Math.max(1e-6, st.maxHp * healRegen);
+    const usedHeal = Math.min(time, healSec);
+    consumeMedTime(c, usedHeal);
+    c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * healRegen * usedHeal);
+    if (c.hpNow > st.maxHp * 0.5) c.injured = false;
     if (healSec >= time) {
-      c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regen * time);
       rep.stats.injuredTime += time;
       return;
     }
@@ -1308,8 +1490,7 @@ function offlineCombat(jobId, sec, rep) {
   }
   if (lost) {
     // 打不过 / 被持续消耗打穿 → 重伤（design/战斗系统.md §八）；产出只保留打赢的部分
-    c.injured = true;
-    c.hpNow = 1;
+    markInjured(c);
     c.jobPaused = job.id;
   } else {
     // 全程撑住：血量按「自然恢复 − 挨打」的净速率走，不会凭空受伤
@@ -1324,8 +1505,7 @@ function offlineCombat(jobId, sec, rep) {
 /* 15 秒的生产块：与 tick() 同序，只是不跑战斗与袭击 */
 function offlineChunk(dt, combatChars) {
   const chars = onFieldChars();
-  const need = chars.length * GAME.foodPerCharSec * dt;
-  if (need > 0) consumeFood(need);
+  consumeFoodForChars(chars, dt);
   for (const id in S.jobs) {
     const js = S.jobs[id];
     if (!js.slots || !js.slots.some(Boolean)) continue;
@@ -1346,10 +1526,7 @@ function offlineChunk(dt, combatChars) {
   const regen = offlineRegenPctPerSec();
   chars.forEach(c => {
     if (combatChars[c.cid]) return;
-    const st = charStats(c);
-    if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
-    c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regen * dt);
-    if (c.injured && c.hpNow > st.maxHp * 0.5) { c.injured = false; log('<b class="green">' + charName(c) + '</b> 伤愈归队。'); }
+    healChar(c, dt, regen);
   });
   granaryDecay(dt);
 }
@@ -1395,6 +1572,7 @@ function settleOffline(awaySec) {
   JOBS.forEach(j => {
     if (j.special === 'hunting' || j.special === 'blackSoul' || j.special === 'eraSim') offlineCombat(j.id, used, rep);
   });
+  refreshMilestones();
   // 3) 袭击：离线期间每 2 小时的判定补算（最多 12 次，防止旧存档连环打）
   let guard = 0;
   while (S.playtime >= S.raid.next && guard < 12) {
@@ -1449,10 +1627,10 @@ function tick(dt) {
   dt = dt || 0.2;
   S.playtime += dt;
   refreshShop(false);
-  // 每个上场角色消耗食物
+  refreshMilestones();
+  // 每个上场角色消耗食物（优先吃自己补给栏里选中的食物）
   const chars = onFieldChars();
-  const need = chars.length * GAME.foodPerCharSec * dt;
-  if (need > 0) consumeFood(need);
+  consumeFoodForChars(chars, dt);
   // 工作
   for (const id in S.jobs) {
     const js = S.jobs[id];
@@ -1472,12 +1650,7 @@ function tick(dt) {
   const regenPctPerDay = healerPresent()
     ? (CC.healerRegenPctPerDay || 15) : (CC.naturalRegenPctPerDay || 5);
   const regenPctPerSec = regenPctPerDay / 100 / GAME.secPerDay;
-  chars.forEach(c => {
-    const st = charStats(c);
-    if (c.hpNow === undefined || c.hpNow === null) c.hpNow = st.maxHp;
-    c.hpNow = Math.min(st.maxHp, c.hpNow + st.maxHp * regenPctPerSec * dt);
-    if (c.injured && c.hpNow > st.maxHp * 0.5) { c.injured = false; log('<b class="green">' + charName(c) + '</b> 伤愈归队。'); }
-  });
+  chars.forEach(c => { healChar(c, dt, regenPctPerSec); });
   // 粮仓腐坏
   granaryDecay(dt);
   // 袭击
@@ -1488,18 +1661,6 @@ function healerPresent() {
   const js = S.jobs.medical || S.jobs.medicine;
   if (!js || !js.slots) return false;
   return js.slots.some(id => id && S.chars[id]);
-}
-function consumeFood(n) {
-  let left = n;
-  const foods = Object.keys(S.items).filter(id => ITEMS[id] && ITEMS[id].storage === 'granary');
-  // 先吃熟食（价值高），再吃食材
-  foods.sort((a,b) => (ITEMS[b].price||0) - (ITEMS[a].price||0));
-  for (const id of foods) {
-    if (left <= 0) break;
-    const take = Math.min(S.items[id], left);
-    if (take > 0) { removeItem(id, take); left -= take; }
-  }
-  if (left > 0.001) S._hungry = true; else S._hungry = false;
 }
 function granaryDecay(dt) {
   // 每 60 秒腐坏 1%（半衰期约 40 分钟），堆肥产出
@@ -1548,6 +1709,31 @@ function migrate(st) {
   merged.items = st.items || {};
   merged.chars = st.chars || {};
   merged.order = st.order || [];
+  // v0.0.27：补给栏 / 永久解锁进度 / 曾经拥有记录
+  merged.ever = Object.assign({}, base.ever || {}, st.ever || {});
+  merged.milestones = Object.assign({}, st.milestones || {});
+  merged.dev = !!(st.dev || merged.dev);
+  merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
+  Object.keys(merged.seen.items || {}).forEach(id => { if (merged.seen.items[id]) merged.ever[id] = 1; });
+  Object.keys(merged.items).forEach(id => { if ((merged.items[id] || 0) > 0) merged.ever[id] = 1; });
+  Object.keys(merged.chars).forEach(cid => {
+    const c = merged.chars[cid];
+    if (!c) return;
+    if (!('food' in c)) c.food = null;
+    if (!('med' in c)) c.med = null;
+    if (!('medT' in c)) c.medT = 0;
+    if (c.injured) merged.milestones.injured = true;
+  });
+  const ever = id => !!merged.ever[id] || (merged.items[id] || 0) > 0;
+  const woodEver = N2I('木材'), stoneEver = N2I('石头');
+  if (woodEver && stoneEver && ever(woodEver) && ever(stoneEver)) merged.milestones.wood_stone = true;
+  if (!merged.milestones.research_ready) {
+    const rj = JOB_BY_ID.research, ru = rj && rj.upgrades && rj.upgrades[0];
+    if (ru && ru.cost && Object.keys(ru.cost).every(n => {
+      const id = iid(normName(n));
+      return id && (merged.items[id] || 0) >= Math.ceil((ru.cost[n] || 0) * 0.3);
+    })) merged.milestones.research_ready = true;
+  }
   // 双手武器规则（v0.0.17）：旧存档若同时戴着双手主手与副手，副手退回仓库
   Object.keys(merged.chars).forEach(cid => {
     const c = merged.chars[cid];
@@ -1624,6 +1810,8 @@ window.Engine = {
   get S() { return S; }, set S(v) { S = v; },
   newState, newChar, load, save, exportSave, importSave, migrate,
   fmt, fmtTime, count, addItem, removeItem, itemName, sellPrice, buyPrice, iid, N2I,
+  itemEver, everOwnedAll, refreshMilestones, markInjured, addProducedItem,
+  isFoodItem, activeFoodId, foodXpMult, foodSpeedMult, foodAtkStrBonus, foodEffectText, activeMedDef, healChar,
   warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood,
   currentEra, eraName, eraProgress, techDone, techAvailable, researched, techsDone, researchTech,
   jobUnlocked, jobVisible, unlockedJobs, JOB_BY_ID, JOB_BY_NAME,

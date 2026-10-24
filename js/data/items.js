@@ -207,11 +207,39 @@ window.ITEMS = {
 
   /* ============================================================
    * §八 跨阶段药物、熟食与消费品 —— 仓库 4 种（粮仓 3 种见文件末尾）
+   * v0.0.27：药品统一成「医物」，医疗工作产出石器时代草药
+   * med = { era, healMul, consumeSec }：受伤时消耗 1 份，回血速度 ×healMul
    * ============================================================ */
-  herbal_potion:  { name: '草药药剂', era: 'cross', cat: 'material', storage: 'warehouse', price: 4,    src: '药剂', use: '医疗' },
-  medicine:       { name: '医药',     era: 'cross', cat: 'material', storage: 'warehouse', price: 15.5, src: '药剂（+化学燃料）', use: '医疗' },
-  shining_med:    { name: '闪耀医药', era: 'cross', cat: 'material', storage: 'warehouse', price: 54,   src: '药剂（+医药 +稀土 +化学燃料）', use: '医疗' },
+  herb_medicine:  { name: '草药',     era: 'stone', cat: 'medicine', storage: 'warehouse', price: 2.5,  src: '医疗（药草）', use: '补给栏 · 医物（石器 ×2 回血）',
+                    med: { era: 'stone', healMul: 2, consumeSec: 20 } },
+  herbal_potion:  { name: '草药药剂', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 4,    src: '药剂', use: '补给栏 · 医物（中世纪 ×3 回血）',
+                    med: { era: 'medieval', healMul: 3, consumeSec: 25 } },
+  medicine:       { name: '医药',     era: 'cross', cat: 'medicine', storage: 'warehouse', price: 15.5, src: '药剂（+化学燃料）', use: '补给栏 · 医物（工业 ×4 回血）',
+                    med: { era: 'industrial', healMul: 4, consumeSec: 30 } },
+  shining_med:    { name: '闪耀医药', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 54,   src: '药剂（+医药 +稀土 +化学燃料）', use: '补给栏 · 医物（信息 ×6 回血）',
+                    med: { era: 'info', healMul: 6, consumeSec: 40 } },
   carpet:         { name: '地毯',     era: 'cross', cat: 'misc',     storage: 'warehouse', price: 6,    src: '编织', use: '舒适度' },
+
+  /* ============================================================
+   * §八·2 采集资源包（v0.0.27）
+   * 不是仓库物品：项目产出时按权重随机抽其中 1 种，资源包本身不落库。
+   * 悬浮面板会列出「产物 + 概率」。
+   * ============================================================ */
+  grass_resource: { name: '草地资源', era: 'stone', cat: 'bundle', hidden: true, bundle: true, virtual: true, price: 0, src: '采集 · 草地', use: '随机获得 1 种',
+    pool: [
+      { id: 'plant_fiber', weight: 90 },
+      { id: 'grain_seed', weight: 2 }, { id: 'bean_seed', weight: 2 }, { id: 'vegetable_seed', weight: 2 },
+      { id: 'beet_seed', weight: 2 }, { id: 'herb_seed', weight: 2 },
+    ] },
+  plains_resource: { name: '平原资源', era: 'stone', cat: 'bundle', hidden: true, bundle: true, virtual: true, price: 0, src: '采集 · 平原', use: '随机获得 1 种',
+    pool: [
+      { id: 'stone', weight: 1 }, { id: 'wood', weight: 1 }, { id: 'berry', weight: 1 },
+      { id: 'tuber', weight: 1 }, { id: 'nut', weight: 1 },
+    ] },
+  swamp_resource: { name: '沼泽资源', era: 'stone', cat: 'bundle', hidden: true, bundle: true, virtual: true, price: 0, src: '采集 · 沼泽', use: '随机获得 1 种',
+    pool: [
+      { id: 'wild_mushroom', weight: 1 }, { id: 'herb', weight: 1 },
+    ] },
 
   /* ============================================================
    * §十一 精通技能书（31 本，商店专属，卖出 8000 / 买入 24000）
@@ -338,7 +366,9 @@ window.ITEM_ORDER = [
   'plasma_blade', 'gravity_hammer', 'rail_spear', 'particle_gun',
 
   /* §八 跨阶段（仓库） */
-  'herbal_potion', 'medicine', 'shining_med', 'carpet',
+  'herb_medicine', 'herbal_potion', 'medicine', 'shining_med', 'carpet',
+  /* §八·2 采集资源包（虚拟，不落库） */
+  'grass_resource', 'plains_resource', 'swamp_resource',
 
   /* §十一 精通技能书（31 本） */
   'book_woodcutting', 'book_mining', 'book_gathering', 'book_farming', 'book_hunting', 'book_herding', 'book_cooking', 'book_crafting', 'book_research', 'book_stonecutting', 'book_pottery', 'book_medicine',

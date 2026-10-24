@@ -8,7 +8,7 @@ const E = window.Engine;
 const JOB_BRIEF = {
   woodcutting: '砍树，产出木材。',
   mining: '开采矿石。每种矿石单独开采，越稀有的矿越慢。',
-  gathering: '采集野果、野菌与植物纤维。',
+  gathering: '去草地、平原或沼泽采集；每种资源包会随机变成其中一种物品。',
   farming: '种地，把种子变成食材与草料。',
   hunting: '派角色去野外打怪，掉落皮革与肉。',
   husbandry: '圈养猎来的野生动物，产出肉与毛皮。',
@@ -17,7 +17,7 @@ const JOB_BRIEF = {
   research: '产出科研点，用来研究科技树。',
   stonecutting: '把石头切成石材。',
   pottery: '把沙烧成陶器。',
-  medicine: '治疗重伤角色，制作药剂。',
+  medicine: '把药草捣成草药；有人入驻时全队回血更快。',
   smelting: '把矿石炼成金属锭。',
   forging: '打造金属装备与武器。',
   carpentry: '把木材加工成木板。',
@@ -45,6 +45,7 @@ const JOB_BRIEF = {
 const ITEM_CAT_NAME = {
   ore: '矿石', material: '材料', animal: '动物产物', equip: '装备', weapon: '武器',
   misc: '杂项', book: '技能书', gacha: '抽卡', food: '食材', seed: '种子', cooked: '熟食',
+  medicine: '医物', bundle: '资源包',
 };
 const ITEM_SLOT_NAME = {
   mainhand: '主手', offhand: '副手', head: '头盔', headInner: '内衬头盔', body: '胸甲',
@@ -212,6 +213,26 @@ const UI = {
       + row('持有', q ? E.fmt(q) + ' 件' : '<span class="dim">没有</span>')
       + row('总价值', E.fmt(q * (it.price || 0)) + ' 金') + '</div>';
 
+    // 资源包：悬停时列出「产物 + 概率」（不只显示一个笼统名字）
+    if (it.bundle && Array.isArray(it.pool) && it.pool.length) {
+      const total = it.pool.reduce((a, p) => a + (p.weight || 0), 0) || 1;
+      const drops = it.pool.map(p => {
+        const drop = E.ITEMS[p.id] || E.ITEMS[E.N2I(p.id)];
+        const pct = (p.weight || 0) / total * 100;
+        return row(`${drop ? this.itemIcon(drop) + ' ' : ''}${esc(drop ? drop.name : p.id)}`, pct.toFixed(pct < 1 ? 1 : 0) + '%');
+      }).join('');
+      h += `<div class="ttSec">产物列表（每次随机 1 种）</div><div class="ttRows">${drops}</div>`;
+    }
+    if (it.med) {
+      h += `<div class="ttSec">医物效果</div><div class="ttRows">`
+        + row('回血速度', '×' + (it.med.healMul || 1), 'green')
+        + row('消耗间隔', (it.med.consumeSec || 30) + ' 秒')
+        + row('适用时代', E.ERA_NAME[it.med.era] || '石器时代')
+        + `</div><div class="ttDesc">只有角色受伤时才会消耗；放进角色的医物栏后自动生效。</div>`;
+    }
+    if (E.isFoodItem(id)) {
+      h += `<div class="ttSec">食物效果</div><div class="ttDesc">${esc(E.foodEffectText(id))}${it.cat === 'cooked' ? '（选中的食物必须在粮仓里有货才生效）' : ''}</div>`;
+    }
     if (it.cat === 'book' && it.book) h += row('用途', '《' + esc(it.book) + '》精通 +10 级');
     if (it.kind) h += row('类别', esc(ITEM_KIND_NAME[it.kind] || it.kind));
     if (it.gift) h += row('送礼好感', '+' + it.gift, 'gold');
@@ -367,6 +388,7 @@ const UI = {
     this.renderHud(); this.renderNav();
     const page = S.ui.page || 'warehouse';
     const wrap = document.getElementById('mainWrap');
+    const pageEl = document.getElementById('page');
     let html = '';
     if (page === 'tech') html = this.pageTech();
     else if (page === 'warehouse') html = this.pageWarehouse();
@@ -379,12 +401,67 @@ const UI = {
     else if (page.startsWith('job:')) html = this.pageJob(page.slice(4));
     else html = this.pageWarehouse();
     const prevPage = wrap.dataset.page;
+    const samePage = prevPage === page;
+    const pageScroll = pageEl ? pageEl.scrollTop : 0;
     const scrolls = this._saveScroll();
+    const selection = samePage ? this._saveSelection(wrap) : null;
     wrap.innerHTML = html;
     wrap.dataset.page = page;
-    document.getElementById('page').scrollTop = S.ui.scroll || 0;
-    if (prevPage === page) this._restoreScroll(scrolls);
+    // 整页重绘（工作页 0.2s / 其它页 1.5s）不能把用户正在看的位置或选中文本冲掉
+    if (samePage) {
+      if (pageEl) pageEl.scrollTop = pageScroll;
+      this._restoreScroll(scrolls);
+      this._restoreSelection(selection, wrap);
+    } else if (pageEl) {
+      pageEl.scrollTop = S.ui.scroll || 0;
+    }
     this.syncTip();
+  },
+
+  /* 把选区锚点记成「相对 mainWrap 的节点路径」，重绘后按同一路径还原 */
+  _nodePath(node, root) {
+    const path = [];
+    let n = node;
+    while (n && n !== root) {
+      const parent = n.parentNode;
+      if (!parent) return null;
+      path.unshift(Array.prototype.indexOf.call(parent.childNodes, n));
+      n = parent;
+    }
+    return n === root ? path : null;
+  },
+  _nodeAt(root, path) {
+    let n = root;
+    for (const i of path || []) {
+      if (!n || !n.childNodes || !n.childNodes[i]) return null;
+      n = n.childNodes[i];
+    }
+    return n;
+  },
+  _saveSelection(wrap) {
+    const sel = window.getSelection ? window.getSelection() : null;
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    if (!wrap.contains(range.startContainer) || !wrap.contains(range.endContainer)) return null;
+    const a = this._nodePath(range.startContainer, wrap);
+    const b = this._nodePath(range.endContainer, wrap);
+    if (!a || !b) return null;
+    return { a, ao: range.startOffset, b, bo: range.endOffset };
+  },
+  _restoreSelection(saved, wrap) {
+    if (!saved) return;
+    const a = this._nodeAt(wrap, saved.a), b = this._nodeAt(wrap, saved.b);
+    if (!a || !b) return;
+    const maxA = a.nodeType === 3 ? a.nodeValue.length : (a.childNodes ? a.childNodes.length : 0);
+    const maxB = b.nodeType === 3 ? b.nodeValue.length : (b.childNodes ? b.childNodes.length : 0);
+    const range = document.createRange();
+    try {
+      range.setStart(a, Math.min(saved.ao, maxA));
+      range.setEnd(b, Math.min(saved.bo, maxB));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* 结构变化时放弃还原，不影响页面 */ }
   },
 
   /* 记住页面里所有滚动容器的位置：整页重绘（每 1.5 秒一次）时不跳回顶部 */
@@ -464,7 +541,8 @@ const UI = {
     if (job.watt) badges.push(`<span class="badge warn">⚡ ${job.watt} 瓦</span>`);
     if (job.era) badges.push(`<span class="badge">${E.ERA_NAME[job.era] || ''}</span>`);
     const staffed = E.assignedCount(job);
-    const rows = rs.map((r, i) => ({ r, i })).filter(x => E.recipeVisible(x.r));
+    const rows = rs.map((r, i) => ({ r, i })).filter(x => E.recipeVisible(x.r, job));
+    const reqUp = job.recipeUpgrade != null ? (job.upgrades || [])[job.recipeUpgrade] : null;
 
     let h = `<div class="wrap">
       <div class="jobhead">
@@ -482,18 +560,19 @@ const UI = {
       </div>
 
       <div class="row" style="justify-content:space-between;margin-top:16px"><h3 style="font-size:15px">项目</h3><span class="tiny dim">每个项目独立入驻、独立进度</span></div>
+      ${!rows.length && reqUp ? `<div class="card hint" style="margin-top:8px">先购买升级项「<b>${this.esc(reqUp.name)}</b>」，项目才会出现。${E.everOwnedAll(reqUp.cost) ? '' : '<span class="tiny dim"> 继续采集 / 攒材料，首次拿到所需材料后这张升级项会永久显示。</span>'}</div>` : ''}
       <div class="grid recgrid" style="margin-top:8px">
         ${rows.map(({ r, i }) => this.recipeCard(job, js, r, i)).join('')}
       </div>
 
       <div style="margin-top:16px">
-        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">升级项</h3><span class="tiny dim">未解锁、上一档未购或材料不足 30% 的档位不显示</span></div>
+        <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">升级项</h3><span class="tiny dim">首次拥有 1 份所需资源后永久显示；未解锁或上一档未购的档位不显示</span></div>
         <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-top:8px">
           ${(job.upgrades || []).map((u, i) => {
             const bought = js.up && js.up[i];
             const locked = (u.req != null && !(js.up && js.up[u.req])) || !!(u.tech && !E.researched(u.tech));
-            const have = Object.keys(u.cost || {}).every(n => E.count(E.iid(n)) >= (u.cost[n] || 0) * 0.3);
-            if (!bought && (locked || !have)) return '';
+            const ever = E.everOwnedAll(u.cost);
+            if (!bought && (locked || !ever)) return '';
             return `<div class="card upg ${bought ? 'done' : ''}">
               <div class="row" style="justify-content:space-between"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b>${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</div>
               <div class="tiny muted" style="margin-top:4px">产出 +${u.bonusPct || 0}%${u.note ? ' · ' + this.esc(u.note) : ''}</div>
@@ -890,6 +969,26 @@ const UI = {
   },
 
   /* ---------------- 角色页 ---------------- */
+  supplyBox(c, field, label) {
+    const id = c[field];
+    const it = id ? E.ITEMS[id] : null;
+    const stock = id ? E.count(id) : 0;
+    let state = '未指定 · 自动';
+    if (field === 'food') {
+      if (id && stock > 0) state = '生效：' + E.foodEffectText(id);
+      else if (id) state = '粮仓无货 · 暂不生效';
+    } else {
+      if (id && stock > 0) {
+        const med = it && it.med;
+        state = c.injured ? `生效：×${med ? med.healMul : 1} 回血` : `备好：×${med ? med.healMul : 1} 回血`;
+      } else if (id) state = '仓库无货 · 暂不生效';
+    }
+    return `<div class="slot supply ${it ? 'filled' : ''}" data-act="${field === 'food' ? 'foodslot' : 'medslot'}" ${it ? `data-tip-item="${id}"` : `title="点击选择${label}"`}>
+      <div class="ph">${it ? this.itemIcon(it) : '＋'}</div>
+      <div class="nm">${it ? this.esc(it.name) : label}</div>
+      <div class="tiny dim supplyState">${this.esc(state)}</div>
+    </div>`;
+  },
   pageCharacters() {
     const S = E.S;
     const sel = S.chars[S.ui.charSel] ? S.ui.charSel : (S.order[0] || 'player');
@@ -935,6 +1034,12 @@ const UI = {
             ${slotBox('belt', '腰带')}${slotBox('mainhand', '主手')}
           </div>
           <div class="hr"></div>
+          <div class="row" style="justify-content:space-between;margin-bottom:6px"><b class="small">补给栏</b><span class="tiny dim">选中后该角色优先消耗；食物需粮仓有货才生效</span></div>
+          <div class="supplyrow">
+            ${this.supplyBox(c, 'food', '食物')}
+            ${this.supplyBox(c, 'med', '医物')}
+          </div>
+          <div class="hr"></div>
           <div class="row" style="justify-content:space-between">
             <span class="small">战力 <b class="gold mono">${E.fmt(E.charPower(c))}</b></span>
             <div class="row"><button data-act="autoEquip">一键最优</button><button data-act="unequipAll">全部卸下</button></div>
@@ -975,6 +1080,8 @@ const UI = {
             <div class="statrow"><span class="k">攻击间隔</span><span class="mono">${st.interval.toFixed(1)}s</span></div>
             <div class="statrow"><span class="k">最大伤害</span><span class="mono">${st.maxHit}</span></div>
             <div class="statrow"><span class="k">DPS（对当前敌人）</span><span class="mono">${E.fmt(E.charDps(c, (E.combatState('hunting').enemy) || { def: 5 }), 1)}</span></div>
+            ${E.foodAtkStrBonus(c) ? `<div class="statrow"><span class="k">食物增益</span><span class="mono green">命中 / 力量 +${E.foodAtkStrBonus(c)} 级</span></div>` : ''}
+            ${c.med && E.ITEMS[c.med] && E.ITEMS[c.med].med ? `<div class="statrow"><span class="k">医物</span><span class="mono ${c.injured ? 'green' : 'muted'}">${this.esc(E.ITEMS[c.med].name)} ×${E.ITEMS[c.med].med.healMul} 回血</span></div>` : ''}
           </div>
           <div class="card" style="margin-top:12px">
             <h3>精通</h3>
@@ -1240,7 +1347,18 @@ const UI = {
         });
       }
     }
-    if (page === 'warehouse' || page === 'shop' || page === 'tech' || page === 'characters' || page === 'housing' || page === 'defense' || page === 'recruit' || page === 'codex') {
+    if (page === 'codex') {
+      // 图鉴没有实时数字：只在「收录 / 领取 / 切换页签」变化时重绘，
+      // 避免每 1.5 秒把滚动位置和用户选中的文本冲掉
+      const sig = [
+        S.ui.tab.codex || 'items',
+        Object.keys(S.seen.items || {}).length,
+        Object.keys(S.seen.enemies || {}).length,
+        Object.keys(S.chars || {}).length,
+        E.codexUnclaimed().total,
+      ].join('|');
+      if (sig !== this._codexSig) { this._codexSig = sig; this.render(); }
+    } else if (page === 'warehouse' || page === 'shop' || page === 'tech' || page === 'characters' || page === 'housing' || page === 'defense' || page === 'recruit') {
       // 这些页面每 1.5 秒整页重绘一次，保证金币/科研点等数字变化
       if (!this._lastFull || Date.now() - this._lastFull > 1500) { this._lastFull = Date.now(); this.render(); }
     }

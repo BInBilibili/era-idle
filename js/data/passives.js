@@ -224,7 +224,8 @@ window.PASSIVE_RULES = {
   workCount: 33,              // 33 份工作（31 常规 + 2 恩赐），被动不计入工作总数
   workCountRegular: 31,
   workCountGift: 2,
-  upgradeShowResourceRatio: 0.3, // 升级项需「持有 ≥30% 所需资源」才显示
+  upgradeShowResourceRatio: 0.3, // 旧口径（v0.0.23~0.0.26）：持有 ≥30% 所需资源才显示
+  upgradeShowEverOwned: true,    // v0.0.27：首次拥有 1 份每种所需资源后永久显示
 
   /* --- 被动七套（§一） --- */
   passiveSets: ["住所与娱乐", "防御", "商店", "角色", "图鉴", "招募", "仓库"],

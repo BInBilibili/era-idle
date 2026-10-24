@@ -35,7 +35,9 @@ window.JOBS = [
     name: "伐木",
     era: "stone",
     order: 1,
-    alwaysVisible: true,
+    alwaysVisible: false,
+    visibleMilestone: "wood_stone",   // 曾经拥有 1 木材 + 1 石头后永久显示
+    recipeUpgrade: 0,                 // 先买石斧，才出现「木材」项目
     tech: null,
     category: "collect",
     duration: 2,
@@ -43,7 +45,7 @@ window.JOBS = [
     outputs: { "木材": 1 },
     powerUse: 0,
     upgrades: [
-      { name: "石斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
+      { name: "石斧", watt: 0, bonusPct: 25, cost: { "木材": 2, "石头": 2 }, note: "开局第一把工具：2 木材 + 2 石头" },
       { name: "铜斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "铜锭": 50 }, tech: "金属冶炼", req: 0, note: "" },
       { name: "铁斧", watt: 0, bonusPct: 25, cost: { "木材": 100, "铁锭": 50 }, tech: "金属冶炼", req: 1, note: "" },
       { name: "伐木小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
@@ -51,14 +53,16 @@ window.JOBS = [
       { name: "蒸汽锯", watt: 1, bonusPct: 100, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "2 秒 1 木材 = 30 木材/分钟；1 个伐木工喂 0.75 个加工工。产出的木材是石器时代主材料，也是燃料 / 造纸 / 木工原料。"
+    note: "v0.0.27：曾经拥有 1 木材 + 1 石头后永久显示；先买「石斧」（2 木材 + 2 石头）才出现木材项目。2 秒 1 木材 = 30 木材/分钟；1 个伐木工喂 0.75 个加工工。产出的木材是石器时代主材料，也是燃料 / 造纸 / 木工原料。"
   },
   {
     id: "mining",
     name: "采矿",
     era: "stone",
     order: 2,
-    alwaysVisible: true,
+    alwaysVisible: false,
+    visibleMilestone: "wood_stone",   // 曾经拥有 1 木材 + 1 石头后永久显示
+    recipeUpgrade: 0,                 // 先买石镐，才出现矿石项目
     tech: null,
     category: "collect",
     duration: 3,
@@ -81,7 +85,7 @@ window.JOBS = [
       { name: "铀矿", weight: 3, tech: "核能" }
     ],
     upgrades: [
-      { name: "石镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
+      { name: "石镐", watt: 0, bonusPct: 25, cost: { "木材": 2, "石头": 2 }, note: "开局第一把工具：2 木材 + 2 石头" },
       { name: "铜镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "铜锭": 50 }, tech: "金属冶炼", req: 0, note: "" },
       { name: "铁镐", watt: 0, bonusPct: 25, cost: { "木材": 100, "铁锭": 50 }, tech: "金属冶炼", req: 1, note: "" },
       { name: "采矿小屋", watt: 0, bonusPct: 50, cost: { "木材": 300, "石头": 150 }, note: "" },
@@ -111,7 +115,7 @@ window.JOBS = [
       note: "两个修改器全开后（*核能 阶段）石头权重 100 → 50，石头概率从 41.7% 掉到约 21%，金银翻倍。"
     },
     special: "mining",
-    note: "3 秒 1 票，从 13 种矿按权重抽 1 种；概率 = 该矿权重 ÷ 当时已解锁矿的总权重（每解锁一种新矿，老矿概率自动被稀释，不需要分阶段配表）。开局只有 石头 100 / 铜矿 40（71.4% / 28.6%）。石油 / 硝酸 由采矿产出，不新增钻井工作。1.5 个采矿工喂 1 个熔炼工。"
+    note: "v0.0.27：曾经拥有 1 木材 + 1 石头后永久显示；先买「石镐」（2 木材 + 2 石头）才出现矿石项目。3 秒 1 票，从 13 种矿按权重抽 1 种；概率 = 该矿权重 ÷ 当时已解锁矿的总权重（每解锁一种新矿，老矿概率自动被稀释，不需要分阶段配表）。开局只有 石头 100 / 铜矿 40（71.4% / 28.6%）。石油 / 硝酸 由采矿产出，不新增钻井工作。1.5 个采矿工喂 1 个熔炼工。"
   },
   {
     id: "gathering",
@@ -123,7 +127,15 @@ window.JOBS = [
     category: "collect",
     duration: 3,
     inputs: {},
-    outputs: { "素食食材": 3, "植物纤维": 1 },
+    outputs: {},
+    recipes: [
+      { name: "草地", outputs: { "草地资源": 1 }, era: "stone", duration: 3,
+        note: "植物纤维 90%；谷物 / 豆类 / 蔬菜 / 甜菜 / 药草种子合计 10%（每种 2%）" },
+      { name: "平原", outputs: { "平原资源": 1 }, era: "stone", duration: 3,
+        note: "石头 / 木材 / 浆果 / 块根 / 坚果，各 20%" },
+      { name: "沼泽", outputs: { "沼泽资源": 1 }, era: "stone", duration: 3, milestone: "injured",
+        note: "野菌 / 药草，各 50%；至少一名角色受过伤后永久显示" }
+    ],
     powerUse: 0,
     upgrades: [
       { name: "采集篮", watt: 0, bonusPct: 25, cost: { "木材": 100, "石头": 50 }, note: "" },
@@ -132,7 +144,7 @@ window.JOBS = [
       { name: "温室采集", watt: 1, bonusPct: 100, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "3 秒：素食食材 ×3（池 = 浆果 / 块根 / 野菌 / 坚果）+ 副产物 ×1，副产物概率 植物纤维 50% / 药草 30% / 种子 20%（种子池 = 谷物 / 豆类 / 蔬菜 / 甜菜 / 药草 五种）。1 个采集工只需 0.5 个烹饪工。"
+    note: "v0.0.27：拆成草地 / 平原 / 沼泽三个项目，每个项目 3 秒产出 1 份资源包，资源包按权重随机变成其中 1 种物品。草地 = 植物纤维 90% + 种子合计 10%（谷物 / 豆类 / 蔬菜 / 甜菜 / 药草种子各 2%）；平原 = 石头 / 木材 / 浆果 / 块根 / 坚果各 20%；沼泽 = 野菌 / 药草各 50%，且至少一名角色受伤后才永久显示。开局只显示采集。"
   },
   {
     id: "farming",
@@ -253,7 +265,9 @@ window.JOBS = [
     name: "科研",
     era: "stone",
     order: 9,
-    alwaysVisible: true,
+    alwaysVisible: false,
+    visibleMilestone: "research_ready",   // 曾经攒到基础研究桌 30% 材料后永久显示
+    recipeUpgrade: 0,                    // 先买基础研究桌，才出现「科研点」项目
     tech: null,
     category: "research",
     duration: 5,
@@ -267,7 +281,7 @@ window.JOBS = [
       { name: "实验室", watt: 1, bonusPct: 50, cost: { "铁锭": 2000, "机械零件": 500 }, note: "只有 +50%，耗电 +1 瓦" }
     ],
     special: "research",
-    note: "5 秒 1 科研点（= 720 点/小时）；喂 纸张 → ×1.5。科研点喂 42 个科技，合计 44,280 点。科研加成全叠满（科技 *文字 +25% / *网络 +100%，升级项 基础研究桌 +25% / 图书馆 +50% / 网络 +100% / 实验室 +50%，纸张 +50%）约 ×21，单人可达 ≈15,000 点/小时。"
+    note: "v0.0.27：曾经攒到「基础研究桌」30% 所需资源（30 木材 + 15 石头）后永久显示；先买基础研究桌，才出现「科研点」项目。5 秒 1 科研点（= 720 点/小时）；喂 纸张 → ×1.5。科研点喂 42 个科技，合计 44,280 点。科研加成全叠满（科技 *文字 +25% / *网络 +100%，升级项 基础研究桌 +25% / 图书馆 +50% / 网络 +100% / 实验室 +50%，纸张 +50%）约 ×21，单人可达 ≈15,000 点/小时。"
   },
   {
     id: "stonecutting",
@@ -316,12 +330,15 @@ window.JOBS = [
     name: "医疗",
     era: "stone",
     order: 12,
-    alwaysVisible: true,
+    alwaysVisible: false,
+    visibleMilestone: "injured",       // 至少一名角色受过伤后永久显示
     tech: null,
     category: "process",
     duration: 3,
-    inputs: { "药草": 1 },
-    outputs: {},
+    recipes: [
+      { name: "草药", inputs: { "药草": 1 }, outputs: { "草药": 1 }, era: "stone", duration: 3,
+        note: "把 1 药草捣成 1 草药；医疗工作同时让全队回血速度提高" }
+    ],
     powerUse: 0,
     upgrades: [
       { name: "医疗床", watt: 0, bonusPct: 25, cost: { "木材": 100, "药草": 50 }, note: "" },
@@ -330,7 +347,7 @@ window.JOBS = [
       { name: "自动医疗床", watt: 1, bonusPct: 75, cost: { "铁锭": 2000, "机械零件": 500 }, note: "需工业科技「公共卫生」解锁；耗电 +1 瓦" }
     ],
     special: null,
-    note: "治疗 1 名重伤角色（HP 降到最大值 20% 以下 → 不产出、不能参战）；不是物品产出。四种药越贵越快（同一份工作的四个配方）：1 药草 = 3 秒 / 1 草药药剂 = 2 秒 / 1 医药 = 1.5 秒 / 1 闪耀医药 = 1 秒；后三种药都由 #18 药剂 产出。1~2 档随工作可见，3~4 档另由工业科技「公共卫生」解锁。没有医疗角色时全局挂机效率 40%，有则 60%。"
+    note: "v0.0.27：至少一名角色受伤后永久显示。项目「草药」= 3 秒消耗 1 药草 → 1 草药（石器时代医物）。医疗工作有人入驻时全队回血速度提高；把草药 / 草药药剂 / 医药 / 闪耀医药放进角色的医物栏，受伤时还会按时代额外加速回血（草药 ×2、草药药剂 ×3、医药 ×4、闪耀医药 ×6）。医药 / 闪耀医药仍由 #18 药剂 产出。1~2 档随工作可见，3~4 档另由工业科技「公共卫生」解锁。"
   },
 
   /* ------------------------------------------------------------------ *

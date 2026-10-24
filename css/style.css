@@ -424,3 +424,21 @@ nav#side .nav .ic .icSvg{width:17px;height:17px;vertical-align:0;margin:0 auto}
 .upgIc.sm{width:20px;height:20px;vertical-align:-5px;margin-right:5px}
 .upgIc.sm .icSvg{width:20px;height:20px}
 html[data-theme="light"] .foeArt{background:radial-gradient(circle at 50% 64%,#e6eef8 0%,#f8fbfe 72%);border-color:#cfdbe8}
+
+/* ===== 角色补给栏（v0.0.27） ===== */
+.supplyrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot.supply{min-height:64px;padding:6px 7px;align-items:flex-start;text-align:left;gap:2px}
+.slot.supply .ph{font-size:18px;opacity:1}
+.slot.supply .nm{font-size:11.5px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.supply .supplyState{font-size:10px;line-height:1.25;white-space:normal;text-align:left;color:var(--dim)}
+.slot.supply.filled{border-color:#3b4d61}
+.picklist{max-height:52vh;overflow-y:auto;margin-top:6px;padding-right:2px}
+.pickrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 9px;margin-bottom:4px;background:transparent;border:1px solid var(--line);border-radius:8px}
+.pickrow:hover:not(:disabled){background:var(--panel2);border-color:var(--line2)}
+.pickrow.on{border-color:var(--green);background:#12281d}
+.pickrow.lack{opacity:.64}
+.pickrow .pi{width:30px;display:flex;justify-content:center;flex:none;font-size:18px}
+.pickrow .pn{flex:1;min-width:0}
+.pickrow .pn b{font-size:12.5px}
+.pickrow .pc{font-size:11px;white-space:nowrap}
+html[data-theme="light"] .pickrow.on{background:#eaf8f0;border-color:#8ec7aa}

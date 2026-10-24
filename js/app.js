@@ -7,6 +7,7 @@
   let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null;
   let pendingOffline = null;
   let resetting = false;   // 「重开」确认后置 true，阻止 beforeunload/visibilitychange 把旧存档写回去
+  let devTapCount = 0, devTapTimer = null;
   const OFFLINE_POPUP_SEC = 120;     // 离开超过 2 分钟才弹结算框，避免切标签页就打扰
 
   /* ---------------- 启动 ---------------- */
@@ -49,7 +50,7 @@
       E.S.chars.player.name = name;
       U.closeModal();
       startGame();
-      U.toast('第一步：去「工作」派玩家角色伐木');
+      U.toast('第一步：去「工作」→「采集」→「平原」，攒出木材和石头');
     };
     document.getElementById('startBtn').onclick = go;
     input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
@@ -59,10 +60,12 @@
   function startGame() {
     const S = E.S;
     applyTheme((S.settings && S.settings.theme) || 'dark');
+    handledDevQuery();
     if (!S.ui.page) S.ui.page = 'warehouse';
     if (S.ui.page === 'tech') S.ui.page = 'job:research';
     if (!S.shop.slots.length) E.refreshShop(true);
     E.refreshShop(false);
+    renderDevButton();
     U.render();
     if (!S.ui.tipsSeen && !pendingOffline) { S.ui.tipsSeen = true; setTimeout(showTips, 300); }
     if (new URLSearchParams(location.search).has('settings')) setTimeout(openSettings, 500);
@@ -99,6 +102,10 @@
         <div><b>存档</b><div class="tiny muted">自动存档每 15 秒；关闭页面也会存</div></div>
         <div class="row"><button id="setSave">立即存档</button><button id="setExport">导出</button><button id="setImport">导入</button></div>
       </div></div>
+      ${S.dev ? `<div class="card" style="margin-top:10px;border-color:#6b5522"><div class="row" style="justify-content:space-between">
+        <div><b class="gold">🛠 开发者模式</b><div class="tiny muted">调试面板；改动会正常保存</div></div>
+        <div class="row"><button id="setDevPanel" class="gold">打开调试面板</button><button id="setDevOff">关闭</button></div>
+      </div></div>` : ''}
       <div class="card" style="margin-top:10px;border-color:#5a2a30"><div class="row" style="justify-content:space-between">
         <div><b class="red">重新开始</b><div class="tiny muted">清空全部进度，回到起名页；不可恢复</div></div>
         <button class="danger" id="setReset">重开</button>
@@ -113,13 +120,15 @@
     const ex = document.getElementById('setExport'); if (ex) ex.onclick = () => { U.closeModal(); doExport(); };
     const im = document.getElementById('setImport'); if (im) im.onclick = () => { U.closeModal(); doImport(); };
     const rs = document.getElementById('setReset'); if (rs) rs.onclick = () => { U.closeModal(); doReset(); };
+    const dp = document.getElementById('setDevPanel'); if (dp) dp.onclick = () => { U.closeModal(); openDevPanel(); };
+    const dof = document.getElementById('setDevOff'); if (dof) dof.onclick = () => { U.closeModal(); setDevMode(false); };
   }
 
   function showTips() {
     U.modal(`<h3>🏛️ 三步开始</h3>
-      <div class="card" style="margin-bottom:8px"><b>1 · 派人干活</b><div class="sub">左侧「工作」→ 打开「伐木」→ 点项目卡右上角的 ＋ 弹出下拉菜单，或把角色头像拖到整张卡上。每个项目都有独立槽位。</div></div>
-      <div class="card" style="margin-bottom:8px"><b>2 · 研究科技</b><div class="sub">把角色派去「科研」攒科研点 → 科研页下方就是科技树，研究「火 / 语言 / 石器工艺」，新工作会逐个出现。</div></div>
-      <div class="card" style="margin-bottom:8px"><b>3 · 滚起来</b><div class="sub">仓库里卖东西换金币 → 造升级项 → 提升产出；粮食会腐坏，记得保持粮仓有吃的。右上角 ⚙ 设置里可以切换浅色主题。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>1 · 先采集</b><div class="sub">开局只有「采集」。把玩家角色拖到「平原」项目上，攒出木材和石头；丰饶的草地与沼泽会随着进度慢慢出现。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>2 · 做第一把工具</b><div class="sub">有了 1 木材 + 1 石头，伐木 / 采矿会永久出现。先买「石斧」（2 木材 + 2 石头）才会出现木材项目；石镐同理。</div></div>
+      <div class="card" style="margin-bottom:8px"><b>3 · 滚起来</b><div class="sub">把食物 / 医物放进角色的补给栏；食物要粮仓有货才生效。科研需要攒到基础研究桌 30% 材料、并先买桌子，才会出现科研项目。右上角 ⚙ 设置里可以切换浅色主题。</div></div>
       <div class="acts"><button class="primary" data-act="closeModal">开始</button></div>`);
   }
 
@@ -194,8 +203,22 @@
       document.querySelectorAll('.chip.hover,.slot.hover,.recipe.dropok').forEach(x => x.classList.remove('hover', 'dropok'));
     });
     const page = document.getElementById('page');
-    if (page) page.addEventListener('scroll', closeSlotMenu, { passive: true });
+    if (page) page.addEventListener('scroll', () => {
+      if (E.S && E.S.ui) E.S.ui.scroll = page.scrollTop;   // 记住页面滚动，重绘后还原
+      closeSlotMenu();
+    }, { passive: true });
     window.addEventListener('resize', closeSlotMenu);
+    // 开发者后门：连点版本号 5 次
+    const verEl = document.getElementById('hudVer');
+    if (verEl) verEl.addEventListener('click', () => {
+      devTapCount++;
+      clearTimeout(devTapTimer);
+      devTapTimer = setTimeout(() => { devTapCount = 0; }, 1600);
+      if (devTapCount >= 5) {
+        devTapCount = 0;
+        setDevMode(!(E.S && E.S.dev));
+      }
+    });
 
     document.getElementById('btnSave').onclick = () => { E.save(); U.render(); };
     document.getElementById('btnExport').onclick = doExport;
@@ -261,6 +284,8 @@
         S.gold -= price; E.addItem(id, 1); U.toast('购买《' + it.name + '》', 'good'); U.render(); break;
       }
       case 'eqslot': openEquipSlot(slot); break;
+      case 'foodslot': openSupplySlot('food'); break;
+      case 'medslot': openSupplySlot('med'); break;
       case 'eqfrom': {
         const cid = selectedCharId();
         if (cid) equipItem(cid, id, true); break;
@@ -440,6 +465,60 @@
   }
   function slotName(s) {
     return { head: '头盔', headInner: '内衬头盔', body: '胸甲', bodyInner: '内衬', legs: '护腿', legsInner: '内衬护腿', feet: '靴子', socks: '袜子', offhand: '副手', neck: '项链', belt: '腰带', mainhand: '主手' }[s] || s;
+  }
+
+  /* 补给栏：食物 / 医物下拉列表（弹窗形式，不会被后台整页重绘冲掉） */
+  function openSupplySlot(field) {
+    const S = E.S, cid = selectedCharId(), c = S.chars[cid];
+    if (!c) return;
+    const food = field === 'food';
+    const label = food ? '食物' : '医物';
+    const list = Object.keys(E.ITEMS).filter(id => {
+      if (food) return E.isFoodItem(id) && (E.itemEver(id) || E.count(id) > 0);
+      return !!(E.ITEMS[id].med && (E.itemEver(id) || E.count(id) > 0));
+    });
+    if (food) {
+      const top = ['vegetarian_meal', 'meat_meal', 'balanced_meal'];
+      list.sort((a, b) => {
+        const ai = top.indexOf(a), bi = top.indexOf(b);
+        if (ai !== bi) return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+        const ac = E.ITEMS[a].cat === 'cooked' ? 0 : 1, bc = E.ITEMS[b].cat === 'cooked' ? 0 : 1;
+        if (ac !== bc) return ac - bc;
+        return (E.ITEMS[b].price || 0) - (E.ITEMS[a].price || 0);
+      });
+    } else {
+      list.sort((a, b) => (E.ITEMS[a].med.healMul || 1) - (E.ITEMS[b].med.healMul || 1));
+    }
+    const cur = c[field] || '';
+    const rows = list.map(id => {
+      const it = E.ITEMS[id], stock = E.count(id);
+      const effect = food ? E.foodEffectText(id)
+        : `受伤时 ×${it.med.healMul} 回血 · 每 ${it.med.consumeSec} 秒消耗 1`;
+      return `<button type="button" class="pickrow ${cur === id ? 'on' : ''} ${stock > 0 ? '' : 'lack'}" data-pick="${id}">
+        <span class="pi">${U.itemIcon(it)}</span>
+        <span class="pn"><b>${U.esc(it.name)}</b><div class="tiny muted">${U.esc(effect)}</div></span>
+        <span class="pc mono ${stock > 0 ? 'green' : 'red'}">${stock > 0 ? '×' + E.fmt(stock) : '缺货'}</span>
+      </button>`;
+    }).join('');
+    U.modal(`<h3>${label}栏 · ${U.esc(E.charName(c))}</h3>
+      <div class="sub" style="margin-bottom:10px">${food
+        ? '选中后，该角色会优先消耗这种食物；粮仓里有货时才会获得效果。不选则从最好用的食物开始消耗。'
+        : '选中后，角色受伤时会自动消耗该医物，提高回血速度；只在受伤时消耗。'}</div>
+      <button type="button" class="pickrow ${cur ? '' : 'on'}" data-pick="">
+        <span class="pi">🔄</span><span class="pn"><b>自动 / 不指定</b><div class="tiny muted">${food ? '按最贵的可食用食物依次消耗' : '不额外消耗医物'}</div></span><span class="pc"></span>
+      </button>
+      <div class="picklist">${rows || `<div class="empty">${food ? '粮仓里还没有任何食物' : '仓库里还没有任何医物'}</div>`}</div>
+      <div class="acts"><button data-act="closeModal">关闭</button></div>`);
+    document.querySelectorAll('#modalBox [data-pick]').forEach(el => {
+      el.onclick = () => {
+        c[field] = el.dataset.pick || null;
+        if (field === 'med') c.medT = 0;
+        E.save(true);
+        U.closeModal();
+        U.render();
+        U.toast(c[field] ? '已装备 ' + E.ITEMS[c[field]].name : '已取消' + label + '选择');
+      };
+    });
   }
   function equipItem(cid, id, fromWarehouse) {
     const S = E.S, c = S.chars[cid], it = E.ITEMS[id];
@@ -694,6 +773,123 @@
       location.reload();
     };
   }
+
+  /* ---------------- 开发者模式（后门） ---------------- */
+  function handledDevQuery() {
+    const q = new URLSearchParams(location.search);
+    if (!q.has('dev')) return;
+    E.S.dev = q.get('dev') !== '0';
+    E.save(true);
+  }
+  function renderDevButton() {
+    const acts = document.querySelector('#hud .acts');
+    if (!acts) return;
+    let btn = document.getElementById('btnDev');
+    if (E.S && E.S.dev) {
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'btnDev';
+        btn.className = 'gold';
+        btn.title = '开发者模式：调试面板';
+        btn.textContent = '🛠 开发者';
+        btn.onclick = openDevPanel;
+        acts.insertBefore(btn, acts.firstChild);
+      }
+    } else if (btn) btn.remove();
+  }
+  function setDevMode(on) {
+    if (!E.S) return;
+    E.S.dev = !!on;
+    E.save(true);
+    renderDevButton();
+    U.render();
+    if (on) {
+      U.toast('开发者模式已开启：右上角 🛠 或设置里打开调试面板', 'good');
+      openDevPanel();
+    } else {
+      U.closeModal();
+      U.toast('开发者模式已关闭');
+    }
+  }
+  function devAction(action) {
+    const S = E.S;
+    if (!S || !S.dev) return;
+    if (action === 'gold') S.gold += 100000;
+    else if (action === 'research') S.research += 100000;
+    else if (action === 'items') {
+      Object.keys(E.ITEMS).forEach(id => {
+        const it = E.ITEMS[id];
+        if (it.hidden || it.bundle || it.virtual) return;
+        E.addItem(id, 100);
+      });
+    } else if (action === 'food') {
+      Object.keys(E.ITEMS).forEach(id => {
+        if (E.ITEMS[id].storage === 'granary') E.addItem(id, 500);
+      });
+    } else if (action === 'techs') {
+      E.TECHS.forEach(t => { S.techs[t.id] = true; });
+    } else if (action === 'unlock') {
+      S.milestones = Object.assign({}, S.milestones, { wood_stone: true, research_ready: true, injured: true });
+      E.TECHS.forEach(t => { S.techs[t.id] = true; });
+      Object.keys(E.ITEMS).forEach(id => { S.ever[id] = 1; });
+      E.JOBS.forEach(j => {
+        if (!S.jobs[j.id]) S.jobs[j.id] = { slots: [], prog: [], blocked: [], up: [] };
+        S.jobs[j.id].up = new Array((j.upgrades || []).length).fill(1);
+      });
+      E.refreshMilestones();
+    } else if (action === 'heal') {
+      Object.keys(S.chars).forEach(id => {
+        const c = S.chars[id];
+        c.injured = false;
+        c.hpNow = E.charStats(c).maxHp;
+        c.medT = 0;
+      });
+    } else if (action === 'codex') {
+      Object.keys(E.ITEMS).forEach(id => { if (!E.ITEMS[id].hidden) S.seen.items[id] = true; });
+      E.ENEMIES.forEach(e => { if (!e.hidden) S.seen.enemies[e.id] = true; });
+      E.poolHeroList().forEach(x => { if (S.chars[x.id]) S.seen.chars[x.id] = true; });
+      S.discoveredShard = true;
+    } else if (action === 'shop') {
+      E.refreshShop(true);
+    } else if (action === 'uninjured') {
+      S.milestones.injured = false;
+    } else if (action === 'closeDev') {
+      setDevMode(false);
+      return;
+    }
+    E.save(true);
+    U.render();
+    U.toast('开发者操作已执行：' + action, 'good');
+  }
+  function openDevPanel() {
+    const S = E.S;
+    if (!S || !S.dev) return;
+    const btn = (act, text, cls) => `<button ${cls ? 'class="' + cls + '"' : ''} data-dev="${act}">${text}</button>`;
+    U.modal(`<h3>🛠 开发者模式</h3>
+      <div class="sub" style="margin-bottom:10px">后门入口：网址加 <b class="mono">?dev=1</b>，或连点左上角版本号 5 次。改动会正常写进存档。</div>
+      <div class="card" style="margin-bottom:8px"><b>资源</b>
+        <div class="row" style="margin-top:8px">${btn('gold', '金币 +100,000', 'gold')}${btn('research', '科研点 +100,000')}${btn('items', '每种物品 +100')}${btn('food', '粮仓每种 +500')}</div>
+      </div>
+      <div class="card" style="margin-bottom:8px"><b>解锁</b>
+        <div class="row" style="margin-top:8px">${btn('techs', '解锁全部科技', 'primary')}${btn('unlock', '一键全解锁（科技 + 工作 + 升级项）', 'gold')}${btn('codex', '解锁全部图鉴')}</div>
+      </div>
+      <div class="card" style="margin-bottom:8px"><b>维护</b>
+        <div class="row" style="margin-top:8px">${btn('heal', '治愈所有角色')}${btn('shop', '刷新商店')}${btn('uninjured', '清除「受伤」里程碑')}</div>
+      </div>
+      <div class="acts"><button data-dev="closeDev">关闭开发者模式</button><button class="primary" data-act="closeModal">收起面板</button></div>`);
+    document.querySelectorAll('#modalBox [data-dev]').forEach(el => {
+      el.onclick = () => devAction(el.dataset.dev);
+    });
+  }
+  window.DEV = {
+    on: () => setDevMode(true),
+    off: () => setDevMode(false),
+    open: openDevPanel,
+    items: () => devAction('items'),
+    unlock: () => devAction('unlock'),
+    heal: () => devAction('heal'),
+    gold: () => devAction('gold'),
+  };
 
   /* ---------------- 启动 ---------------- */
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

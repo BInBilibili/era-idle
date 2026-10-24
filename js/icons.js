@@ -383,10 +383,16 @@
     particle_gun: ['rifle', 'power', 'energy', 'cannon'],
 
     /* ---------------- 跨阶段 ---------------- */
+    herb_medicine: ['sprig', 'herbCrop', 'bushy'],
     herbal_potion: ['flask', 'glass', 'potionGreen'],
     medicine: ['flask', 'glass', 'potionRed'],
     shining_med: ['flask', 'glass', 'potionGold'],
     carpet: ['rug', 'carpet'],
+
+    /* ---------------- 采集资源包（虚拟产出，悬浮显示概率） ---------------- */
+    grass_resource: ['bundle', 'fiberGreen'],
+    plains_resource: ['bundle', 'wood'],
+    swamp_resource: ['bundle', 'herb'],
 
     /* ---------------- 技能书（34） ---------------- */
     book_woodcutting: ['book', 'bookStone', 'tree'],
@@ -706,6 +712,21 @@
       s += det(`M24 ${y + 4} Q${x + d * 3} ${y - 3} ${x + d * 7} ${y + 1} Q${x + d * 2} ${y + 6} 24 ${y + 4} Z`, i % 2 ? c.l : c.m);
     });
     s += ci(24, 11, 2.6, c.l) + ci(24, 11, 1.2, '#fff', ' opacity=".7"');
+    return s;
+  };
+
+  /* 资源包：布袋 + 露出袋口的产物 */
+  SH.bundle = function (c) {
+    let s = sh(24, 43, 12, 2.4);
+    s += sil('M11 20 Q9 27 10 34 Q11 41 16 42 H32 Q37 41 38 34 Q39 27 37 20 Z', PAL.cloth.m);
+    s += det('M11 20 Q9 27 10 34 Q11 41 16 42 L17 20 Z', PAL.cloth.l);
+    s += det('M36 22 Q38 29 37 35 Q36 41 31 42 L30 22 Z', PAL.cloth.d);
+    s += ln('M11 20 Q9 27 10 34 Q11 41 16 42 H32 Q37 41 38 34 Q39 27 37 20 Z', OUT, 1.4);
+    s += ln('M11 20 Q24 15 37 20', PAL.cloth.d, 2.2);
+    s += ci(15, 17, 3, c.m) + ci(15, 16, 1.2, c.l);
+    s += ci(24, 15, 3.4, c.l) + ci(24, 14, 1.4, c.m);
+    s += ci(33, 17, 3, c.d) + ci(33, 16, 1.2, c.m);
+    s += ln('M24 36 Q28 34 32 36', PAL.cloth.d, 1.2, '.55');
     return s;
   };
 
