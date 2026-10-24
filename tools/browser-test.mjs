@@ -520,6 +520,10 @@ try {
 
   console.log('== 获得物品消息框：累加 / 超时消失（v0.0.29）==');
   const loot = await js(`(function(){
+    Engine.S = Engine.newState('消息框测试');   // 干净存档：没有入驻项目，避免挂机产出干扰计时
+    UI.render();
+    clearTimeout(UI._lootTimer); clearTimeout(UI._lootFadeTimer);
+    document.getElementById('lootFeed').innerHTML=''; UI._lootRows=null; UI._lootBox=null;
     UI.loot('wood',3); UI.loot('wood',4); UI.loot('stone',1);
     const box=document.getElementById('lootFeed');
     const rows=[...box.querySelectorAll('.lootrow')];
@@ -530,6 +534,24 @@ try {
   ok(lt.rows === 2 && lt.wood.includes('+7') && lt.stone, '同一物品累加数量（木材 +7），不同物品各一行：' + JSON.stringify(lt));
   await sleep(4900);
   ok(await js(`document.getElementById('lootFeed').textContent.trim().length === 0`), '4.5 秒没有新物品后消息框自动清空');
+
+  console.log('== 获得物品消息框：工作产出 / 资源包拆包（v0.0.30）==');
+  const prodLoot = await js(`(function(){
+    const S=Engine.S;
+    Engine.assignSlot('gathering',0,'player');
+    Engine.produceJob('gathering',10);        // 真正的采集工作产出
+    const bid=Object.keys(Engine.ITEMS).find(k=>Engine.ITEMS[k].bundle&&Engine.ITEMS[k].pool);
+    Engine.addProducedItem(bid,6);            // 资源包拆包
+    Engine.addItem('wood',3);
+    const box=document.getElementById('lootFeed');
+    const rows=[...box.querySelectorAll('.lootrow')].map(r=>r.textContent.trim());
+    const pool=Engine.ITEMS[bid].pool.map(p=>Engine.ITEMS[p.id].name);
+    const got=pool.filter(n=>box.textContent.includes(n));
+    return JSON.stringify({bid, rows, got, pool});
+  })()`);
+  const pl = JSON.parse(prodLoot);
+  ok(pl.rows.some(t => t.includes('木材') && t.includes('+3')), '工作 / 直接产出的木材会进消息框：' + pl.rows.join(' | '));
+  ok(pl.got.length > 0, '采集资源包拆出的产物逐条进消息框：' + (pl.got.join('、') || '无'));
 
   console.log('== 招募页：概率 / 头像尺寸 / 结果框头像（v0.0.29）==');
   const rec = await js(`(function(){

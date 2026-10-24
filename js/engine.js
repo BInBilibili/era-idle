@@ -269,7 +269,9 @@ function count(idOrName) {
   const id = ITEMS[idOrName] ? idOrName : N2I(idOrName);
   return id ? (S.items[id] || 0) : 0;
 }
-function addItem(idOrName, qty) {
+let lootMutedUntil = 0;   // 离线结算期间静音：由「离线结算」弹窗统一汇报，避免登录时刷几百条
+function muteLoot(ms) { lootMutedUntil = Date.now() + (ms || 0); }
+function addItem(idOrName, qty, opts) {
   const id = ITEMS[idOrName] ? idOrName : iid(idOrName);
   if (!id || qty <= 0) return 0;
   S.items[id] = (S.items[id] || 0) + qty;
@@ -278,12 +280,14 @@ function addItem(idOrName, qty) {
   S.ever[id] = 1;
   if (ITEMS[id] && ITEMS[id].kind === 'shard') S.discoveredShard = true;
   refreshMilestones();
+  if (!(opts && opts.silent)) lootItem(id, qty);
   return qty;
 }
-/* 底部「获得物品」消息框：只在主动获得时弹出（战斗掉落 / 抽卡礼物 / 图鉴领取 / 商店购买），
-   工作持续产出不弹，否则挂机时会一直挡在屏幕下方。 */
+/* 底部「获得物品」消息框：所有物品产出都弹（工作产出 / 采集资源包拆出的植物纤维与种子 /
+   狩猎掉落 / 抽卡礼物 / 图鉴领取 / 商店购买）。同一物品累加数量，4.5 秒没有新物品就淡出。 */
 function lootItem(id, n) {
   if (!id || !(n > 0)) return;
+  if (Date.now() < lootMutedUntil) return;
   if (window.UI && window.UI.loot) window.UI.loot(id, n);
 }
 function removeItem(idOrName, qty) {
@@ -1020,13 +1024,13 @@ function onKill(job, c, cs) {
     const nn = normName(l.name);
     const min = l.min || 1, max = l.max || min;
     const n = min + Math.floor(Math.random() * (max - min + 1));
-    if (n > 0) { const lid = iid(nn); addItem(lid, n); lootItem(lid, n); }
+    if (n > 0) addItem(iid(nn), n);
   });
   if (job.special === 'eraSim') {
     const pool = materialPool();
     for (let i = 0; i < 2; i++) if (pool.length) {
       const pick = weightedPick(pool);
-      if (pick) { addItem(pick.id, 1); lootItem(pick.id, 1); }
+      if (pick) addItem(pick.id, 1);
     }
   }
   xpGain(c, 'str', 8); xpGain(c, 'atk', 6);
@@ -1103,14 +1107,8 @@ function buyShopSlot(i) {
   if (S.gold < price) return { ok:false, why:'金币不足' };
   if (ITEMS[s.id].storage !== 'granary' && warehouseFull() && !S.items[s.id]) return { ok:false, why:'仓库已满' };
   S.gold -= price;
-  if (ITEMS[s.id].storage === 'granary') {
-    const before = S.items[s.id] || 0;
-    addFood(s.id, s.qty);
-    lootItem(s.id, (S.items[s.id] || 0) - before);
-  } else {
-    addItem(s.id, s.qty);
-    lootItem(s.id, s.qty);
-  }
+  if (ITEMS[s.id].storage === 'granary') addFood(s.id, s.qty);
+  else addItem(s.id, s.qty);
   S.shop.slots[i] = null;
   S.seen.items[s.id] = true;
   return { ok:true, price };
@@ -1155,7 +1153,6 @@ function pull(poolId) {
     let acc = 0, tier = GIFTS[0];
     for (const g of GIFTS) { acc += g.w; if (roll <= acc) { tier = g; break; } }
     addItem(tier.id, 1);
-    lootItem(tier.id, 1);
     S.gacha.noNew[poolId] = noNew + 1;   // 礼物也算「这一抽没出角色」
     return { ok:true, type:'gift', gift: tier };
   }
@@ -1239,7 +1236,6 @@ function codexClaim(kind, id) {
   const n = CODEX_REWARD[kind] || 0;
   S.codex[kind][id] = true;
   addItem(SHARD_ITEM, n);
-  lootItem(SHARD_ITEM, n);
   S.discoveredShard = true;
   return { ok:true, n };
 }
@@ -1569,6 +1565,7 @@ function settleOffline(awaySec) {
   if (!isFinite(awaySec) || awaySec <= 0) return null;
   const used = Math.min(awaySec, GAME.offlineCapSec);
   if (used < GAME.offlineMinSec) return null;
+  muteLoot(5000);   // 离线产出由离线弹窗汇总，不逐条刷「获得物品」
   const before = {
     items: Object.assign({}, S.items),
     gold: S.gold, research: S.research,

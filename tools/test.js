@@ -64,6 +64,22 @@ ok(S.settings && S.settings.theme === 'dark', '默认深色主题');
 ok(E.JOBS.filter(E.jobVisible).map(j => j.id).join(',') === 'gathering', '开局只显示采集：' + E.JOBS.filter(E.jobVisible).map(j => j.id).join(','));
 ok(!S.milestones.wood_stone && !S.milestones.research_ready && !S.milestones.injured, '开局里程碑都是未解锁');
 
+console.log('== 获得物品消息框：所有产出 ==');
+const lootGot = [];
+window.UI = { loot: (id, n) => lootGot.push([id, n]) };
+E.addItem('木材', 3);
+E.addItem('木材', 2);
+ok(lootGot.length === 2 && lootGot[0][0] === 'wood' && lootGot[0][1] === 3 && lootGot[1][1] === 2, 'addItem 每次产出都上报：' + JSON.stringify(lootGot));
+E.addItem('木材', 1, { silent: true });
+ok(lootGot.length === 2, 'opts.silent 可临时静音');
+// 真正的「工作持续产出」：玩家入驻草地，直接结算 10 秒
+E.assignSlot('gathering', 0, 'player');
+const lootBefore = lootGot.length;
+E.produceJob('gathering', 10);
+E.clearSlot('gathering', 0);
+ok(lootGot.length > lootBefore, '工作持续产出（采集）也会进消息框：' + lootGot.slice(lootBefore).map(x => x[0] + '+' + x[1]).join(','));
+window.UI = undefined;
+
 console.log('== 住房：6 档住满 = 18 人 ==');
 ok(E.HOUSING.map(h => h.cap).join(',') === '7,9,11,13,15,18', '每档可上场人数 7/9/11/13/15/18');
 ok(E.HOUSING.every(h => h.comfortReq === undefined), '住房不再有舒适度门槛');
@@ -426,6 +442,12 @@ E.combatState('hunting').region = 7;
 rep = E.settleOffline(600);
 ok(rep.injured.length > 0 && E.S.chars.player.injured, '离线打不过会重伤：' + rep.injured.join('、'));
 ok(rep.kills === 0, '打不过时没有击杀产出');
+// 离线结算后 5 秒内静音：不给玩家刷几十条「获得物品」
+const mutedLoot = [];
+window.UI = { loot: (id, n) => mutedLoot.push([id, n]) };
+E.addItem('木材', 1);
+ok(mutedLoot.length === 0, '离线结算后短时间内的产出不逐条弹（由离线弹窗汇总）');
+window.UI = undefined;
 
 console.log('== 界面：消耗栏缺料标红 ==');
 require('../js/ui.js');
