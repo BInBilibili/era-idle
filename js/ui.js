@@ -11,7 +11,7 @@ const JOB_BRIEF = {
   gathering: '去草地、平原或沼泽采集；每种资源包会随机变成其中一种物品。',
   farming: '种地，把种子变成对应作物与草料；也能晒制干草。',
   hunting: '派角色去野外打怪，掉落皮革与肉。',
-  husbandry: '圈养认知度满的动物，产出肉、皮革与副产物。',
+  husbandry: '圈养认知度满的动物；喂养项目持续消耗草料，动物进度条满才产出肉、皮革与副产物。',
   cooking: '把生食做成更耐放、更顶饱的熟食。',
   crafting: '打造石器时代的装备；中世纪后也做长弓与弩。',
   research: '产出科研点，用来研究科技树。',
@@ -56,6 +56,8 @@ const ITEM_KIND_NAME = {
   shard: '招募券', gift: '好感度礼物', stardust: '升星货币', starPotion: '升星道具',
   soul: '黑魂材料', ember: '黑魂材料',
 };
+/* 时代徽章名：era:'cross' 表示跨时代通用物品（药品 / 地毯等），不该把内部字段直接露成 cross */
+const ERA_TAG_NAME = Object.assign({ cross: '通用' }, E.ERA_NAME || {});
 
 const UI = {
   /* ---------------- 基础 ---------------- */
@@ -252,7 +254,7 @@ const UI = {
 
     let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
       <b>${esc(it.name)}</b>
-      <div class="ttTags">${it.era ? tag(E.ERA_NAME[it.era] || it.era) : ''}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
+      <div class="ttTags">${it.era ? tag(ERA_TAG_NAME[it.era] || it.era) : ''}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
       ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}</div></div></div>`;
 
     if (info.gear) {
@@ -281,11 +283,11 @@ const UI = {
       + row('总价值', E.fmt(q * (it.price || 0)) + ' 金') + '</div>';
 
     if (it.med) {
+      // v0.0.31：不再显示「适用时代」（医物本身是跨时代物品），也不再写「只有受伤时才会消耗」这句说明
       h += `<div class="ttSec">医物效果</div><div class="ttRows">`
         + row('回血速度', '×' + (it.med.healMul || 1), 'green')
         + row('消耗间隔', (it.med.consumeSec || 30) + ' 秒')
-        + row('适用时代', E.ERA_NAME[it.med.era] || '石器时代')
-        + `</div><div class="ttDesc">只有角色受伤时才会消耗；放进角色的医物栏后自动生效。</div>`;
+        + `</div>`;
     }
     if (E.isFoodItem(id)) {
       h += `<div class="ttSec">食物效果</div><div class="ttDesc">${esc(E.foodEffectText(id))}${it.cat === 'cooked' ? '（选中的食物必须在粮仓里有货才生效）' : ''}</div>`;
@@ -312,6 +314,23 @@ const UI = {
     h += `<div class="ttFoot">${seen ? '已收录图鉴' : '尚未收录图鉴'}</div>`;
     return h;
   },
+  /* 「畜牧产物」汇总面板：鼠标悬停在喂养项目的产物徽章上，列出每只动物的产物 */
+  husbandryTipHtml() {
+    const esc = s => this.esc(s);
+    const list = E.husbandryAnimals();
+    let h = `<div class="ttHead"><span class="ttIcon">🐾</span><div class="ttTitle">
+      <b>畜牧产物</b>
+      <div class="ttTags"><span class="badge">畜牧</span><span class="badge">动物进度</span></div></div></div>`;
+    if (!list.length) return h + '<div class="ttDesc">还没有圈养动物。到下方「畜牧」区点「＋」添加。</div>';
+    const rows = list.map(a => {
+      const def = E.HUSBANDRY_ANIMALS[a.name] || {};
+      const outs = Object.keys(def.outputs || {}).length ? this.ioList(def.outputs) : '<span class="dim">无</span>';
+      return `<div class="ttRow"><span class="k">${esc(a.name)} <span class="dim">已产 ${a.done || 0} 次</span></span><span class="v">${outs}</span></div>`;
+    }).join('');
+    h += `<div class="ttSec">每只动物的产物</div><div class="ttRows">${rows}</div>`;
+    h += '<div class="ttDesc">动物自己的进度条满时才产出；「喂养畜群」进度条满只扣草料，不直接给物品。</div>';
+    return h;
+  },
   showTip(id, el) {
     const tip = document.getElementById('itemTip');
     if (!tip) return;
@@ -319,6 +338,15 @@ const UI = {
     if (!html) return this.hideTip();
     if (this._tipHtml !== html) { tip.innerHTML = html; this._tipHtml = html; }
     this._tipId = id;
+    tip.classList.add('show');
+    this._placeTip(el);
+  },
+  showHubTip(el) {
+    const tip = document.getElementById('itemTip');
+    if (!tip) return;
+    const html = this.husbandryTipHtml();
+    if (this._tipHtml !== html) { tip.innerHTML = html; this._tipHtml = html; }
+    this._tipId = '#hub';
     tip.classList.add('show');
     this._placeTip(el);
   },
@@ -355,6 +383,12 @@ const UI = {
     this._tipX = e.clientX; this._tipY = e.clientY;
     if (!e.target || !e.target.closest) return;
     if (e.target.closest('[data-act="recslot"]')) return this.hideTip();   // 入驻槽不抢物品面板
+    const hub = e.target.closest('[data-tip-hub]');
+    if (hub) {
+      if (this._tipEl === hub && this._tipId === '#hub') return;
+      this._tipEl = hub;
+      return this.showHubTip(hub);
+    }
     const el = e.target.closest('[data-tip-item]');
     if (!el) return this.hideTip();
     const id = el.dataset.tipItem;
@@ -367,6 +401,12 @@ const UI = {
     if (!this._tipId) return;
     if (typeof this._tipX !== 'number') return this.hideTip();
     const under = document.elementFromPoint(this._tipX, this._tipY);
+    if (this._tipId === '#hub') {
+      const hub = under && under.closest ? under.closest('[data-tip-hub]') : null;
+      if (!hub) return this.hideTip();
+      this._tipEl = hub;
+      return this.showHubTip(hub);
+    }
     const el = under && under.closest ? under.closest('[data-tip-item]') : null;
     if (!el || el.dataset.tipItem !== this._tipId) return this.hideTip();
     this._tipEl = el;
@@ -614,6 +654,8 @@ const UI = {
         ${rows.map(({ r, i }) => this.recipeCard(job, js, r, i)).join('')}
       </div>
 
+      ${job.id === 'husbandry' ? this.husbandrySection(job, js) : ''}
+
       <div style="margin-top:16px">
         <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">升级项</h3><span class="tiny dim">首次拥有 1 份所需资源后永久显示；未解锁或上一档未购的档位不显示</span></div>
         <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-top:8px">
@@ -648,22 +690,23 @@ const UI = {
     }
     return this.jobIcon(job);
   },
-  /* 畜牧项目的网格：已圈养动物各占一格，末尾永远跟着一个「＋」虚线格；
-     能放多少格由「畜牧容量」决定，不是固定格数。 */
-  husbandryCard(job, js, r, i) {
+  /* 畜牧区（v0.0.31）：像「项目 / 升级项」一样独立成栏，不再塞进项目网格。
+     入驻槽已经分到「喂养畜群」项目：消耗草料归入驻角色，产出归每只动物自己的进度条。 */
+  husbandrySection(job, js) {
     const S = E.S;
-    const cid = js.slots ? js.slots[i] : null;
-    const c = cid ? S.chars[cid] : null;
+    const feed = E.jobRecipes(job).filter(r => r && r.feed)[0];
+    if (!feed || !E.recipeVisible(feed, job)) return '';
     const used = E.husbandryUsed(), cap = E.husbandryCapacity();
     const animals = E.husbandryAnimals();
     const fodder = E.count('草料');
+    const cost = E.husbandryFeedCost();
     const speed = E.husbandrySpeed();
     const feedMin = E.husbandryFeedPerSec() * 60;
-    const blocked = (js.blocked && js.blocked[i]) || '';
+    const blocked = (js.blocked && js.blocked[1]) || '';
     const free = cap - used > 1e-9;
     const cells = animals.map((a, idx) => {
       const def = E.HUSBANDRY_ANIMALS[a.name] || {};
-      const size = def.sizeCost != null ? def.sizeCost : E.husbandrySizeCost(a.name);
+      const size = E.husbandrySizeCost(a.name);
       const enemy = E.ENEMY_BY_NAME[a.name];
       const p = Math.max(0, Math.min(1, a.prog || 0));
       return `<div class="pen ${blocked === 'input' ? 'stall' : ''}">
@@ -677,32 +720,76 @@ const UI = {
         <div class="tiny dim" style="margin-top:3px">已产出 ${a.done || 0} 次</div>
       </div>`;
     }).join('');
-    return `<div class="card recipe penCard ${c ? 'run' : ''}" data-drop-job="${job.id}" data-drop-i="${i}">
-      <div class="row" style="justify-content:space-between;align-items:flex-start">
-        <div style="min-width:0">
-          <div class="row" style="gap:8px"><span class="icon sm">${this.jobIcon(job)}</span><b class="small">畜牧</b>
+    return `<div style="margin-top:16px">
+      <div class="row" style="justify-content:space-between"><h3 style="font-size:15px">畜牧</h3>
+        <span class="tiny dim">「喂养畜群」有人入驻、草料够时动物进度才推进；动物条满才产出物品</span></div>
+      <div class="card" style="margin-top:8px">
+        <div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px">
+          <div class="row" style="gap:6px;flex-wrap:wrap;min-width:0">
+            <span class="badge">🐾 ${animals.length} 只动物</span>
             <span class="badge" data-live="hubused">畜牧容量 ${E.fmt(used)} / ${E.fmt(cap)}</span>
-            <span class="badge ${fodder > 0 ? '' : 'bad'}" data-live="hubstock">草料 ${E.fmt(fodder)}</span>
+            <span class="badge ${fodder >= cost ? '' : 'bad'}" data-live="hubstock">草料 ${E.fmt(fodder)}</span>
+            <span class="badge" data-live="hubfeed">每次 ${E.fmt(cost)} 草料 · ${E.fmt(feedMin, 1)} / 分钟 · 速度 ×${speed.toFixed(2)}</span>
           </div>
-          <div class="tiny muted" style="margin-top:5px" data-live="hubfeed">派驻角色推进所有动物；草料 ${E.fmt(feedMin, 1)} / 分钟 · 速度 ×${speed.toFixed(2)}</div>
         </div>
+        <div class="tiny dim" style="margin-top:4px">喂养一次消耗 = 所有动物草料消耗之和（每只 1 / 天）；先买圈舍，这个区才会出现。</div>
+        ${blocked === 'input' ? '<div class="tiny red" style="margin-top:5px">草料不足，全部动物停产</div>' : ''}
+        ${blocked === 'worker' ? '<div class="tiny dim" style="margin-top:5px">「喂养畜群」派驻角色后，动物进度条才会推进</div>' : ''}
+        ${blocked === 'injury' ? '<div class="tiny red" style="margin-top:5px">角色重伤，喂养与动物进度暂停</div>' : ''}
+        <div class="penGrid" style="margin-top:9px">
+          ${cells}
+          ${free
+            ? `<button class="pen penAdd" data-act="hubPanel" data-job="${job.id}"><span class="bigplus">＋</span><span class="tiny muted">添加动物</span></button>`
+            : `<div class="pen penAdd full"><span class="bigplus">＋</span><span class="tiny dim">畜牧容量已满</span></div>`}
+        </div>
+      </div>
+    </div>`;
+  },
+  /* 「喂养畜群」项目卡：产出徽章是汇总的「畜牧产物」，消耗是动物草料之和；
+     进度条填满只扣草料，不直接产物品。 */
+  husbandryFeedCard(job, js, r, i) {
+    const S = E.S;
+    const cid = js.slots ? js.slots[i] : null;
+    const c = cid ? S.chars[cid] : null;
+    const prog = (js.prog && js.prog[i]) || 0;
+    const speed = E.jobSpeed(job.id, i);
+    const dur = speed > 0 ? Math.max(0.4, E.recipeDuration(job, r)) / speed : Infinity;
+    const animals = E.husbandryAnimals();
+    const cost = E.husbandryFeedCost();
+    const hay = E.count('草料');
+    const lack = cost > 0 && hay < cost;
+    const blocked = (js.blocked && js.blocked[i]) || '';
+    const mastery = c ? E.masteryLvl(c, job.id) : 0;
+    const mnext = c ? E.masteryNext(c, job.id) : 0;
+    const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
+    const fodderId = E.N2I('草料');
+    const fodderIt = fodderId ? E.ITEMS[fodderId] : null;
+    const costHtml = cost > 0
+      ? `<span class="badge io ${lack ? 'bad' : ''}" data-live="hubcost">${fodderIt ? this.itemIcon(fodderIt) + ' ' : ''}草料 ×${E.fmt(cost)}</span>`
+      : '<span class="dim">草料 ×0（先到畜牧区添加动物）</span>';
+    return `<div class="card recipe ${c ? 'run' : ''}" data-act="cardrec" data-job="${job.id}" data-i="${i}" data-drop-job="${job.id}" data-drop-i="${i}">
+      <div class="row" style="justify-content:space-between">
+        <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.jobIcon(job)}</span><b class="small">${this.esc(r.name || '喂养畜群')}</b></div>
         <div class="slot mini ${c ? 'filled' : ''}" data-act="recslot" data-job="${job.id}" data-i="${i}" title="${c ? this.esc(E.charName(c)) : '点击选择入驻角色'}">
           ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
         </div>
       </div>
-      ${blocked === 'input' ? '<div class="tiny red" style="margin-top:5px">草料不足，全部动物停产</div>' : ''}
-      ${blocked === 'worker' ? '<div class="tiny dim" style="margin-top:5px">派驻角色后开始推进</div>' : ''}
-      ${blocked === 'injury' ? '<div class="tiny red" style="margin-top:5px">角色重伤，畜牧暂停</div>' : ''}
-      <div class="penGrid" style="margin-top:9px">
-        ${cells}
-        ${free
-          ? `<button class="pen penAdd" data-act="hubPanel" data-job="${job.id}"><span class="bigplus">＋</span><span class="tiny muted">添加动物</span></button>`
-          : `<div class="pen penAdd full"><span class="bigplus">＋</span><span class="tiny dim">畜牧容量已满</span></div>`}
+      <div class="io">产出：<span class="badge io" data-tip-hub="1">🐾 畜牧产物</span>
+        <br>消耗：${costHtml}</div>
+      <div class="tiny dim" style="margin-top:3px">进度条满只扣草料；物品由下方「畜牧」区每只动物自己的进度条产出</div>
+      <div class="row tiny" style="justify-content:space-between;margin-top:6px">
+        <span>${c ? `<span class="green">${this.esc(E.charName(c))}</span> · 精通 <b class="mono" data-live="masterylvl" data-i="${i}">${mastery}</b>${bonus ? ' · +' + bonus + '%' : ''}` : '<span class="dim">空置 · 拖入角色</span>'}</span>
+        <span class="mono">${isFinite(dur) ? dur.toFixed(1) + 's' : '停滞'}</span>
       </div>
+      <div class="bar sm" style="margin-top:6px" data-live="rec" data-job="${job.id}" data-i="${i}"><i style="width:${(prog * 100).toFixed(1)}%"></i></div>
+      ${c ? `<div class="row" style="margin-top:5px;gap:6px"><span class="tiny muted" style="width:52px">精通经验</span><div class="bar xp" style="flex:1" data-live="mastery" data-job="${job.id}" data-i="${i}"><i style="width:${(mnext * 100).toFixed(1)}%"></i></div></div>` : ''}
+      ${!animals.length ? '<div class="tiny dim" style="margin-top:4px">还没有动物：先到下方「畜牧」区点「＋」</div>' : ''}
+      ${blocked === 'input' ? `<div class="tiny red" style="margin-top:4px">草料不足（每次需要 ${E.fmt(cost)}）</div>` : ''}
+      ${blocked === 'injury' ? '<div class="tiny red" style="margin-top:4px">角色重伤，喂养暂停</div>' : ''}
     </div>`;
   },
   recipeCard(job, js, r, i) {
-    if (job.id === 'husbandry' && r.name === '畜牧') return this.husbandryCard(job, js, r, i);
+    if (r && r.feed) return this.husbandryFeedCard(job, js, r, i);
     const S = E.S;
     const cid = js.slots ? js.slots[i] : null;
     const c = cid ? S.chars[cid] : null;
@@ -1518,9 +1605,16 @@ const UI = {
         });
         const used = E.husbandryUsed(), cap = E.husbandryCapacity();
         document.querySelectorAll('[data-live="hubused"]').forEach(el => { el.textContent = '畜牧容量 ' + E.fmt(used) + ' / ' + E.fmt(cap); });
-        document.querySelectorAll('[data-live="hubstock"]').forEach(el => { el.textContent = '草料 ' + E.fmt(E.count('草料')); el.classList.toggle('bad', E.count('草料') <= 0); });
+        const fodderNow = E.count('草料'), feedCostNow = E.husbandryFeedCost();
+        document.querySelectorAll('[data-live="hubstock"]').forEach(el => {
+          el.textContent = '草料 ' + E.fmt(fodderNow);
+          el.classList.toggle('bad', fodderNow < feedCostNow);
+        });
+        document.querySelectorAll('[data-live="hubcost"]').forEach(el => {
+          el.classList.toggle('bad', feedCostNow > 0 && fodderNow < feedCostNow);
+        });
         document.querySelectorAll('[data-live="hubfeed"]').forEach(el => {
-          if (el.closest('[data-live="hubfeed"]')) el.textContent = '派驻角色推进所有动物；草料 ' + E.fmt(E.husbandryFeedPerSec() * 60, 1) + ' / 分钟 · 速度 ×' + E.husbandrySpeed().toFixed(2);
+          el.textContent = '每次 ' + E.fmt(feedCostNow) + ' 草料 · ' + E.fmt(E.husbandryFeedPerSec() * 60, 1) + ' / 分钟 · 速度 ×' + E.husbandrySpeed().toFixed(2);
         });
       }
       if (job.special === 'research') {

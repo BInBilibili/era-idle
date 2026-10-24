@@ -155,16 +155,17 @@ window.JOBS = [
     category: "collect",
     duration: 3,
     inputs: { "谷物种子": 1 },
-    outputs: { "谷物": 6, "草料": 1 },
+    outputs: { "谷物": 6 },
     powerUse: 0,
     recipes: [
-      { name: "谷物", inputs: { "谷物种子": 1 }, outputs: { "谷物": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "豆类", inputs: { "豆类种子": 1 }, outputs: { "豆类": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "蔬菜", inputs: { "蔬菜种子": 1 }, outputs: { "蔬菜": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "甜菜", inputs: { "甜菜种子": 1 }, outputs: { "甜菜": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "药草", inputs: { "药草种子": 1 }, outputs: { "药草作物": 6, "草料": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "干草", inputs: {}, outputs: { "草料": 1 }, era: "stone", unlockTech: null, duration: 4,
-        note: "不消耗种子 / 食材，纯粹晒制草料；畜牧的保底饲料来源" }
+      { name: "谷物", inputs: { "谷物种子": 1 }, outputs: { "谷物": 6 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "豆类", inputs: { "豆类种子": 1 }, outputs: { "豆类": 6 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "蔬菜", inputs: { "蔬菜种子": 1 }, outputs: { "蔬菜": 6 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "甜菜", inputs: { "甜菜种子": 1 }, outputs: { "甜菜": 6 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "药草", inputs: { "药草种子": 1 }, outputs: { "药草": 6 }, era: "stone", unlockTech: null, duration: 3,
+        note: "药草种子 → 6 药草（进仓库，供医疗捣成草药），不产食材" },
+      { name: "干草", inputs: {}, outputs: { "草料": 6 }, era: "stone", unlockTech: null, duration: 4,
+        note: "不消耗种子 / 食材，4 秒晒制 6 草料" }
     ],
     upgrades: [
       { name: "石锄", watt: 0, bonusPct: 0, cost: { "木材": 100, "石头": 50 }, note: "" },
@@ -173,7 +174,7 @@ window.JOBS = [
       { name: "化肥", watt: 0, bonusPct: 100, cost: { "堆肥": 1 }, note: "每次消耗 1 堆肥" }
     ],
     special: null,
-    note: "1 种子 → 6 对应作物 + 1 草料；收成由播的种子决定：谷物 / 豆类 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 药草作物。额外「干草」项目不消耗任何物品，4 秒产 1 草料，保证畜牧有保底饲料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
+    note: "1 种子 → 6 对应作物，不再附赠草料；收成由播的种子决定：谷物 / 豆类 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 6 药草（仓库材料，医疗捣成草药，不是食材）。草料只由「干草」项目产出：不消耗任何物品，4 秒产 6 草料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
   },
   {
     id: "hunting",
@@ -216,8 +217,8 @@ window.JOBS = [
     recipes: [
       { name: "加工草料", inputs: { "素食食材": 2 }, outputs: { "草料": 1 }, era: "stone", unlockTech: null, duration: 4,
         note: "把 2 份素食食材加工成 1 草料" },
-      { name: "畜牧", inputs: {}, outputs: {}, era: "stone", unlockTech: null, duration: 0,
-        note: "派驻角色后，畜牧网格里的每只动物都会推进自己的产出进度" }
+      { name: "喂养畜群", feed: true, inputs: {}, outputs: {}, era: "stone", unlockTech: null, duration: 24,
+        note: "派驻角色后按周期消耗「所有动物草料消耗之和」；进度条填满只扣草料，动物产物由「畜牧」区各自的进度条产出" }
     ],
     upgrades: [
       { name: "圈舍", watt: 0, bonusPct: 0, cap: 5, cost: { "木材": 100, "石材": 50 }, note: "畜牧容量 +5" },
@@ -226,7 +227,7 @@ window.JOBS = [
       { name: "自动喂食机", watt: 1, bonusPct: 50, cost: { "铁锭": 2000, "机械零件": 500 }, note: "耗电 +1 瓦" }
     ],
     special: null,
-    note: "前置：该敌人的图鉴认知度满 100 —— 认知度是狩猎解锁畜牧的唯一路径。项目一「加工草料」消耗食材产出草料；项目二「畜牧」派驻角色后推进所有动物的产出进度条，畜牧速度加成对所有动物同时生效。网格按「畜牧容量」排布：初始 5，圈舍 +5、大型牧场 +15；体型占用 极小 0.5 / 小 1 / 中 2 / 大 3 / 极大 5。每只动物消耗 1 草料 / 天（1 天 = 24 秒），草料不足时全部动物停产。机械兽、硅基生物不能畜牧。零风险纯周期，离线同伐木规则。"
+    note: "前置：该敌人的图鉴认知度满 100 —— 认知度是狩猎解锁畜牧的唯一路径。项目一「加工草料」消耗食材产出草料；项目二「喂养畜群」派驻角色后，每 24 秒（受畜牧速度影响）扣一次「所有动物草料消耗之和」，只有它有人入驻且草料充足时，下方「畜牧」区各动物的进度条才推进、进度条满才产出。畜牧速度加成同时作用于喂养与所有动物。网格按「畜牧容量」排布：初始 5，圈舍 +5、大型牧场 +15；体型占用 极小 0.5 / 小 1 / 中 2 / 大 3 / 极大 5。每只动物消耗 1 草料 / 天（1 天 = 24 秒）。机械兽、硅基生物不能畜牧。零风险纯周期，离线同伐木规则。"
   },
   {
     id: "cooking",

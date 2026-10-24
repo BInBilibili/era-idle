@@ -931,11 +931,24 @@ function removeHusbandryAnimal(idx) {
   return { ok: true, name: a ? a.name : '' };
 }
 function husbandrySpeed() { return jobSpeed('husbandry', 1); }
-function husbandryFeedPerSec() {
-  const n = husbandryAnimals().reduce((a, x) => a + ((husbandryAnimalDef(x.name) || {}).consume || 1), 0);
-  return n * husbandrySpeed() / GAME.secPerDay;
+/* 喂养一次的成本 = 所有已圈养动物草料消耗之和（默认每只 1 / 天）。
+   v0.0.31：喂养项目只负责扣草料，不再「边喂边产」；产物由动物自己的进度条结算。 */
+function husbandryFeedCost() {
+  return husbandryAnimals().reduce((a, x) => a + ((husbandryAnimalDef(x.name) || {}).consume || 1), 0);
 }
-/* 由「畜牧」项目推进：所有动物共用同一个派驻角色 / 同一套加速 */
+function husbandryFeedDuration() {
+  const job = JOB_BY_ID.husbandry;
+  const rs = job ? jobRecipes(job) : [];
+  const r = rs.filter(x => x && x.feed)[0] || rs[1];
+  return Math.max(0.4, (r && r.duration) || GAME.secPerDay);
+}
+function husbandryFeedPerSec() {
+  const n = husbandryFeedCost();
+  if (n <= 0) return 0;
+  return n * husbandrySpeed() / husbandryFeedDuration();
+}
+/* 「喂养畜群」项目：只推进一个「喂养进度条」，条满扣一次草料；
+   每次 tick 都检查「有人入驻 + 草料够」——只有这两个条件同时成立，动物进度条才推进。 */
 function husbandryAdvance(dt, slotIdx) {
   const job = JOB_BY_ID.husbandry, js = S.jobs.husbandry;
   if (!job || !js) return;
@@ -948,12 +961,19 @@ function husbandryAdvance(dt, slotIdx) {
   if (!c) { js.blocked[idx] = 'worker'; return; }
   if (c.injured) { js.blocked[idx] = 'injury'; return; }
   const speed = jobSpeed('husbandry', idx);
-  // 1 草料 / 只 / 天，按机型速度折算：动物产出越快，吃得也越快
-  const feed = list.reduce((a, x) => a + ((husbandryAnimalDef(x.name) || {}).consume || 1), 0) * dt * speed / GAME.secPerDay;
+  const cost = husbandryFeedCost();
   const fodderId = N2I('草料');
-  if (!fodderId || (S.items[fodderId] || 0) < feed) { js.blocked[idx] = 'input'; return; }
-  if (feed > 0) removeItem(fodderId, feed);
-  let total = 0;
+  if (!fodderId || (S.items[fodderId] || 0) < cost) { js.blocked[idx] = 'input'; return; }
+  js.blocked[idx] = null;
+  const dur = husbandryFeedDuration() / speed;
+  js.prog[idx] = (js.prog[idx] || 0) + dt / dur;
+  while (js.prog[idx] >= 1) {
+    js.prog[idx] -= 1;
+    // 条满只结算草料：不产出任何物品（物品只看下面动物的进度条）
+    if (!removeItem(fodderId, cost)) { js.prog[idx] = 0; js.blocked[idx] = 'input'; break; }
+    gainMastery(c, 'husbandry', husbandryFeedDuration());
+  }
+  // 喂养条件成立 → 所有动物推进自己的进度条，满了才产出
   list.forEach(a => {
     const def = husbandryAnimalDef(a.name);
     if (!def) return;
@@ -967,10 +987,7 @@ function husbandryAdvance(dt, slotIdx) {
       a.done = (a.done || 0) + 1;
       gainMastery(c, 'husbandry', def.duration || 10);
     }
-    total += a.prog || 0;
   });
-  js.prog[idx] = total / list.length;
-  js.blocked[idx] = null;
 }
 function produceJob(jobId, dt) {
   const js = S.jobs[jobId], job = JOB_BY_ID[jobId];
@@ -986,7 +1003,7 @@ function produceJob(jobId, dt) {
     const c = S.chars[cid];
     if (!c) { js.slots[i] = null; continue; }
     if (!recipeVisible(r, job)) { js.slots[i] = null; js.prog[i] = 0; continue; }
-    if (job.id === 'husbandry' && r.name === '畜牧') { husbandryAdvance(dt, i); continue; }
+    if (job.id === 'husbandry' && r.feed) { husbandryAdvance(dt, i); continue; }
     if (c.injured) { js.blocked[i] = 'injury'; continue; }
     const ins = r.inputs || {};
     const rawOuts = r.outputs || {};
@@ -1956,6 +1973,17 @@ function migrate(st) {
   }
   if (merged.seen.items.book_alchemy) { merged.seen.items.book_medicine = true; delete merged.seen.items.book_alchemy; }
   if (merged.ever.book_alchemy) { merged.ever.book_medicine = 1; delete merged.ever.book_alchemy; }
+  // v0.0.31：删除「药草作物」（种植·药草 改为直接产「药草」），旧存档的数量并入药草
+  if ('herb_crop' in merged.items) {
+    const n = merged.items.herb_crop || 0;
+    if (n > 0) merged.items.herb = (merged.items.herb || 0) + n;
+    delete merged.items.herb_crop;
+  }
+  // v0.0.31：旧存档角色选中的食物若是被删除的药草作物，清空选择
+  Object.keys(merged.chars || {}).forEach(cid => {
+    const c = merged.chars[cid];
+    if (c && c.food === 'herb_crop') c.food = null;
+  });
   Object.keys(merged.seen.items || {}).forEach(id => { if (merged.seen.items[id]) merged.ever[id] = 1; });
   Object.keys(merged.items).forEach(id => { if ((merged.items[id] || 0) > 0) merged.ever[id] = 1; });
   Object.keys(merged.chars).forEach(cid => {
@@ -2085,7 +2113,7 @@ window.Engine = {
   jobRecipeGate, upgradeBonus, jobProjectLabel, upgradeDesc,
   recipeInputs, recipeOutputs, canMake, stockOf, jobSpeed, jobGate, produceJob, combatState, healerPresent,
   HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
-  addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandrySpeed,
+  addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandryFeedCost, husbandryFeedDuration, husbandrySpeed,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, gachaPityLimit, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,
   pull, dismissChar, giftTo, starUp, PULL_COST, PITY_MIN, PITY_MAX, POTION_STARDUST_COST, CODEX_REWARD, SHARD_ITEM, NORMAL,

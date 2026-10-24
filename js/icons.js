@@ -453,7 +453,6 @@
     bean: ['pod', 'bean'],
     vegetable: ['cabbage', 'veg'],
     beet: ['beet', 'beet'],
-    herb_crop: ['sprig', 'herbCrop', 'bushy'],
     meat: ['steak', 'meat'],
     grain_seed: ['seedPouch', 'seedGrain'],
     bean_seed: ['seedPouch', 'seedBean'],

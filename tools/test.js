@@ -14,7 +14,7 @@ let fails = 0;
 function ok(cond, msg) { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); if (!cond) fails++; }
 
 console.log('== 数据 ==');
-ok(Object.keys(E.ITEMS).length === 216, '物品 216（新增草药 + 3 个资源包）：' + Object.keys(E.ITEMS).length);
+ok(Object.keys(E.ITEMS).length === 215, '物品 215（新增草药 + 3 个资源包，删除药草作物）：' + Object.keys(E.ITEMS).length);
 ok(E.JOBS.length === 33, '工作 33：' + E.JOBS.length);
 ok(E.TECHS.length === 42, '科技 42：' + E.TECHS.length);
 ok(E.ENEMIES.length === 26, '敌人 26：' + E.ENEMIES.length);
@@ -399,6 +399,14 @@ ghostOld.jobs.forging.slots[40] = 'player';
 ghostOld.jobs.forging.prog = new Array(51).fill(0.5);
 const migGhost = E.migrate(ghostOld);
 ok(migGhost.jobs.forging.slots.length === 16 && migGhost.jobs.forging.slots[40] === undefined, '旧锻造槽 40 → 裁掉（16 件配方）');
+// v0.0.31：药草作物删除 → 数量并入药草，角色选中的旧食物清空
+const herbOld = E.newState('药草迁移');
+herbOld.items = { herb_crop: 4, herb: 1 };
+herbOld.chars.player.food = 'herb_crop';
+const migHerb = E.migrate(herbOld);
+ok(!('herb_crop' in migHerb.items) && migHerb.items.herb === 5, '药草作物数量并入药草：' + JSON.stringify(migHerb.items));
+ok(migHerb.chars.player.food === null, '旧存档选中药草作物作为食物 → 清空选择');
+ok(migHerb.ever.herb === 1, '药草记为曾经拥有');
 E.S = migGhost;
 ok(E.assignedCount(E.JOB_BY_ID.forging) === 0, '幽灵槽不再被算作「N 人在工作」');
 
@@ -563,7 +571,7 @@ ok(E.JOB_BY_ID.woodcutting.upgrades[0].bonusPct === 0 && E.upgradeDesc(E.JOB_BY_
 ok(E.JOB_BY_ID.mining.upgrades[0].bonusPct === 0 && E.upgradeDesc(E.JOB_BY_ID.mining, 0) === '解锁采石项目',
   '石镐描述 = 解锁采石项目（代码生成）、不加产出');
 ok(E.upgradeDesc(E.JOB_BY_ID.research, 0) === '解锁科研项目', '基础研究桌描述 = 解锁科研项目');
-ok(E.upgradeDesc(E.JOB_BY_ID.husbandry, 0).indexOf('解锁加工草料、畜牧项目') === 0, '畜牧门槛档列出两个项目');
+ok(E.upgradeDesc(E.JOB_BY_ID.husbandry, 0).indexOf('解锁加工草料、喂养畜群项目') === 0, '畜牧门槛档列出两个项目');
 const badGate = [];
 E.JOBS.forEach(j => {
   const gate = E.jobRecipeGate(j);
@@ -716,11 +724,16 @@ E.JOBS.forEach(j => {
 });
 ok(selfRef.length === 0, '第一档升级项没有「自己产自己」的矛盾：' + (selfRef.join('；') || '无'));
 
-// 种植：按种子拆项目 + 干草
+// 种植：按种子拆项目 + 干草（v0.0.32：药草直接产药草，草料只由干草产）
 const farmRs = E.jobRecipes(E.JOB_BY_ID.farming);
 ok(farmRs.length === 6 && farmRs.map(r => r.name).join('/') === '谷物/豆类/蔬菜/甜菜/药草/干草', '种植 6 个项目：5 种种子 + 干草');
 ok(Object.keys(farmRs.find(r => r.name === '甜菜').inputs).join(',') === '甜菜种子', '甜菜项目吃甜菜种子');
-ok(Object.keys(farmRs.find(r => r.name === '干草').inputs).length === 0 && farmRs.find(r => r.name === '干草').outputs['草料'] === 1, '干草不消耗、产出草料');
+const hayR = farmRs.find(r => r.name === '干草');
+ok(Object.keys(hayR.inputs).length === 0 && hayR.outputs['草料'] === 6, '干草不消耗、产出 6 草料');
+const herbR = farmRs.find(r => r.name === '药草');
+ok(herbR.outputs['药草'] === 6 && !('草料' in herbR.outputs), '药草项目直接产 6 药草，不产草料');
+ok(farmRs.filter(r => r !== herbR && r !== hayR).every(r => !('草料' in r.outputs)), '其余 4 个作物项目都不产草料');
+ok(E.N2I('药草作物') === null && !E.ITEMS.herb_crop, '药草作物已删除');
 
 // 医疗：药剂工作合并
 const medRs = E.jobRecipes(E.JOB_BY_ID.medicine);
@@ -728,38 +741,73 @@ ok(medRs.length === 4 && medRs.some(r => r.name === '草药药剂') && medRs.som
 const medJob = E.JOB_BY_ID.medicine;
 ok(medJob.upgrades[0].name === '研钵' && medJob.upgrades[1].name === '药剂实验室', '医疗床→研钵，医疗设备→药剂实验室');
 
-// 畜牧：容量 / 动物 / 产出
+// 医物 / 草料文案（v0.0.31）：不显示适用时代、不写「只有受伤时才会消耗」、用途不背数值
+const potionId = E.N2I('草药药剂');
+const potionTip = U.itemTipHtml(potionId);
+ok(!potionTip.includes('适用时代') && !potionTip.includes('只有角色受伤时'), '医物面板删掉「适用时代」行与消耗说明');
+ok(potionTip.includes('通用') && potionTip.includes('医物'), 'era:cross 显示为「通用」，分类仍是医物');
+ok(potionTip.includes('回血速度') && potionTip.includes('消耗间隔'), '医物面板保留回血速度 / 消耗间隔');
+ok(E.ITEMS[potionId].use === '补给栏 · 医物', '医物用途只写「补给栏 · 医物」：' + E.ITEMS[potionId].use);
+const fodderIt = E.ITEMS[E.N2I('草料')];
+ok(fodderIt.use === '畜牧饲料' && !/人不能吃/.test(fodderIt.use), '草料用途不再写「人不能吃」');
+
+// 畜牧：容量 / 动物 / 喂养与产出分离（v0.0.31）
 ok(Object.keys(E.HUSBANDRY_ANIMALS).length === 16 && !E.HUSBANDRY_ANIMALS['机械兽'] && !E.HUSBANDRY_ANIMALS['硅基生物'], '16 种可畜牧动物，机械兽 / 硅基生物除外');
 ok(E.HUSBANDRY_ANIMALS['野山羊'].outputs['毛料'] === 1, '野山羊提供毛料（纺织 / 裁缝的羊毛来源）');
 ok(E.JOB_BY_ID.husbandry.upgrades[0].cost['石材'] && !E.JOB_BY_ID.husbandry.upgrades[0].cost['草料'], '圈舍用木材 + 石材启动，不卡草料');
 ok(E.JOB_BY_ID.medicine.upgrades[0].cost['石头'] && !E.JOB_BY_ID.medicine.upgrades[0].cost['药草'], '研钵用木材 + 石头启动，不卡药草');
+const hubRs = E.jobRecipes(E.JOB_BY_ID.husbandry);
+ok(hubRs.length === 2 && hubRs[0].name === '加工草料' && hubRs[1].name === '喂养畜群' && hubRs[1].feed === true,
+  '畜牧项目 = 加工草料 + 喂养畜群');
+ok(E.husbandryFeedDuration() === 24, '喂养周期 24 秒 = 1 天');
 ok(E.husbandryCapacity() === 5, '初始畜牧容量 5');
 NS.jobs.husbandry.up[0] = 1;
 ok(E.husbandryCapacity() === 10, '圈舍 +5 → 10');
 NS.jobs.husbandry.up[2] = 1;
 ok(E.husbandryCapacity() === 25, '大型牧场 +15 → 25');
 ok(!E.addHusbandryAnimal('兔子').ok, '认知度未满 100 不能圈养');
-NS.chars.player.know = { '兔子': 100, '熊': 100 };
+NS.chars.player.know = { '兔子': 100, '熊': 100, '犀牛': 100 };
 E.S.techs['animal_husbandry'] = true;
 ok(E.addHusbandryAnimal('兔子').ok && E.husbandryUsed() === 0.5, '兔子占 0.5 容量');
 ok(E.addHusbandryAnimal('熊').ok && E.husbandryUsed() === 3.5, '熊占 3 容量');
-E.addItem('草料', 200);
+NS.jobs.husbandry.animals = [];          // 换成一只长周期动物：验证「喂养满只扣草料、不产物品」
+E.addHusbandryAnimal('犀牛');
+ok(E.husbandryFeedCost() === 1, '喂养一次消耗 = 所有动物草料之和（1 只犀牛 = 1 草料）');
+E.addHusbandryAnimal('兔子');
+ok(E.husbandryFeedCost() === 2, '再加一只兔子 → 每次 2 草料');
+E.removeHusbandryAnimal(1);
+E.addItem('草料', 10);
 E.assignSlot('husbandry', 1, 'player');
-const meatBefore = E.count('肉类食材');
-const leatherBefore = E.count('小型皮革');
-for (let i = 0; i < 300; i++) E.produceJob('husbandry', 0.2);
-ok(E.count('肉类食材') > meatBefore && E.count('小型皮革') > leatherBefore, '畜牧产出肉与副产物：肉 +' + (E.count('肉类食材') - meatBefore).toFixed(0));
-ok(E.count('草料') < 200, '畜牧按 1 草料/只/天 消耗：' + E.count('草料').toFixed(1));
+const hubSpd = E.husbandrySpeed();
+const oneCycle = 24 / hubSpd;            // 喂养条从 0 到满需要的秒数
+const meat0 = E.count('肉类食材'), hay0 = E.count('草料');
+E.produceJob('husbandry', oneCycle * 0.5);
+ok(E.count('草料') === hay0 && E.count('肉类食材') === meat0 && E.husbandryAnimals()[0].prog > 0,
+  '喂养条未满：动物进度推进，但不扣草料、不产物品');
+E.produceJob('husbandry', oneCycle * 0.5 + 1e-6);
+ok(E.count('草料') === hay0 - 1, '喂养条填满只扣 1 草料');
+ok(E.count('肉类食材') === meat0, '喂养条填满不直接产物品（犀牛 42 秒 / 次还没满）');
+const animalNeed = (E.HUSBANDRY_ANIMALS['犀牛'].duration - 24) / hubSpd;
+E.produceJob('husbandry', animalNeed + 0.05);
+ok(E.count('肉类食材') > meat0, '只有动物自己的进度条满才产出：' + E.count('肉类食材'));
+NS.jobs.husbandry.prog[1] = 0;
 NS.items[E.N2I('草料')] = 0;
-const progAt0 = E.husbandryAnimals()[0].prog;
+const hubProg0 = E.husbandryAnimals()[0].prog;
 for (let i = 0; i < 10; i++) E.produceJob('husbandry', 0.2);
-ok(Math.abs(E.husbandryAnimals()[0].prog - progAt0) < 1e-9 && NS.jobs.husbandry.blocked[1] === 'input', '草料不足时全部动物停产');
+ok(Math.abs(E.husbandryAnimals()[0].prog - hubProg0) < 1e-9 && NS.jobs.husbandry.blocked[1] === 'input',
+  '没有入驻角色持续喂草料时，动物进度条停止');
+const hubHtml = U.pageJob('husbandry');
+ok(hubHtml.includes('penGrid') && hubHtml.includes('bigplus') && hubHtml.includes('畜牧容量'), '畜牧页渲染网格 + 大＋虚线框 + 畜牧容量');
+ok(hubHtml.includes('喂养畜群') && hubHtml.includes('data-tip-hub') && hubHtml.includes('畜牧产物'),
+  '喂养项目卡显示汇总「畜牧产物」徽章');
+const iProj = hubHtml.indexOf('>项目<'), iHub = hubHtml.indexOf('>畜牧<'), iUpg = hubHtml.indexOf('>升级项<');
+ok(iProj >= 0 && iHub > iProj && iUpg > iHub, '畜牧独立成栏，位置在 项目 与 升级项 之间');
+const hubTip = U.husbandryTipHtml();
+ok(hubTip.includes('犀牛') && hubTip.includes('肉类食材'), '畜牧产物悬停列出每只动物的产物');
 const animalN = E.husbandryAnimals().length;
 E.removeHusbandryAnimal(0);
 ok(E.husbandryAnimals().length === animalN - 1, '可以移除畜牧格里的动物');
 E.S.techs['animal_husbandry'] = true;
-const hubHtml = U.pageJob('husbandry');
-ok(hubHtml.includes('penGrid') && hubHtml.includes('bigplus') && hubHtml.includes('畜牧容量'), '畜牧页渲染网格 + 大＋虚线框 + 畜牧容量');
 const hubPick = U.ioList(E.HUSBANDRY_ANIMALS['兔子'].outputs);
 ok(hubPick.includes('肉类食材'), '动物列表面板能显示产出');
 
@@ -778,6 +826,17 @@ const beetIdx = E.jobRecipes(E.JOB_BY_ID.farming).findIndex(r => r.name === '甜
 E.assignSlot('farming', beetIdx, 'player');
 for (let i = 0; i < 100; i++) E.produceJob('farming', 0.2);
 ok(E.count('甜菜') > 0 && E.count('甜菜种子') < 10, '甜菜项目消耗甜菜种子、产出甜菜：' + E.count('甜菜'));
+
+// 药草项目：药草种子 → 药草（仓库材料），不产草料
+E.S = E.newState('药草种植');
+E.S.techs['crop_farming'] = true;
+E.S.jobs.farming.up[0] = 1;
+E.addItem('药草种子', 10);
+const herbIdx = E.jobRecipes(E.JOB_BY_ID.farming).findIndex(r => r.name === '药草');
+E.assignSlot('farming', herbIdx, 'player');
+for (let i = 0; i < 100; i++) E.produceJob('farming', 0.2);
+ok(E.count('药草') > 0 && E.count('药草种子') < 10, '药草项目消耗药草种子、产出药草：' + E.count('药草'));
+ok(E.count('草料') === 0, '药草项目不产草料');
 
 // 石油开采：独立工作产出石油，采矿不再出石油
 E.S = E.newState('石油测试');

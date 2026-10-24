@@ -33,8 +33,8 @@ window.ITEMS = {
   wood:          { name: '木材',     era: 'stone', cat: 'material', storage: 'warehouse', price: 1,   src: '伐木 / 采集（平原）', use: '木工、加工、建造、燃料、造纸' },
   stone_block:   { name: '石材',     era: 'stone', cat: 'material', storage: 'warehouse', price: 5,   src: '切石机', use: '建造、仓库升级' },
   plant_fiber:   { name: '植物纤维', era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '加工（内衬衣物）、编织（地毯）、裁缝（弓）' },
-  fodder:        { name: '草料',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植 / 畜牧（加工草料）', use: '畜牧饲料（人不能吃）' },
-  herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '医疗' },
+  fodder:        { name: '草料',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植 / 畜牧（加工草料）', use: '畜牧饲料' },
+  herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集 / 种植', use: '医疗（捣成草药）' },
   bone_horn:     { name: '骨 / 角',  era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.5, src: '狩猎', use: '加工（骨项链 + 骨器升级项）' },
   compost:       { name: '堆肥',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.1, src: '腐坏转化', use: '种植化肥（+50% 产出）' },
   pottery:       { name: '陶器',     era: 'stone', cat: 'material', storage: 'warehouse', price: 8.5, src: '制陶（沙）', use: '粮仓容量升级项' },
@@ -210,14 +210,14 @@ window.ITEMS = {
    * v0.0.27：药品统一成「医物」，医疗工作产出石器时代草药
    * med = { era, healMul, consumeSec }：受伤时消耗 1 份，回血速度 ×healMul
    * ============================================================ */
-  herb_medicine:  { name: '草药',     era: 'stone', cat: 'medicine', storage: 'warehouse', price: 2.5,  src: '医疗（药草）', use: '补给栏 · 医物（石器 ×2 回血）',
-                    med: { era: 'stone', healMul: 2, consumeSec: 20 } },
-  herbal_potion:  { name: '草药药剂', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 4,    src: '医疗（药剂配方）', use: '补给栏 · 医物（中世纪 ×3 回血）',
-                    med: { era: 'medieval', healMul: 3, consumeSec: 25 } },
-  medicine:       { name: '医药',     era: 'cross', cat: 'medicine', storage: 'warehouse', price: 15.5, src: '医疗（药剂配方 + 化学燃料）', use: '补给栏 · 医物（工业 ×4 回血）',
-                    med: { era: 'industrial', healMul: 4, consumeSec: 30 } },
-  shining_med:    { name: '闪耀医药', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 54,   src: '医疗（药剂配方 + 医药 + 稀土 + 化学燃料）', use: '补给栏 · 医物（信息 ×6 回血）',
-                    med: { era: 'info', healMul: 6, consumeSec: 40 } },
+  herb_medicine:  { name: '草药',     era: 'stone', cat: 'medicine', storage: 'warehouse', price: 2.5,  src: '医疗（药草）', use: '补给栏 · 医物',
+                    med: { healMul: 2, consumeSec: 20 } },
+  herbal_potion:  { name: '草药药剂', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 4,    src: '医疗（药剂配方）', use: '补给栏 · 医物',
+                    med: { healMul: 3, consumeSec: 25 } },
+  medicine:       { name: '医药',     era: 'cross', cat: 'medicine', storage: 'warehouse', price: 15.5, src: '医疗（药剂配方 + 化学燃料）', use: '补给栏 · 医物',
+                    med: { healMul: 4, consumeSec: 30 } },
+  shining_med:    { name: '闪耀医药', era: 'cross', cat: 'medicine', storage: 'warehouse', price: 54,   src: '医疗（药剂配方 + 医药 + 稀土 + 化学燃料）', use: '补给栏 · 医物',
+                    med: { healMul: 6, consumeSec: 40 } },
   carpet:         { name: '地毯',     era: 'cross', cat: 'misc',     storage: 'warehouse', price: 6,    src: '编织', use: '舒适度' },
 
   /* ============================================================
@@ -296,7 +296,7 @@ window.ITEMS = {
   abyss_greatsword: { name: '深渊大剑',     era: 'info', cat: 'weapon', storage: 'warehouse', price: 7215,   slot: 'mainhand', str: 72, atk: 30, interval: 2.2, armorPen: 25, hidden: true, cost: { soul: 30, ember: 8, steel: 30 }, note: '间隔 2.2 秒 / 破甲 25%' },
 
   /* ============================================================
-   * 粮仓（18 种，会腐坏）—— §三 15 种食材 / 种子 + §八 3 种熟食
+   * 粮仓（17 种，会腐坏）—— §三 14 种食材 / 种子 + §八 3 种熟食
    * ============================================================ */
   berry:          { name: '浆果',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
   tuber:          { name: '块根',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
@@ -306,7 +306,6 @@ window.ITEMS = {
   bean:           { name: '豆类',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
   vegetable:      { name: '蔬菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
   beet:           { name: '甜菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
-  herb_crop:      { name: '药草作物', era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
   grain_seed:     { name: '谷物种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
   bean_seed:      { name: '豆类种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
   vegetable_seed: { name: '蔬菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
@@ -381,8 +380,8 @@ window.ITEM_ORDER = [
   'hero_shard', 'sticky_note', 'merch', 'collector', 'heirloom', 'stardust', 'star_potion', 'soul', 'ember',
   'undead_chainmail', 'ashen_legs', 'abyss_helmet', 'abyss_greatsword',
 
-  /* 粮仓最后（18 种） */
-  'berry', 'tuber', 'wild_mushroom', 'nut', 'grain', 'bean', 'vegetable', 'beet', 'herb_crop',
+  /* 粮仓最后（17 种） */
+  'berry', 'tuber', 'wild_mushroom', 'nut', 'grain', 'bean', 'vegetable', 'beet',
   'grain_seed', 'bean_seed', 'vegetable_seed', 'beet_seed', 'herb_seed', 'meat',
   'vegetarian_meal', 'meat_meal', 'balanced_meal'
 ];
