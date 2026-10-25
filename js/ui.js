@@ -288,7 +288,7 @@ const UI = {
     let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
       <b>${esc(it.name)}</b>
       <div class="ttTags">${it.era && ERA_TAG_NAME[it.era] ? tag(ERA_TAG_NAME[it.era]) : ''}${tag(ITEM_CAT_NAME[it.cat] || it.cat)}
-      ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}</div></div></div>`;
+      ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}${(it.tags || []).map(t => tag(t)).join('')}</div></div></div>`;
 
     if (info.gear) {
       const rows = [];
@@ -304,6 +304,13 @@ const UI = {
       if (info.crit) rows.push(row('暴击', info.crit + '%', 'gold'));
       rows.push(row('战力贡献', '+' + E.fmt(info.power), 'gold'));
       h += `<div class="ttSec">战斗数值</div><div class="ttRows">${rows.join('')}</div>`;
+    }
+
+    if (it.metalMods) {
+      const labels = { dr: '伤害减免', str: '力量', atk: '命中' };
+      const mods = ['dr', 'str', 'atk'].filter(k => it.metalMods[k] != null)
+        .map(k => labels[k] + ' ×' + Number(it.metalMods[k]).toFixed(2)).join(' · ');
+      h += `<div class="ttSec">战斗数值修正</div><div class="ttRows">${row('金属加成', mods, 'gold')}</div>`;
     }
 
     const buyRow = it.kind === 'starPotion'
@@ -330,10 +337,10 @@ const UI = {
     if (it.kind) h += row('类别', esc(ITEM_KIND_NAME[it.kind] || it.kind));
     if (it.gift) h += row('送礼好感', '+' + it.gift, 'gold');
     if (it.storage === 'granary') {
-      const rate = E.granaryDecayRate();
+      const rate = E.granaryDecayRate(id);
       h += row('腐坏', rate <= 0
         ? '不腐坏'
-        : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半（−' + (rate * 100).toFixed(3) + '%/秒）', 'red');
+        : '每 ' + Math.round(E.granaryHalfLife(id)) + ' 秒减半（−' + (rate * 100).toFixed(3) + '%/秒）', 'red');
     }
 
     const srcText = it.src ? this.srcText(it.src) : '';
@@ -730,10 +737,12 @@ const UI = {
             if (!bought && (locked || !ever)) return '';
             const desc = E.upgradeDesc(job, i);
             return `<div class="card upg ${bought ? 'done' : ''}">
-              <div class="row" style="justify-content:space-between;gap:6px"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b><span class="row" style="gap:5px;flex-wrap:nowrap">${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}${bought && S.dev ? `<button class="danger devbtn" data-act="devDestroyUpg" data-id="${job.id}" data-i="${i}" title="开发者：摧毁该升级项（连带后续档位，不返还材料）">摧毁</button>` : ''}</span></div>
+              <div class="row" style="justify-content:space-between;gap:6px"><b class="small">${this.esc(u.name || ('升级 ' + (i + 1)))}</b><span class="row" style="gap:5px;flex-wrap:nowrap">${bought ? '<span class="badge on">已购</span>' : u.watt ? `<span class="badge warn">⚡${u.watt}瓦</span>` : ''}</span></div>
               ${desc ? `<div class="tiny muted" style="margin-top:4px">${this.esc(desc)}</div>` : ''}
               ${bought ? '' : `<div class="price" style="margin-top:6px">${this.priceLine(u.cost)}</div>`}
-              ${bought ? '' : `<button class="primary" style="margin-top:8px;width:100%" data-act="upg" data-id="${job.id}" data-i="${i}" ${E.affordCost(u.cost) ? '' : 'disabled'}>购买</button>`}
+              ${bought
+                ? (S.dev ? `<button class="danger" style="margin-top:8px;width:100%" data-act="devDestroyUpg" data-id="${job.id}" data-i="${i}" title="开发者：摧毁该升级项（连带后续档位，不返还材料）">摧毁</button>` : '')
+                : `<button class="primary" style="margin-top:8px;width:100%" data-act="upg" data-id="${job.id}" data-i="${i}" ${E.affordCost(u.cost) ? '' : 'disabled'}>建造</button>`}
             </div>`;
           }).join('') || '<div class="empty">暂无可用升级项</div>'}
         </div>
@@ -747,12 +756,29 @@ const UI = {
     return JOB_BRIEF[job.id] || (job.note ? String(job.note).split(/[；。]/)[0] : '');
   },
   recipeIcon(job, r) {
+    if (r && r.icon && window.ICONS && window.ICONS.recipe) {
+      const s = window.ICONS.recipe(r.icon);
+      if (s) return s;
+    }
+    if (r && r.metalBase) {
+      const mid = E.metalPreviewId(job.id, r);
+      if (mid) return this.itemIcon(E.ITEMS[mid]);
+    }
     const outs = Object.keys((r && r.outputs) || {});
     for (const n of outs) {
       const id = this.itemIdOf(n);
       if (id) return this.itemIcon(E.ITEMS[id]);
     }
     return this.jobIcon(job);
+  },
+  /* 金属锻造的成品随筛选金属变化；其余项目直接用数据里的 outputs。 */
+  recipeOutputsFor(job, r) {
+    if (r && r.metalBase) {
+      const id = E.metalPreviewId(job.id, r);
+      if (id) return { [E.ITEMS[id].name]: 1 };
+      return { ['金属' + (r.name || '装备')]: 1 };
+    }
+    return (r && r.outputs) || {};
   },
   /* 畜牧区（v0.0.31）：像「项目 / 升级项」一样独立成栏，不再塞进项目网格。
      入驻槽已经分到「喂养畜群」项目：消耗草料归入驻角色，产出归每只动物自己的进度条。 */
@@ -851,7 +877,8 @@ const UI = {
     const mastery = c ? E.masteryLvl(c, job.id) : 0;
     const mnext = c ? E.masteryNext(c, job.id) : 0;
     const bonus = c ? Math.round(E.charBonusFor(c, job) * 100) : 0;
-    const outItem = Object.keys(r.outputs || {}).map(n => this.itemIdOf(n)).filter(Boolean)[0] || null;
+    const outObj = this.recipeOutputsFor(job, r);
+    const outItem = Object.keys(outObj).map(n => this.itemIdOf(n)).filter(Boolean)[0] || null;
     return `<div class="card recipe ${c ? 'run' : ''}" data-act="cardrec" data-job="${job.id}" data-i="${i}" data-drop-job="${job.id}" data-drop-i="${i}"${outItem ? ` data-tip-item="${outItem}"` : ''}>
       <div class="row" style="justify-content:space-between">
         <div class="row" style="gap:8px;min-width:0"><span class="icon sm">${this.recipeIcon(job, r)}</span><b class="small">${this.esc(r.name || job.name)}</b></div>
@@ -859,8 +886,7 @@ const UI = {
           ${c ? this.avatar(c, 'sm') : '<span class="plus">＋</span>'}
         </div>
       </div>
-      <div class="io">产出：${this.ioList(r.outputs)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.recipeInputList(job, r, i) : ''}</div>
-      ${this.inputFilterPanel(job, r, i)}
+      <div class="io">产出：${this.ioList(outObj)}${Object.keys(r.inputs || {}).length ? '<br>消耗：' + this.recipeInputList(job, r, i) : ''}</div>
       <div class="row tiny" style="justify-content:space-between;margin-top:6px">
         <span>${c ? `<span class="green">${this.esc(E.charName(c))}</span> · 精通 <b class="mono" data-live="masterylvl" data-i="${i}">${mastery}</b>${bonus ? ' · +' + bonus + '%' : ''}` : '<span class="dim">空置 · 拖入角色</span>'}</span>
         <span class="mono">${isFinite(dur) ? dur.toFixed(1) + 's' : '停滞'}</span>
@@ -870,7 +896,7 @@ const UI = {
       ${blocked ? '<div class="tiny red" style="margin-top:4px">材料不足</div>' : ''}
     </div>`;
   },
-  /* v0.0.34：模糊描述的投入（素食食材 / 肉食食材 / 种子）可以点开下拉面板勾选。
+  /* v0.0.38：模糊投入徽章只显示一个图标、与普通消耗栏同尺寸；下拉列表在 app.js 里以浮层打开。
      没勾选的组成物品不计入消耗，也不参与「够不够料」的判断。 */
   recipeInputList(job, r, i) {
     const ent = Object.entries(r.inputs || {});
@@ -886,38 +912,17 @@ const UI = {
       const name = lack ? `<span class="red">${this.esc(n)}</span>` : this.esc(n);
       return `<span class="badge io"${id ? ` data-tip-item="${id}"` : ''}>${it ? this.itemIcon(it) + ' ' : ''}${name} ×${E.fmt(q)}</span>`;
     }
+    const all = E.genericItemIds(n);
     const sel = E.inputSelection(job.id, r, n);
-    const lack = E.stockOf(n, sel) < q;
-    const key = E.inputFilterKey(job.id, r, n);
-    const open = !!(E.S.ui.inpOpen && E.S.ui.inpOpen[key]);
-    const icons = sel.slice(0, 4).map(id => (E.ITEMS[id] ? this.itemIcon(E.ITEMS[id]) : '')).join('');
-    const more = sel.length > 4 ? `<span class="tiny dim">+${sel.length - 4}</span>` : '';
-    return `<button type="button" class="badge io inp ${lack ? 'bad' : ''} ${open ? 'open' : ''} ${sel.length ? '' : 'empty'}"
+    // 金属锻造：总库存够不代表某一种金属够一次投料，徽章按「实际可开工」标红
+    const lack = (n === '金属' && r && r.metalBase)
+      ? !E.metalForRecipe(r, job.id, true)
+      : E.stockOf(n, sel) < q;
+    const first = (sel[0] || all[0]) ? E.ITEMS[sel[0] || all[0]] : null;
+    const icon = first ? this.itemIcon(first) : '';
+    return `<span class="badge io inpbadge ${lack ? 'bad' : ''}" role="button" tabindex="0"
       data-act="inpfilter" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}" title="点击筛选「${this.esc(n)}」">
-      ${icons}${more}<span class="${lack ? 'red' : ''}">${this.esc(n)} ×${E.fmt(q)}</span><span class="caret">▾</span></button>`;
-  },
-  inputFilterPanel(job, r, i) {
-    const S = E.S;
-    return Object.keys(r.inputs || {}).filter(n => E.GENERIC_IN && E.GENERIC_IN[n]).map(n => {
-      const key = E.inputFilterKey(job.id, r, n);
-      if (!S.ui.inpOpen || !S.ui.inpOpen[key]) return '';
-      const sel = E.inputSelection(job.id, r, n);
-      const all = E.genericItemIds(n);
-      return `<div class="inpPanel" data-act="noop">
-        <div class="inpTip">「${this.esc(n)}」只用勾选的材料；没勾选的不计入消耗。</div>
-        <div class="inpOpts">${all.map(id => {
-          const it = E.ITEMS[id]; if (!it) return '';
-          const on = sel.indexOf(id) >= 0;
-          return `<button type="button" class="inpOpt ${on ? 'on' : ''}" data-act="inptoggle" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}" data-id="${id}">
-            ${this.itemIcon(it)}<span class="inpNm">${this.esc(it.name)}</span><span class="tiny dim">×${E.fmt(E.count(id))}</span><span class="inpTick">${on ? '✓' : '＋'}</span>
-          </button>`;
-        }).join('')}</div>
-        <div class="row" style="justify-content:flex-end;gap:6px;margin-top:6px">
-          <button type="button" data-act="inpall" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}">全选</button>
-          <button type="button" data-act="inpnone" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}">全不选</button>
-        </div>
-      </div>`;
-    }).join('');
+      ${icon}${icon ? ' ' : ''}<span class="${lack ? 'red' : ''}">${this.esc(n)} ×${E.fmt(q)}</span></span>`;
   },
   ioList(obj, checkStock) {
     const ent = Object.entries(obj || {});
@@ -1216,17 +1221,19 @@ const UI = {
     const chars = E.onFieldChars().length;
     const left = chars ? E.granaryTotal() / (chars * E.GAME.foodPerCharSec) : Infinity;
     const spoilt = E.granarySpoilMul() <= 0;
-    const rate = E.granaryDecayRate();
-    const rateText = rate > 0 ? '−' + (rate * 100).toFixed(3) + '%/秒' : '不腐坏';
-    const spoilText = spoilt ? '不腐坏' : '每 ' + Math.round(E.granaryHalfLife()) + ' 秒减半';
-    const spoilCell = spoilt ? '<span class="green">不腐坏</span>' : `<span class="red">${rateText}</span>`;
     let h = `<div class="card">
       <div class="row" style="justify-content:space-between"><b>当前 ${E.fmt(E.granaryTotal(), 0)} 份</b>
       <span class="small ${left < 60 ? 'red' : 'muted'}">${chars ? '约可支撑 ' + E.fmtTime(left) : '无人在场'}</span></div>
-      <div class="tiny muted" style="margin-top:4px">容量无限 · 腐坏 ${spoilText}${rate > 0 ? '（' + rateText + '）' : ''}</div>
+      <div class="tiny muted" style="margin-top:4px">容量无限 · ${spoilt ? '冷库：全部不腐坏' : '腐坏速度见每行（食物基础 600 秒减半，种子 2400 秒减半）'}</div>
       ${!ids.length ? '<div class="empty">粮仓是空的。派角色去采集 / 种植 / 烹饪。</div>' : `
       <table class="t" style="margin-top:10px"><thead><tr><th>食物</th><th class="r">数量</th><th class="r">单价</th><th class="r">腐坏速度</th><th class="r">操作</th></tr></thead><tbody>
-      ${ids.map(id => { const it = E.ITEMS[id]; return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono">${spoilCell}</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`; }).join('')}
+      ${ids.map(id => {
+        const it = E.ITEMS[id];
+        const rate = E.granaryDecayRate(id);
+        const rateText = rate > 0 ? '−' + (rate * 100).toFixed(3) + '%/秒' : '不腐坏';
+        const spoilCell = spoilt ? '<span class="green">不腐坏</span>' : `<span class="red">${rateText}</span>`;
+        return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}</td><td class="r mono">${E.fmt(S.items[id], 0)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono">${spoilCell}</td><td class="r"><button data-act="sellall" data-id="${id}">全卖</button></td></tr>`;
+      }).join('')}
       </tbody></table>`}
     </div>
     <div style="margin-top:14px"><h3 style="font-size:15px">粮仓升级</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-top:8px">`;

@@ -69,11 +69,11 @@ window.ITEMS = {
    * §四 中世纪 · 4.1 资源（12 种）
    * ============================================================ */
   plank:        { name: '木板',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 4,  src: '木工', use: '建造、家具升级项' },
-  copper_ingot: { name: '铜锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 11, src: '熔炼', use: '锻造（铜武器）、机械加工（电子元件）' },
-  iron_ingot:   { name: '铁锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 18, src: '熔炼', use: '锻造、木工（工具）、建造' },
-  steel:        { name: '钢铁',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 27, src: '熔炼（*钢铁）', use: '锻造（中世纪 + 工业装备）、机械加工、建造' },
-  silver_ingot: { name: '银锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 41, src: '熔炼', use: '裁缝（银项链）、医疗（医疗设备）、商店高价出售品' },
-  gold_ingot:   { name: '金锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 78, src: '熔炼', use: '商店最高价出售品（金币的主要来源）' },
+  copper_ingot: { name: '铜锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 11, src: '熔炼', use: '锻造（铜武器）、机械加工（电子元件）', tags: ['金属'], metalMods: { dr: 0.90, str: 0.625, atk: 0.80 } },
+  iron_ingot:   { name: '铁锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 18, src: '熔炼', use: '锻造、木工（工具）、建造', tags: ['金属'], metalMods: { dr: 1.00, str: 1.00, atk: 1.00 } },
+  steel:        { name: '钢铁',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 27, src: '熔炼（*钢铁）', use: '锻造（中世纪 + 工业装备）、机械加工、建造', tags: ['金属'], metalMods: { dr: 1.50, str: 2.00, atk: 1.50 } },
+  silver_ingot: { name: '银锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 41, src: '熔炼', use: '裁缝（银项链）、医疗（医疗设备）、商店高价出售品', tags: ['金属'], metalMods: { dr: 1.05, str: 1.25, atk: 1.60 } },
+  gold_ingot:   { name: '金锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 78, src: '熔炼', use: '商店最高价出售品（金币的主要来源）', tags: ['金属'], metalMods: { dr: 1.10, str: 1.10, atk: 1.20 } },
   hemp:         { name: '大麻',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植（*缝制）', use: '纺织' },
   cotton:       { name: '棉花',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植（*缝制）', use: '纺织' },
   cloth:        { name: '布料',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 3,  src: '纺织', use: '裁缝（衣物）、编织（地毯）' },
@@ -84,28 +84,28 @@ window.ITEMS = {
   /* ============================================================
    * §四 中世纪 · 4.2 装备与武器（23 件）
    * ============================================================ */
-  iron_helm:       { name: '铁盔',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 135,   slot: 'head',      dr: 6, str: 1, cost: { iron_ingot: 5 } },
-  steel_helm:      { name: '钢盔',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 202.5, slot: 'head',      dr: 9, str: 2, cost: { steel: 5 } },
+  iron_helm:       { name: '铁盔',     era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 135,   slot: 'head',      dr: 6, str: 1, cost: { iron_ingot: 5 } },
+  steel_helm:      { name: '钢盔',     era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 202.5, slot: 'head',      dr: 9, str: 2, cost: { steel: 5 } },
   cloth_hat:       { name: '布帽',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 18,    slot: 'headInner', temp: 5, cost: { cloth: 4 } },
-  iron_armor:      { name: '铁甲',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 270,   slot: 'body',      dr: 12, str: 4, cost: { iron_ingot: 10 } },
-  steel_armor:     { name: '钢甲',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 486,   slot: 'body',      dr: 18, str: 7, cost: { steel: 12 } },
+  iron_armor:      { name: '铁甲',     era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 270,   slot: 'body',      dr: 12, str: 4, cost: { iron_ingot: 10 } },
+  steel_armor:     { name: '钢甲',     era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 486,   slot: 'body',      dr: 18, str: 7, cost: { steel: 12 } },
   cloth_shirt:     { name: '布衬衣',   era: 'medieval', cat: 'equip', storage: 'warehouse', price: 22.5,  slot: 'bodyInner', temp: 6, cost: { cloth: 5 } },
-  iron_legs:       { name: '铁护腿',   era: 'medieval', cat: 'equip', storage: 'warehouse', price: 216,   slot: 'legs',      dr: 8, str: 2, cost: { iron_ingot: 8 } },
+  iron_legs:       { name: '铁护腿',   era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 216,   slot: 'legs',      dr: 8, str: 2, cost: { iron_ingot: 8 } },
   cloth_pants:     { name: '布衬裤',   era: 'medieval', cat: 'equip', storage: 'warehouse', price: 18,    slot: 'legsInner', temp: 5, cost: { cloth: 4 } },
-  iron_boots:      { name: '铁靴',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 162,   slot: 'feet',      dr: 5, str: 1, temp: 1, cost: { iron_ingot: 6 } },
+  iron_boots:      { name: '铁靴',     era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 162,   slot: 'feet',      dr: 5, str: 1, temp: 1, cost: { iron_ingot: 6 } },
   woolen_socks:    { name: '羊毛袜',   era: 'medieval', cat: 'equip', storage: 'warehouse', price: 9,     slot: 'socks',     temp: 6, cost: { wool: 3 } },
-  iron_shield:     { name: '铁盾',     era: 'medieval', cat: 'equip', storage: 'warehouse', price: 270,   slot: 'offhand',   dr: 14, str: 2, cost: { iron_ingot: 10 } },
+  iron_shield:     { name: '铁盾',     era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 270,   slot: 'offhand',   dr: 14, str: 2, cost: { iron_ingot: 10 } },
   silver_necklace: { name: '银项链',   era: 'medieval', cat: 'equip', storage: 'warehouse', price: 184.5, slot: 'neck',      str: 3, cost: { silver_ingot: 3 } },
-  iron_belt:       { name: '铁扣腰带', era: 'medieval', cat: 'equip', storage: 'warehouse', price: 67.5,  slot: 'belt',      dr: 3, str: 1, cost: { iron_ingot: 2, leather_medium: 3 } },
+  iron_belt:       { name: '铁扣腰带', era: 'medieval', cat: 'equip', storage: 'warehouse', hidden: true, price: 67.5,  slot: 'belt',      dr: 3, str: 1, cost: { iron_ingot: 2, leather_medium: 3 } },
 
-  copper_dagger:    { name: '铜匕首', era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 330,  slot: 'mainhand',             str: 4,  cost: { copper_ingot: 20 } },
-  iron_dagger:      { name: '铁匕首', era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 540,  slot: 'mainhand',             str: 8,  cost: { iron_ingot: 20 } },
-  short_sword:      { name: '短剑',   era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 1080, slot: 'mainhand',             str: 12, cost: { iron_ingot: 40 } },
-  copper_spear:     { name: '铜矛',   era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 525,  slot: 'mainhand',             str: 10, cost: { copper_ingot: 30, wood: 20 } },
-  iron_spear:       { name: '铁矛',   era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 840,  slot: 'mainhand',             str: 16, cost: { iron_ingot: 30, wood: 20 } },
-  battle_axe:       { name: '战斧',   era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 1620, slot: 'mainhand',             str: 30, cost: { iron_ingot: 60 } },
-  two_handed_sword: { name: '双手剑', era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 3240, slot: 'mainhand', twoHanded: true, str: 38, cost: { steel: 80 } },
-  great_hammer:     { name: '巨锤',   era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 4050, slot: 'mainhand', twoHanded: true, str: 48, cost: { steel: 100 } },
+  copper_dagger:    { name: '铜匕首', era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 330,  slot: 'mainhand',             str: 4,  cost: { copper_ingot: 20 } },
+  iron_dagger:      { name: '铁匕首', era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 540,  slot: 'mainhand',             str: 8,  cost: { iron_ingot: 20 } },
+  short_sword:      { name: '短剑',   era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 1080, slot: 'mainhand',             str: 12, cost: { iron_ingot: 40 } },
+  copper_spear:     { name: '铜矛',   era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 525,  slot: 'mainhand',             str: 10, cost: { copper_ingot: 30, wood: 20 } },
+  iron_spear:       { name: '铁矛',   era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 840,  slot: 'mainhand',             str: 16, cost: { iron_ingot: 30, wood: 20 } },
+  battle_axe:       { name: '战斧',   era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 1620, slot: 'mainhand',             str: 30, cost: { iron_ingot: 60 } },
+  two_handed_sword: { name: '双手剑', era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 3240, slot: 'mainhand', twoHanded: true, str: 38, cost: { steel: 80 } },
+  great_hammer:     { name: '巨锤',   era: 'medieval', cat: 'weapon', storage: 'warehouse', hidden: true, price: 4050, slot: 'mainhand', twoHanded: true, str: 48, cost: { steel: 100 } },
   long_bow:         { name: '长弓',   era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 255,  slot: 'mainhand', twoHanded: true, str: 26, cost: { wood: 50, leather_medium: 40 } },
   crossbow:         { name: '弩',     era: 'medieval', cat: 'weapon', storage: 'warehouse', price: 1440, slot: 'mainhand', twoHanded: true, str: 36, cost: { wood: 60, iron_ingot: 50 } },
 
@@ -124,7 +124,7 @@ window.ITEMS = {
   /* ============================================================
    * §五 工业时代 · 5.2 装备与武器（17 件）
    * ============================================================ */
-  steel_helmet:       { name: '钢铁头盔',     era: 'industrial', cat: 'equip', storage: 'warehouse', price: 324,    slot: 'head',      dr: 12, str: 3, cost: { steel: 8 } },
+  steel_helmet:       { name: '工业钢盔',     era: 'industrial', cat: 'equip', storage: 'warehouse', price: 324,    slot: 'head',      dr: 12, str: 3, cost: { steel: 8 } },
   cotton_hat:         { name: '棉帽',         era: 'industrial', cat: 'equip', storage: 'warehouse', price: 22.5,   slot: 'headInner', temp: 7, cost: { cloth: 5 } },
   bulletproof_vest:   { name: '防弹衣',       era: 'industrial', cat: 'equip', storage: 'warehouse', price: 1316.2, slot: 'body',      dr: 26, str: 8, cost: { steel: 20, machine_part: 5 } },
   cotton_shirt:       { name: '棉衬衣',       era: 'industrial', cat: 'equip', storage: 'warehouse', price: 27,     slot: 'bodyInner', temp: 8, cost: { cloth: 6 } },
@@ -150,8 +150,8 @@ window.ITEMS = {
   optical_fiber:   { name: '光纤',     era: 'info', cat: 'material', storage: 'warehouse', price: 37,    src: '玻璃制造（2 玻璃）', use: '精密装配' },
   precision_part:  { name: '精密零件', era: 'info', cat: 'material', storage: 'warehouse', price: 347,   src: '精密装配', use: '信息时代装备、太空时代装备、合成制造、仓库升级' },
   chip:            { name: '芯片',     era: 'info', cat: 'material', storage: 'warehouse', price: 110.5, src: '半导体制造', use: '精密装配、AI 核心、信息时代装备、电池升级项' },
-  aluminum_alloy:  { name: '铝合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 28,    src: '熔炼（铝土矿）', use: '战术头盔、复合护腿、防暴盾' },
-  titanium_alloy:  { name: '钛合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 59,    src: '熔炼（钛矿）', use: '信息时代装备、仓库升级' },
+  aluminum_alloy:  { name: '铝合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 28,    src: '熔炼（铝土矿）', use: '战术头盔、复合护腿、防暴盾', tags: ['金属'], metalMods: { dr: 1.30, str: 1.20, atk: 1.10 } },
+  titanium_alloy:  { name: '钛合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 59,    src: '熔炼（钛矿）', use: '信息时代装备、仓库升级', tags: ['金属'], metalMods: { dr: 2.00, str: 2.20, atk: 1.60 } },
   nuclear_fuel:    { name: '核燃料',   era: 'info', cat: 'material', storage: 'warehouse', price: 52,    src: '机械加工', use: '核电站' },
 
   /* ============================================================
@@ -296,22 +296,37 @@ window.ITEMS = {
   abyss_greatsword: { name: '深渊大剑',     era: 'info', cat: 'weapon', storage: 'warehouse', price: 7215,   slot: 'mainhand', str: 72, atk: 30, interval: 2.2, armorPen: 25, hidden: true, cost: { soul: 30, ember: 8, steel: 30 }, note: '间隔 2.2 秒 / 破甲 25%' },
 
   /* ============================================================
-   * 粮仓（17 种，会腐坏）—— §三 14 种食材 / 种子 + §八 3 种熟食
+   * 粮仓（32 种，会腐坏）—— 8 种素食食材 / 16 种肉食食材 / 5 种种子 + 3 种熟食
    * ============================================================ */
-  berry:          { name: '浆果',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
-  tuber:          { name: '块根',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
-  wild_mushroom:  { name: '野菌',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
-  nut:            { name: '坚果',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材' },
-  grain:          { name: '谷物',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
-  bean:           { name: '大豆',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
-  vegetable:      { name: '蔬菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
-  beet:           { name: '甜菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材' },
-  grain_seed:     { name: '谷物种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
-  bean_seed:      { name: '大豆种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
-  vegetable_seed: { name: '蔬菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
-  beet_seed:      { name: '甜菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
-  herb_seed:      { name: '药草种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集', use: '种植输入' },
-  meat:           { name: '肉类食材', era: 'stone', cat: 'food',   storage: 'granary', price: 0.2, src: '狩猎 / 畜牧', use: '食材' },
+  berry:          { name: '浆果',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材', tags: ['素食'] },
+  tuber:          { name: '块根',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材', tags: ['素食'] },
+  wild_mushroom:  { name: '野菌',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材', tags: ['素食'] },
+  nut:            { name: '坚果',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '采集', use: '食材', tags: ['素食'] },
+  grain:          { name: '谷物',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材', tags: ['素食'] },
+  bean:           { name: '大豆',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材', tags: ['素食'] },
+  vegetable:      { name: '蔬菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材', tags: ['素食'] },
+  beet:           { name: '甜菜',     era: 'stone', cat: 'food',   storage: 'granary', price: 0.1, src: '种植', use: '食材 / 药材', tags: ['素食'] },
+  grain_seed:     { name: '谷物种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集 / 种植', use: '种植输入', tags: ['种子'], baseHalfLife: 2400 },
+  bean_seed:      { name: '大豆种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集 / 种植', use: '种植输入', tags: ['种子'], baseHalfLife: 2400 },
+  vegetable_seed: { name: '蔬菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集 / 种植', use: '种植输入', tags: ['种子'], baseHalfLife: 2400 },
+  beet_seed:      { name: '甜菜种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集 / 种植', use: '种植输入', tags: ['种子'], baseHalfLife: 2400 },
+  herb_seed:      { name: '药草种子', era: 'stone', cat: 'seed',   storage: 'granary', price: 0.5, src: '采集 / 种植', use: '种植输入', tags: ['种子'], baseHalfLife: 2400 },
+  rabbit_meat:    { name: '兔肉',         era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（兔子）', use: '食材', tags: ['肉食'] },
+  grouse_meat:    { name: '松鸡肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（松鸡）', use: '食材', tags: ['肉食'] },
+  deer_meat:      { name: '鹿肉',         era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（鹿）', use: '食材', tags: ['肉食'] },
+  goat_meat:      { name: '山羊肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（野山羊）', use: '食材', tags: ['肉食'] },
+  antelope_meat:  { name: '羚羊肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（羚羊）', use: '食材', tags: ['肉食'] },
+  boar_meat:      { name: '野猪肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（野猪）', use: '食材', tags: ['肉食'] },
+  wolf_meat:      { name: '狼肉',         era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（狼）', use: '食材', tags: ['肉食'] },
+  crocodile_meat: { name: '鳄鱼肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（鳄鱼）', use: '食材', tags: ['肉食'] },
+  monitor_meat:   { name: '巨蜥肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（巨蜥）', use: '食材', tags: ['肉食'] },
+  bear_meat:      { name: '熊肉',         era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（熊）', use: '食材', tags: ['肉食'] },
+  moose_meat:     { name: '驼鹿肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（驼鹿）', use: '食材', tags: ['肉食'] },
+  bison_meat:     { name: '野牛肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（野牛）', use: '食材', tags: ['肉食'] },
+  rhino_meat:     { name: '犀牛肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（犀牛）', use: '食材', tags: ['肉食'] },
+  mammoth_meat:   { name: '猛犸肉',       era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（猛犸）', use: '食材', tags: ['肉食'] },
+  mutant_meat:    { name: '变异巨兽肉',   era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（变异巨兽）', use: '食材', tags: ['肉食'] },
+  alien_meat:     { name: '外星掠食者肉', era: 'stone', cat: 'food', storage: 'granary', price: 0.2, src: '狩猎 / 畜牧（外星掠食者）', use: '食材', tags: ['肉食'] },
   vegetarian_meal:{ name: '素餐',     era: 'cross', cat: 'cooked', storage: 'granary', price: 1.2, src: '烹饪（素食食材）', use: '食物' },
   meat_meal:      { name: '肉餐',     era: 'cross', cat: 'cooked', storage: 'granary', price: 1.4, src: '烹饪（肉食食材）', use: '食物' },
   balanced_meal:  { name: '均衡餐',   era: 'cross', cat: 'cooked', storage: 'granary', price: 1.3, src: '烹饪（素 + 肉）', use: '食物' }
@@ -380,8 +395,37 @@ window.ITEM_ORDER = [
   'hero_shard', 'sticky_note', 'merch', 'collector', 'heirloom', 'stardust', 'star_potion', 'soul', 'ember',
   'undead_chainmail', 'ashen_legs', 'abyss_helmet', 'abyss_greatsword',
 
-  /* 粮仓最后（17 种） */
+  /* 粮仓最后（32 种） */
   'berry', 'tuber', 'wild_mushroom', 'nut', 'grain', 'bean', 'vegetable', 'beet',
-  'grain_seed', 'bean_seed', 'vegetable_seed', 'beet_seed', 'herb_seed', 'meat',
+  'grain_seed', 'bean_seed', 'vegetable_seed', 'beet_seed', 'herb_seed',
+  'rabbit_meat', 'grouse_meat', 'deer_meat', 'goat_meat', 'antelope_meat', 'boar_meat', 'wolf_meat',
+  'crocodile_meat', 'monitor_meat', 'bear_meat', 'moose_meat', 'bison_meat', 'rhino_meat', 'mammoth_meat',
+  'mutant_meat', 'alien_meat',
   'vegetarian_meal', 'meat_meal', 'balanced_meal'
+];
+
+/* ============================================================================
+ * 金属锻造模板（v0.0.38）
+ * 锻造工作不再为「铁盔 / 钢盔」各写一个项目：每个模板只写一次基础装备，
+ * 投料用「金属」标签筛选，成品名 = 金属名 + 模板名（铁锭头盔 / 钢铁头盔），
+ * 战斗数值按金属的 metalMods 倍率修正。
+ *   baseId     取基础属性的旧装备 id（仍保留在 ITEMS 里当模板，不再单独出项目）
+ *   baseMetal  旧装备原本的主要金属，用来推算成品价格
+ *   metalCount 一次制造消耗的金属数量
+ *   extraInputs 除金属外的固定材料（中文物品名 → 数量）
+ *   metalStats 选择金属时的优先级依据（关联该项目战斗数值的修正）
+ * ==========================================================================*/
+window.METAL_GEAR_TEMPLATES = [
+  { key: 'helmet',    name: '头盔',   baseId: 'iron_helm',        baseMetal: 'iron_ingot', metalCount: 5,   extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_helm' },
+  { key: 'chest',     name: '胸甲',   baseId: 'iron_armor',       baseMetal: 'iron_ingot', metalCount: 10,  extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_armor' },
+  { key: 'legs',      name: '护腿',   baseId: 'iron_legs',        baseMetal: 'iron_ingot', metalCount: 8,   extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_legs' },
+  { key: 'boots',     name: '靴子',   baseId: 'iron_boots',       baseMetal: 'iron_ingot', metalCount: 6,   extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_boots' },
+  { key: 'shield',    name: '盾牌',   baseId: 'iron_shield',      baseMetal: 'iron_ingot', metalCount: 10,  extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_shield' },
+  { key: 'belt',      name: '腰带',   baseId: 'iron_belt',        baseMetal: 'iron_ingot', metalCount: 2,   extraInputs: { '中型皮革': 3 },     metalStats: ['dr', 'str'],   iconId: 'iron_belt' },
+  { key: 'dagger',    name: '匕首',   baseId: 'iron_dagger',      baseMetal: 'iron_ingot', metalCount: 20,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'iron_dagger' },
+  { key: 'sword',     name: '短剑',   baseId: 'short_sword',      baseMetal: 'iron_ingot', metalCount: 40,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'short_sword' },
+  { key: 'spear',     name: '长矛',   baseId: 'iron_spear',       baseMetal: 'iron_ingot', metalCount: 30,  extraInputs: { '木材': 20 },        metalStats: ['str', 'atk'],  iconId: 'iron_spear' },
+  { key: 'battleaxe', name: '战斧',   baseId: 'battle_axe',       baseMetal: 'iron_ingot', metalCount: 60,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'battle_axe' },
+  { key: 'greatsword',name: '双手剑', baseId: 'two_handed_sword', baseMetal: 'steel',      metalCount: 80,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'two_handed_sword' },
+  { key: 'hammer',    name: '巨锤',   baseId: 'great_hammer',     baseMetal: 'steel',      metalCount: 100, extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'great_hammer' },
 ];

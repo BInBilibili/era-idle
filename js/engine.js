@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.37';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.38';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -52,6 +52,27 @@ const GIFTS = [
   { id:'heirloom',    name:'传家宝', favor:30, w:5,  price:6000 },
 ];
 const LEGACY_GIFT = { gift1:'sticky_note', gift2:'merch', gift3:'collector', gift4:'heirloom' };
+/* v0.0.38：锻造统一成金属模板后，旧装备 id → [金属 id, 模板 key] */
+const LEGACY_METAL = {
+  iron_helm: ['iron_ingot', 'helmet'], steel_helm: ['steel', 'helmet'],
+  iron_armor: ['iron_ingot', 'chest'], steel_armor: ['steel', 'chest'],
+  iron_legs: ['iron_ingot', 'legs'], iron_boots: ['iron_ingot', 'boots'],
+  iron_shield: ['iron_ingot', 'shield'], iron_belt: ['iron_ingot', 'belt'],
+  copper_dagger: ['copper_ingot', 'dagger'], iron_dagger: ['iron_ingot', 'dagger'],
+  short_sword: ['iron_ingot', 'sword'],
+  copper_spear: ['copper_ingot', 'spear'], iron_spear: ['iron_ingot', 'spear'],
+  battle_axe: ['iron_ingot', 'battleaxe'],
+  two_handed_sword: ['steel', 'greatsword'], great_hammer: ['steel', 'hammer'],
+};
+const FORGING_RENAME = {
+  '铁盔': '头盔', '钢盔': '头盔',
+  '铁甲': '胸甲', '钢甲': '胸甲',
+  '铁护腿': '护腿', '铁靴': '靴子', '铁盾': '盾牌', '铁扣腰带': '腰带',
+  '铜匕首': '匕首', '铁匕首': '匕首',
+  '短剑': '短剑',
+  '铜矛': '长矛', '铁矛': '长矛',
+  '战斧': '战斧', '双手剑': '双手剑', '巨锤': '巨锤',
+};
 const ERA_LIST = (window.ERAS || [
   { id:'stone', name:'石器时代' }, { id:'medieval', name:'中世纪' },
   { id:'industrial', name:'工业时代' }, { id:'info', name:'信息时代' }, { id:'space', name:'太空时代' },
@@ -100,6 +121,9 @@ window.JOB_POWER_GENERATORS = window.JOB_POWER_GENERATORS || {
 const BY_NAME = {};
 Object.values(ITEMS).forEach(it => { BY_NAME[it.name] = it; });
 const N2I = name => (BY_NAME[name] ? BY_NAME[name].id : null);
+const METAL_GEAR_TEMPLATES = window.METAL_GEAR_TEMPLATES || [];
+const METAL_GEAR_BY_KEY = {};
+METAL_GEAR_TEMPLATES.forEach(t => { METAL_GEAR_BY_KEY[t.key] = t; });
 const JOB_BY_ID = {}; JOBS.forEach(j => JOB_BY_ID[j.id] = j);
 const JOB_BY_NAME = {}; JOBS.forEach(j => JOB_BY_NAME[j.name] = j);
 const TECH_BY_NAME = {}; TECHS.forEach(t => TECH_BY_NAME[t.name] = t);
@@ -348,15 +372,20 @@ function granarySpoilMul() {
   const t = S.granary > 0 ? GR_UPG[S.granary - 1] : null;
   return t && t.spoilMul != null ? t.spoilMul : 1;
 }
-/* 有效半衰期：基础 600 秒 ÷ 腐坏倍率（冷库 = 永不腐坏） */
-function granaryHalfLife() {
-  const mul = granarySpoilMul();
-  return mul > 0 ? 600 / mul : Infinity;
+/* 基础半衰期：普通食物 600 秒；种子单独 2400 秒（items.js baseHalfLife） */
+function granaryBaseHalfLife(id) {
+  const it = id ? ITEMS[id] : null;
+  return (it && it.baseHalfLife) || 600;
 }
-/* 每秒腐坏比例（0~1）：基础半衰期 600 秒 ≈ 0.1155%/秒；冷库 = 0 */
-function granaryDecayRate() {
+/* 有效半衰期：基础半衰期 ÷ 腐坏倍率（冷库 = 永不腐坏） */
+function granaryHalfLife(id) {
   const mul = granarySpoilMul();
-  return mul > 0 ? 1 - Math.pow(0.5, mul / 600) : 0;
+  return mul > 0 ? granaryBaseHalfLife(id) / mul : Infinity;
+}
+/* 每秒腐坏比例（0~1）：基础半衰期 600 秒 ≈ 0.1155%/秒；种子 2400 秒 ≈ 0.0289%/秒；冷库 = 0 */
+function granaryDecayRate(id) {
+  const mul = granarySpoilMul();
+  return mul > 0 ? 1 - Math.pow(0.5, mul / granaryBaseHalfLife(id)) : 0;
 }
 
 /* ---------- 永久解锁 / 曾经拥有 ---------- */
@@ -676,8 +705,135 @@ function miningRecipes(job) {
     duration: Math.round((GAME.mineBaseSec * 100 / (o.weight || 1)) * 10) / 10,
   }));
 }
+/* ---------- 金属锻造（v0.0.38） ----------
+   锻造项目不再写死铁 / 钢：投料是「金属」标签筛选，成品按消耗的金属动态生成。
+   金属 item.metalMods = { dr, str, atk } 是倍率；项目用到的战斗数值（metalStats）
+   修正最高的金属优先（同分按物品表顺序）。 */
+const METAL_RECIPE_CACHE = {};
+function metalIngotIds() {
+  return ITEM_ORDER.filter(id => {
+    const it = ITEMS[id];
+    return !!it && !it.dynamicMetal && Array.isArray(it.tags) && it.tags.indexOf('金属') >= 0;
+  });
+}
+function metalModScore(metal, stats) {
+  const mods = (metal && metal.metalMods) || {};
+  return (stats || []).reduce((a, k) => a + (mods[k] != null ? mods[k] : 1), 0);
+}
+function metalNeed(r, mult) { return ((r && r.metalCount) || 1) * (mult || 1); }
+/* requireStock=true 时只考虑「当前库存足够一次投料」的金属；
+   requireStock=false 仅用于不看库存的候选扫描（界面预览也优先看库存，没有可开工金属时显示占位名）。 */
+function metalForRecipe(r, jobId, requireStock, mult) {
+  if (!r || !r.metalBase || !S) return null;
+  const ids = jobId ? inputSelection(jobId, r, '金属') : metalIngotIds();
+  const need = metalNeed(r, mult);
+  let best = null, bestScore = -1;
+  for (const id of ids) {
+    if (requireStock && (S.items[id] || 0) < need) continue;
+    const it = ITEMS[id];
+    if (!it) continue;
+    const score = metalModScore(it, r.metalStats);
+    if (score > bestScore) { bestScore = score; best = id; }
+  }
+  return best;
+}
+function metalGearId(metalId, template) {
+  return 'metal_' + metalId + '_' + (template && template.key);
+}
+function metalGearItem(metalId, templateOrKey) {
+  const t = typeof templateOrKey === 'string' ? METAL_GEAR_BY_KEY[templateOrKey] : templateOrKey;
+  const metal = ITEMS[metalId];
+  if (!t || !metal) return null;
+  const base = ITEMS[t.baseId];
+  if (!base) return null;
+  const id = metalGearId(metalId, t);
+  if (ITEMS[id]) return id;
+  const mods = metal.metalMods || {};
+  const baseMetal = ITEMS[t.baseMetal];
+  const baseMods = (baseMetal && baseMetal.metalMods) || {};
+  const rel = k => {
+    const m = mods[k] != null ? mods[k] : 1;
+    const b = baseMods[k] != null ? baseMods[k] : 1;
+    return m / b;
+  };
+  const wc = base.cat === 'weapon' ? (WEAPON_COMBAT[base.name] || {}) : {};
+  const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+  const priceMul = baseMetal && baseMetal.price ? (metal.price || 1) / baseMetal.price : 1;
+  const it = {
+    id,
+    name: metal.name + t.name,
+    era: 'medieval',
+    cat: base.cat,
+    storage: 'warehouse',
+    price: Math.max(1, Math.round((base.price || 0) * priceMul)),
+    slot: base.slot,
+    twoHanded: base.twoHanded,
+    temp: base.temp,
+    dr: r2((base.dr || 0) * rel('dr')),
+    str: r2((wc.str !== undefined ? wc.str : base.str) * rel('str')),
+    atk: r2(((wc.atk !== undefined ? wc.atk : base.atk) || 0) * rel('atk')),
+    interval: wc.interval !== undefined ? wc.interval : base.interval,
+    range: wc.range !== undefined ? wc.range : base.range,
+    armorPen: wc.armorPen || base.armorPen,
+    crit: wc.crit || base.crit,
+    ignoreDR: wc.ignoreDR || base.ignoreDR,
+    shield: base.shield,
+    iconId: t.iconId || base.iconId,
+    metal: metalId,
+    metalBase: t.key,
+    metalName: metal.name,
+    baseName: t.name,
+    dynamicMetal: true,
+    hidden: true,
+    src: '锻造（' + metal.name + '）',
+    use: base.use || '装备',
+  };
+  ITEMS[id] = it;
+  BY_NAME[it.name] = it;
+  ITEM_ORDER.push(id);
+  return id;
+}
+/* 读档时动态装备 id 还没有定义：按 id 反推并重建条目。 */
+function ensureMetalGearId(id) {
+  if (!id || id.indexOf('metal_') !== 0 || ITEMS[id]) return id;
+  const rest = id.slice(6);
+  for (const t of METAL_GEAR_TEMPLATES) {
+    const suffix = '_' + t.key;
+    if (rest.length > suffix.length && rest.slice(-suffix.length) === suffix) {
+      const metalId = rest.slice(0, -suffix.length);
+      if (ITEMS[metalId]) return metalGearItem(metalId, t) || id;
+    }
+  }
+  return id;
+}
+function metalPreviewId(jobId, r) {
+  const mid = metalForRecipe(r, jobId, true);
+  return mid ? metalGearItem(mid, r.metalBase) : null;
+}
+function metalGearRecipes(job) {
+  if (METAL_RECIPE_CACHE[job.id]) return METAL_RECIPE_CACHE[job.id];
+  const list = METAL_GEAR_TEMPLATES.map(t => {
+    const inputs = { '金属': t.metalCount };
+    for (const k in (t.extraInputs || {})) inputs[k] = t.extraInputs[k];
+    return {
+      name: t.name,
+      inputs,
+      outputs: { [t.name]: 1 },   // 占位；实际产出在 produceJob 里按金属生成
+      era: 'medieval',
+      unlockTech: null,
+      duration: job.equipDuration || job.duration || 5,
+      metalBase: t.key,
+      metalCount: t.metalCount,
+      metalStats: t.metalStats,
+    };
+  });
+  METAL_RECIPE_CACHE[job.id] = list;
+  return list;
+}
+
 /* 装备制造：五份工作按「主材料 + 衣物栏位」分 85 件；配方直接由物品表造价生成，避免两处维护。
-   v0.0.34：布料衣物（内衬 / 袜子栏位）全部归裁缝；工业 / 信息武器盔甲归机械加工；太空武器盔甲归精密装配。 */
+   v0.0.34：布料衣物（内衬 / 袜子栏位）全部归裁缝；工业 / 信息武器盔甲归机械加工；太空武器盔甲归精密装配。
+   v0.0.38：锻造改为金属锻造模板（金属标签筛选 + 动态成品），不再逐件生成铁 / 钢两套项目。 */
 const TAILORING_ITEMS = new Set(['银项链']);
 const CLOTH_SLOTS = new Set(['headInner', 'bodyInner', 'legsInner', 'socks']);
 const EQUIP_RECIPE_CACHE = {};
@@ -691,6 +847,7 @@ function equipmentJobId(it) {
   return TAILORING_ITEMS.has(it.name) ? 'tailoring' : 'forging';
 }
 function equipmentRecipes(job) {
+  if (job.id === 'forging') return metalGearRecipes(job);
   if (EQUIP_RECIPE_CACHE[job.id]) return EQUIP_RECIPE_CACHE[job.id];
   const list = [];
   for (const id of ITEM_ORDER) {
@@ -816,17 +973,48 @@ function clearSlot(jobId, slotIdx) {
   js.slots[slotIdx] = null;
   if (js.prog) js.prog[slotIdx] = 0;
 }
-function recipeInputs(r) { const o = {}; for (const k in (r.inputs||{})) { const id = iid(normName(k)); if (id) o[id] = r.inputs[k]; } return o; }
-function recipeOutputs(r) { const o = {}; for (const k in (r.outputs||{})) { const id = iid(normName(k)); if (id) o[id] = r.outputs[k]; } return o; }
-const GENERIC_IN = {
-  '素食食材': ['浆果', '块根', '野菌', '坚果'],
-  '肉食食材': ['肉类食材'],
-  '种子': ['谷物种子', '大豆种子', '蔬菜种子', '甜菜种子', '药草种子'],
+function recipeInputs(r) {
+  const o = {};
+  for (const k in (r.inputs || {})) {
+    if (GENERIC_IN[k]) continue;
+    const id = N2I(normName(k));
+    if (id) o[id] = r.inputs[k];
+  }
+  return o;
+}
+function recipeOutputs(r) {
+  if (r && r.metalBase) return {};
+  const o = {};
+  for (const k in (r.outputs || {})) {
+    if (GENERIC_IN[k]) continue;
+    const id = N2I(normName(k));
+    if (id) o[id] = r.outputs[k];
+  }
+  return o;
+}
+/* 模糊投入不再手写物品清单：按物品标签自动生成。
+   素食食材 / 肉食食材 / 种子 / 金属 四个入口都只是「标签查询」。 */
+const GENERIC_TAGS = {
+  '素食食材': '素食',
+  '肉食食材': '肉食',
+  '种子': '种子',
+  '金属': '金属',
 };
+const GENERIC_IN = {};
+function rebuildGenericInputs() {
+  for (const label in GENERIC_TAGS) {
+    const tag = GENERIC_TAGS[label];
+    GENERIC_IN[label] = ITEM_ORDER.filter(id => {
+      const it = ITEMS[id];
+      return !!it && !it.hidden && Array.isArray(it.tags) && it.tags.indexOf(tag) >= 0;
+    }).map(id => ITEMS[id].name);
+  }
+}
+rebuildGenericInputs();
 function genericItems(name) { return (GENERIC_IN[name] || []).slice(); }
 function genericItemIds(name) { return genericItems(name).map(n => iid(normName(n))).filter(Boolean); }
 /* 模糊投入的筛选状态存在 S.jobs[jobId].inputSel：键 = 工作 + 配方名 + 投入名；
-   没有记录 = 全选。v0.0.34：素食食材 / 肉食食材 / 种子 可以点开下拉面板勾选。 */
+   没有记录 = 全选。v0.0.38：素食食材 / 肉食食材 / 种子 / 金属 的列表由 tags 自动生成。 */
 function inputFilterKey(jobId, r, inputName) {
   return jobId + '|' + ((r && r.name) || '') + '|' + inputName;
 }
@@ -860,16 +1048,23 @@ function genericCount(name, sel) {
   const list = Array.isArray(sel) ? sel : genericItemIds(name);
   return list.reduce((a, id) => a + (S.items[id] || 0), 0);
 }
-/* 需求行的实际可用量：通用分类（素食食材 / 肉食食材 / 种子）按组成物品合计，
+/* 需求行的实际可用量：模糊分类（素食 / 肉食 / 种子 / 金属）按标签物品合计，
    其余按物品 id 取库存；名字不认识时返回 0（宁可标缺料，也不假装充足）。 */
 function stockOf(name, sel) {
   if (GENERIC_IN[name]) return genericCount(name, sel);
   const id = iid(normName(name));
   return id ? (S.items[id] || 0) : 0;
 }
-function consumeInputs(r, jobId) {
+function consumeInputs(r, jobId, metalId) {
   const ins = r.inputs || {};
+  // 金属锻造：只消耗实际选中的那一种金属（同一批料不能混用）
+  if (r.metalBase) {
+    const mid = metalId || metalForRecipe(r, jobId, true);
+    if (!mid || (S.items[mid] || 0) < metalNeed(r)) return false;
+    removeItem(mid, metalNeed(r));
+  }
   for (const name in ins) {
+    if (r.metalBase && name === '金属') continue;
     let need = ins[name];
     if (GENERIC_IN[name]) {
       const list = jobId ? inputSelection(jobId, r, name) : genericItemIds(name);
@@ -888,7 +1083,12 @@ function consumeInputs(r, jobId) {
 }
 function canMake(r, mult, jobId) {
   const ins = r.inputs || {}; mult = mult || 1;
+  if (r.metalBase) {
+    const mid = metalForRecipe(r, jobId, true, mult);
+    if (!mid || (S.items[mid] || 0) < metalNeed(r, mult)) return false;
+  }
   for (const name in ins) {
+    if (r.metalBase && name === '金属') continue;
     const need = ins[name] * mult;
     if (GENERIC_IN[name]) {
       const sel = jobId ? inputSelection(jobId, r, name) : null;
@@ -1066,10 +1266,19 @@ function produceJob(jobId, dt) {
     while (js.prog[i] >= 1) {
       js.prog[i] -= 1;
       if (Object.keys(ins).length && !canMake(r, 1, jobId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
-      if (!consumeInputs(r, jobId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
+      const metalId = r.metalBase ? metalForRecipe(r, jobId, true) : null;
+      if (!consumeInputs(r, jobId, metalId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
       if (job.special === 'power') {
         // 电力的产出由 powerProduced() 统一结算（10 瓦），这里只消耗燃料
         gainMastery(c, jobId, recipeDuration(job, r)); js.done = (js.done||0) + 1; continue;
+      }
+      if (r.metalBase) {
+        const t = METAL_GEAR_BY_KEY[r.metalBase];
+        const outId = metalGearItem(metalId, t);
+        if (outId) addProducedItem(outId, 1);
+        gainMastery(c, jobId, recipeDuration(job, r));
+        js.done = (js.done||0) + 1;
+        continue;
       }
       for (const name in rawOuts) {
         const n = rawOuts[name];
@@ -1111,9 +1320,9 @@ function oreUnlocked(name /*, job*/) {
 /* 通用产出名 → 具体物品 */
 const PICK = arr => arr[Math.floor(Math.random() * arr.length)];
 const GENERIC_OUT = {
-  '素食食材': () => PICK(['浆果', '块根', '野菌', '坚果']),
-  '肉食食材': () => '肉类食材',
-  '种子': () => PICK(['谷物种子', '大豆种子', '蔬菜种子', '甜菜种子', '药草种子']),
+  '素食食材': () => PICK(genericItems('素食食材')),
+  '肉食食材': () => PICK(genericItems('肉食食材')),
+  '种子': () => PICK(genericItems('种子')),
   '石器装备': () => pickItem(it => it.era === 'stone' && (it.cat === 'equip' || it.cat === 'weapon')),
   '金属装备': () => pickItem(it => ['medieval', 'industrial'].includes(it.era) && (it.cat === 'equip' || it.cat === 'weapon')),
   '衣物': () => pickItem(it => it.cat === 'equip' && /布|衣|袜|衬|帽|巾/.test(it.name)),
@@ -2054,13 +2263,13 @@ function healerPresent() {
   return js.slots.some(id => id && S.chars[id]);
 }
 function granaryDecay(dt) {
-  // v0.0.35：基础腐坏 = 每 600 秒减半；粮仓升级项按 spoilMul 整体拉低腐坏效率（冷库 0 = 不腐坏）
+  // v0.0.38：普通食物基础 600 秒减半，种子 2400 秒减半；粮仓升级项按 spoilMul 整体拉低腐坏效率
   const mul = granarySpoilMul();
   if (!(mul > 0) || !(dt > 0)) return;
-  const rate = Math.pow(0.5, (dt * mul) / 600);
   let compost = 0;
   for (const id in S.items) {
     const it = ITEMS[id]; if (!it || it.storage !== 'granary') continue;
+    const rate = Math.pow(0.5, (dt * mul) / granaryBaseHalfLife(id));
     const before = S.items[id];
     const after = before * rate;
     const lost = before - after;
@@ -2118,6 +2327,42 @@ function migrate(st) {
     }
     if (merged.seen.items[oldId]) { merged.seen.items[newId] = true; delete merged.seen.items[oldId]; }
     if (merged.ever[oldId]) { merged.ever[newId] = 1; delete merged.ever[oldId]; }
+  });
+  // v0.0.38：删除「肉类食材」，旧数量并入兔肉；补给栏选中的肉类食材也改到兔肉
+  if ('meat' in merged.items) {
+    const n = merged.items.meat || 0;
+    if (n > 0) merged.items.rabbit_meat = (merged.items.rabbit_meat || 0) + n;
+    delete merged.items.meat;
+  }
+  if (merged.seen.items.meat) { merged.seen.items.rabbit_meat = true; delete merged.seen.items.meat; }
+  if (merged.ever.meat) { merged.ever.rabbit_meat = 1; delete merged.ever.meat; }
+  Object.keys(merged.chars || {}).forEach(cid => {
+    const c = merged.chars[cid];
+    if (c && c.food === 'meat') c.food = 'rabbit_meat';
+  });
+  // v0.0.38：旧锻造装备（铁盔 / 钢盔 / 铁甲…）→ 动态金属装备（铁锭头盔 / 钢铁头盔…）
+  Object.keys(LEGACY_METAL).forEach(oldId => {
+    const info = LEGACY_METAL[oldId];
+    const hasCount = (merged.items[oldId] || 0) > 0;
+    let inEq = false;
+    Object.keys(merged.chars || {}).forEach(cid => {
+      const c = merged.chars[cid];
+      if (c && c.eq) Object.keys(c.eq).forEach(s => { if (c.eq[s] === oldId) inEq = true; });
+    });
+    if (!hasCount && !inEq && !merged.seen.items[oldId] && !merged.ever[oldId]) return;
+    const newId = metalGearItem(info[0], info[1]);
+    if (!newId) return;
+    if (hasCount) {
+      merged.items[newId] = (merged.items[newId] || 0) + merged.items[oldId];
+      delete merged.items[oldId];
+    }
+    if (merged.seen.items[oldId]) { merged.seen.items[newId] = true; delete merged.seen.items[oldId]; }
+    if (merged.ever[oldId]) { merged.ever[newId] = 1; delete merged.ever[oldId]; }
+    Object.keys(merged.chars || {}).forEach(cid => {
+      const c = merged.chars[cid];
+      if (!c || !c.eq) return;
+      Object.keys(c.eq).forEach(s => { if (c.eq[s] === oldId) c.eq[s] = newId; });
+    });
   });
   // v0.0.30：药剂工作并入医疗，药剂精通书并入医疗精通书
   if ('book_alchemy' in merged.items) {
@@ -2190,6 +2435,28 @@ function migrate(st) {
       js.slots = new Array(pad).fill(null).concat(js.slots);
       js.prog = new Array(pad).fill(0).concat(js.prog);
       js.blocked = new Array(pad).fill(null).concat(js.blocked);
+    }
+    // v0.0.38：锻造项目合并（铁盔/钢盔 → 头盔 等）。旧 rnames 里可能有两档映射到同一新名，
+    // 不能再用「名字 → 第一个下标」的通用迁移（会丢第二个槽），这里先按旧下标逐个落到新槽。
+    if (j.id === 'forging' && (Number(st.dataVer) || 0) < 38 && Array.isArray(js.rnames)) {
+      const names = jobRecipes(j).map(r => (r && r.name) || '');
+      const oldNames = js.rnames.slice();
+      const oldSlots = js.slots.slice();
+      const oldProg = js.prog.slice();
+      const slots = names.map(() => null);
+      const prog = names.map(() => 0);
+      oldNames.forEach((nm, oi) => {
+        const nn = FORGING_RENAME[nm] || nm;
+        const ni = names.indexOf(nn);
+        if (ni < 0 || !oldSlots[oi] || slots[ni]) return;
+        slots[ni] = oldSlots[oi];
+        prog[ni] = Number(oldProg[oi]) || 0;
+      });
+      js.slots = slots;
+      js.prog = prog;
+      js.blocked = names.map(() => null);
+      js.rnames = names;
+      delete js.inputSel;
     }
     const rs = jobRecipes(j);
     const nR = Math.max(1, rs.length);
@@ -2268,7 +2535,7 @@ function migrate(st) {
       }
     });
   }
-  merged.dataVer = Math.max(Number(merged.dataVer) || 0, 34);
+  merged.dataVer = Math.max(Number(merged.dataVer) || 0, 38);
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{}, inpOpen:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
   merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, genSeq:0 }, st.gacha || {});
@@ -2288,6 +2555,14 @@ function migrate(st) {
   merged.seen = Object.assign({ items:{}, enemies:{}, chars:{} }, st.seen || {});
   merged.raid = Object.assign({ next: merged.playtime + GAME.raidPeriod, last:null, count:0 }, st.raid || {});
   merged.power = Object.assign({ built:{}, on:{} }, st.power || {});
+  // 动态金属装备按 id 重建定义（重开游戏后仓库/角色装备里的条目不能变成未定义物品）
+  Object.keys(merged.items).forEach(ensureMetalGearId);
+  Object.keys(merged.chars || {}).forEach(cid => {
+    const c = merged.chars[cid];
+    if (c && c.eq) Object.keys(c.eq).forEach(s => { if (c.eq[s]) ensureMetalGearId(c.eq[s]); });
+  });
+  Object.keys(merged.seen.items || {}).forEach(ensureMetalGearId);
+  Object.keys(merged.ever || {}).forEach(ensureMetalGearId);
   return merged;
 }
 function exportSave() {
@@ -2313,7 +2588,7 @@ window.Engine = {
   fmt, fmtTime, count, addItem, removeItem, itemName, sellPrice, buyPrice, iid, N2I,
   itemEver, everOwnedAll, refreshMilestones, markInjured, addProducedItem, bundleItemSeen, markBundleSeen,
   isFoodItem, activeFoodId, foodXpMult, foodSpeedMult, foodAtkStrBonus, foodEffectText, activeMedDef, healChar,
-  warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood, granarySpoilMul, granaryHalfLife, granaryDecayRate, granaryDecay,
+  warehouseCap, warehouseUsed, warehouseFull, granaryCap, granaryTotal, addFood, granarySpoilMul, granaryHalfLife, granaryDecayRate, granaryBaseHalfLife, granaryDecay,
   currentEra, eraName, eraProgress, techDone, techAvailable, researched, techsDone, researchTech,
   jobUnlocked, jobVisible, unlockedJobs, JOB_BY_ID, JOB_BY_NAME,
   onFieldCap, onFieldChars, isOnField, charPower, gearPower, charStats, charDps, weaponOf,
@@ -2323,6 +2598,7 @@ window.Engine = {
   jobRecipeGate, upgradeBonus, jobProjectLabel, upgradeDesc,
   recipeInputs, recipeOutputs, canMake, stockOf, GENERIC_IN, genericItems, genericItemIds,
   inputFilterKey, inputSelection, setInputSelection, toggleInputSelection,
+  METAL_GEAR_TEMPLATES, metalIngotIds, metalForRecipe, metalGearItem, metalPreviewId, metalGearRecipes,
   jobSpeed, jobGate, produceJob, combatState, healerPresent,
   HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
   addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandryFeedCost, husbandryFeedDuration, husbandrySpeed,

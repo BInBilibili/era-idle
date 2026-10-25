@@ -547,19 +547,15 @@ html[data-theme="light"] .poolodds b{color:#2c3a4b}
 .giftmenu .favnow{font-size:11px;color:var(--muted)}
 .giftmenu .favnow b{color:var(--violet)}
 
-/* ===== v0.0.34 模糊投入筛选（素食食材 / 肉食食材 / 种子） ===== */
-.badge.io.inp{cursor:pointer;font:inherit;font-size:11px;line-height:1.5;background:transparent;display:inline-flex;align-items:center;gap:1px}
-.badge.io.inp .caret{font-size:9px;color:var(--dim);margin-left:2px}
-.badge.io.inp.open{border-color:var(--green);color:var(--green)}
-.badge.io.inp.empty{opacity:.75}
-.inpPanel{margin-top:7px;padding:8px;border:1px solid var(--line2);border-radius:8px;background:var(--panel2)}
-.inpPanel .inpTip{font-size:11px;color:var(--muted)}
-.inpPanel .inpOpts{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.inpOpt{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;font-size:11px;border:1px solid var(--line2);border-radius:7px;background:transparent;color:var(--muted)}
-.inpOpt:hover:not(:disabled){background:var(--panel);border-color:var(--green)}
-.inpOpt.on{border-color:var(--green);background:#12281d;color:var(--text)}
-.inpOpt .inpNm{color:inherit}
-.inpOpt .inpTick{font-size:10px;color:var(--green)}
-.inpOpt:not(.on) .inpTick{color:var(--dim)}
-html[data-theme="light"] .inpPanel{background:#f6f8fb}
-html[data-theme="light"] .inpOpt.on{background:#eaf8f0;border-color:#8ec7aa}
+/* ===== v0.0.34 模糊投入筛选；v0.0.38 缩成普通消耗徽章 + 浮层下拉 ===== */
+.badge.io.inpbadge{cursor:pointer;background:transparent;color:inherit;white-space:nowrap}
+.badge.io.inpbadge:hover{border-color:var(--green);color:var(--green)}
+.badge.io.inpbadge.bad:hover{border-color:var(--red);color:var(--red)}
+.inpmenu{display:flex;flex-direction:column;max-height:min(70vh,460px);overflow:hidden}
+.inpmenu .pmlist{overflow-y:auto;min-height:0;flex:1}
+.inpmenu .pmitem .nm{font-size:12.5px}
+.inpmenu .pmitem .mm{min-width:44px;text-align:right}
+.inpmenu .pmitem .tick{width:14px;text-align:center;font-size:11px;color:var(--green)}
+.inpmenu .pmitem:not(.on) .tick{color:var(--dim)}
+.inpmenu .pmfoot{gap:5px}
+.inpmenu .pmfoot button{padding:4px 7px}

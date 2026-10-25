@@ -453,7 +453,22 @@
     bean: ['pod', 'bean'],
     vegetable: ['cabbage', 'veg'],
     beet: ['beet', 'beet'],
-    meat: ['steak', 'meat'],
+    rabbit_meat: ['steak', 'meat'],
+    grouse_meat: ['steak', 'meat'],
+    deer_meat: ['steak', 'meat'],
+    goat_meat: ['steak', 'meat'],
+    antelope_meat: ['steak', 'meat'],
+    boar_meat: ['steak', 'meat'],
+    wolf_meat: ['steak', 'meat'],
+    crocodile_meat: ['steak', 'meat'],
+    monitor_meat: ['steak', 'meat'],
+    bear_meat: ['steak', 'meat'],
+    moose_meat: ['steak', 'meat'],
+    bison_meat: ['steak', 'meat'],
+    rhino_meat: ['steak', 'meat'],
+    mammoth_meat: ['steak', 'meat'],
+    mutant_meat: ['steak', 'meat'],
+    alien_meat: ['steak', 'meat'],
     grain_seed: ['seedPouch', 'seedGrain'],
     bean_seed: ['seedPouch', 'seedBean'],
     vegetable_seed: ['seedPouch', 'seedVeg'],
@@ -462,6 +477,10 @@
     vegetarian_meal: ['bowl', 'vegMeal'],
     meat_meal: ['bowl', 'meatMeal'],
     balanced_meal: ['bowl', 'balMeal'],
+  };
+
+  const RECIPE_SPEC = {
+    bush: ['sprout', 'fiberGreen', 'bushy'],
   };
 
   /* ============================================================
@@ -483,15 +502,31 @@
   function item(x) {
     const id = typeof x === 'string' ? x : (x && (x.id || NAME2ID[x.name]));
     if (!id) return svgWrap(SH.box(PAL.stone));
-    if (cache['i:' + id]) return cache['i:' + id];
-    const spec = SPEC[id];
+    const iconId = (x && typeof x === 'object' && x.iconId) || id;
+    const ck = 'i:' + id + ':' + iconId;
+    if (cache[ck]) return cache[ck];
+    const spec = SPEC[iconId] || SPEC[id];
     const c = PAL[spec && spec[1]] || PAL.stone;
     const fn = (spec && SH[spec[0]]) || SH.box;
     let out;
     try { out = fn(c, rng(id), spec && spec[2], spec && spec[3]); } catch (e) { out = SH.box(c); }
     if (!out) out = SH.box(c);
-    cache['i:' + id] = svgWrap(out);
-    return cache['i:' + id];
+    cache[ck] = svgWrap(out);
+    return cache[ck];
+  }
+  /* 工作项目专用图标（目前只有「灌木」；不是物品，不能塞进 SPEC 冒充物品）。 */
+  function recipe(id) {
+    if (!id) return svgWrap(SH.box(PAL.fiberGreen));
+    const k = 'r:' + id;
+    if (cache[k]) return cache[k];
+    const spec = RECIPE_SPEC[id];
+    const c = PAL[spec && spec[1]] || PAL.fiberGreen;
+    const fn = (spec && SH[spec[0]]) || SH.box;
+    let out;
+    try { out = fn(c, rng('recipe:' + id), spec && spec[2], spec && spec[3]); } catch (e) { out = SH.box(c); }
+    if (!out) out = SH.box(c);
+    cache[k] = svgWrap(out);
+    return cache[k];
   }
   function enemy(x) {
     const e = typeof x === 'string' ? EN2ID[x] : (x || (x && x.id ? x : null));
@@ -1803,7 +1838,7 @@
     return s;
   };
 
-  /* 肉类食材 */
+  /* 肉类（16 种动物肉共用肉排图标） */
   SH.steak = function (c) {
     let s = sh(24, 42, 13, 2.4);
     s += sil('M10 26 Q10 16 22 15 Q36 14 38 24 Q40 34 28 36 Q14 38 10 26 Z', c.m);
@@ -3665,7 +3700,7 @@
   /* __SHAPES__ */
 
   window.ICONS = {
-    item, enemy, job, passive, nav, SPEC, PAL, SH, ENEMY_SPEC, JOB_SH, PASS_SPEC, PASS_SH, NAV_SH,
+    item, recipe, enemy, job, passive, nav, SPEC, PAL, SH, ENEMY_SPEC, JOB_SH, PASS_SPEC, PASS_SH, NAV_SH,
     nameToId: n => NAME2ID[n] || null,
     missing() {
       const out = Object.keys(SPEC).filter(id => !SH[SPEC[id][0]]).concat(

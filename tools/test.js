@@ -14,7 +14,7 @@ let fails = 0;
 function ok(cond, msg) { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); if (!cond) fails++; }
 
 console.log('== 数据 ==');
-ok(Object.keys(E.ITEMS).length === 215, '物品 215（新增草药 + 3 个资源包，删除药草作物）：' + Object.keys(E.ITEMS).length);
+ok(Object.keys(E.ITEMS).length === 230, '物品 230（删除肉类食材，新增 16 种动物肉）：' + Object.keys(E.ITEMS).length);
 ok(E.JOBS.length === 33, '工作 33：' + E.JOBS.length);
 ok(E.TECHS.length === 42, '科技 42：' + E.TECHS.length);
 ok(E.ENEMIES.length === 26, '敌人 26：' + E.ENEMIES.length);
@@ -186,21 +186,27 @@ const isGearR = r => { const id = E.N2I(r.name); return id && ['equip', 'weapon'
 const machGear = machRs.filter(isGearR);
 const precGear = precRs.filter(isGearR);
 ok(craftRs.length === 17, '加工 17 件：' + craftRs.length);
-ok(forgeRs.length === 16, '锻造 16 件：' + forgeRs.length);
+ok(forgeRs.length === 12, '锻造 12 件（铁/钢合并成金属模板）：' + forgeRs.length);
+ok(forgeRs.some(r => r.name === '头盔') && !forgeRs.some(r => r.name === '铁盔' || r.name === '钢盔'), '铁盔 / 钢盔合并为「头盔」');
+ok(forgeRs.some(r => r.name === '胸甲') && forgeRs.some(r => r.name === '匕首') && forgeRs.some(r => r.name === '长矛'), '胸甲 / 匕首 / 长矛等也走金属模板');
 ok(tailorRs.length === 17, '裁缝 17 件（各时代布料衣物）：' + tailorRs.length);
 ok(machGear.length === 24, '机械加工 24 件工业 / 信息武器盔甲：' + machGear.length);
 ok(precGear.length === 11, '精密装配 11 件太空武器盔甲：' + precGear.length);
-ok(craftRs.length + forgeRs.length + tailorRs.length + machGear.length + precGear.length === 85, '五份工作合计 85 件装备');
+ok(craftRs.length + forgeRs.length + tailorRs.length + machGear.length + precGear.length === 81, '五份工作合计 81 条装备项目（锻造合并后）');
 ok(craftRs.some(r => r.name === '石斧') && craftRs.some(r => r.name === '皮甲'), '加工包含石器时代装备');
 ok(!craftRs.some(r => r.name === '硅片') && !craftRs.some(r => r.name === '光纤'), '硅片 / 光纤已移出加工');
 ok(E.jobRecipes(E.JOB_BY_ID.glassmaking).some(r => r.name === '光纤'), '光纤移到玻璃制造');
 ok(E.jobRecipes(E.JOB_BY_ID.semiconductors).some(r => r.name === '硅片'), '硅片移到半导体制造');
 let badRecipe = 0;
 for (const r of [...craftRs, ...forgeRs, ...tailorRs, ...machGear, ...precGear]) {
-  if (Object.keys(E.recipeInputs(r)).length !== Object.keys(r.inputs).length) badRecipe++;
-  if (Object.keys(E.recipeOutputs(r)).length !== 1) badRecipe++;
+  const ins = Object.keys(r.inputs || {});
+  const generic = ins.filter(n => E.GENERIC_IN[n]).length;
+  if (Object.keys(E.recipeInputs(r)).length !== ins.length - generic) badRecipe++;
+  if (r.metalBase) {
+    if (Object.keys(E.recipeOutputs(r)).length !== 0) badRecipe++;
+  } else if (Object.keys(E.recipeOutputs(r)).length !== 1) badRecipe++;
 }
-ok(badRecipe === 0, '85 件装备的投料 / 产出都能映射到物品');
+ok(badRecipe === 0, '81 条装备项目的投料 / 产出都能映射（金属模板产出按动态物品生成）');
 ok(!E.recipeVisible(craftRs.find(r => r.name === '长弓')), '长弓锁在 *缝制');
 S.techs['tailoring'] = true;
 ok(E.recipeVisible(craftRs.find(r => r.name === '长弓')), '研究 *缝制 后长弓可见');
@@ -401,7 +407,7 @@ ghostOld.jobs.forging.slots = new Array(51).fill(null);
 ghostOld.jobs.forging.slots[40] = 'player';
 ghostOld.jobs.forging.prog = new Array(51).fill(0.5);
 const migGhost = E.migrate(ghostOld);
-ok(migGhost.jobs.forging.slots.length === 16 && migGhost.jobs.forging.slots[40] === undefined, '旧锻造槽 40 → 裁掉（16 件配方）');
+ok(migGhost.jobs.forging.slots.length === 12 && migGhost.jobs.forging.slots[40] === undefined, '旧锻造槽 40 → 裁掉（12 件金属模板）');
 // v0.0.31：药草作物删除 → 数量并入药草，角色选中的旧食物清空
 const herbOld = E.newState('药草迁移');
 herbOld.items = { herb_crop: 4, herb: 1 };
@@ -816,16 +822,16 @@ E.addItem('草料', 10);
 E.assignSlot('husbandry', 1, 'player');
 const hubSpd = E.husbandrySpeed();
 const oneCycle = 24 / hubSpd;            // 喂养条从 0 到满需要的秒数
-const meat0 = E.count('肉类食材'), hay0 = E.count('草料');
+const meat0 = E.count('犀牛肉'), hay0 = E.count('草料');
 E.produceJob('husbandry', oneCycle * 0.5);
-ok(E.count('草料') === hay0 && E.count('肉类食材') === meat0 && E.husbandryAnimals()[0].prog > 0,
+ok(E.count('草料') === hay0 && E.count('犀牛肉') === meat0 && E.husbandryAnimals()[0].prog > 0,
   '喂养条未满：动物进度推进，但不扣草料、不产物品');
 E.produceJob('husbandry', oneCycle * 0.5 + 1e-6);
 ok(E.count('草料') === hay0 - 1, '喂养条填满只扣 1 草料');
-ok(E.count('肉类食材') === meat0, '喂养条填满不直接产物品（犀牛 42 秒 / 次还没满）');
+ok(E.count('犀牛肉') === meat0, '喂养条填满不直接产物品（犀牛 42 秒 / 次还没满）');
 const animalNeed = (E.HUSBANDRY_ANIMALS['犀牛'].duration - 24) / hubSpd;
 E.produceJob('husbandry', animalNeed + 0.05);
-ok(E.count('肉类食材') > meat0, '只有动物自己的进度条满才产出：' + E.count('肉类食材'));
+ok(E.count('犀牛肉') > meat0, '只有动物自己的进度条满才产出：' + E.count('犀牛肉'));
 NS.jobs.husbandry.prog[1] = 0;
 NS.items[E.N2I('草料')] = 0;
 const hubProg0 = E.husbandryAnimals()[0].prog;
@@ -839,13 +845,13 @@ ok(hubHtml.includes('喂养畜群') && hubHtml.includes('data-tip-hub') && hubHt
 const iProj = hubHtml.indexOf('>项目<'), iHub = hubHtml.indexOf('>畜牧<'), iUpg = hubHtml.indexOf('>升级项<');
 ok(iProj >= 0 && iHub > iProj && iUpg > iHub, '畜牧独立成栏，位置在 项目 与 升级项 之间');
 const hubTip = U.husbandryTipHtml();
-ok(hubTip.includes('犀牛') && hubTip.includes('肉类食材'), '畜牧产物悬停列出每只动物的产物');
+ok(hubTip.includes('犀牛') && hubTip.includes('犀牛肉'), '畜牧产物悬停列出每只动物的产物');
 const animalN = E.husbandryAnimals().length;
 E.removeHusbandryAnimal(0);
 ok(E.husbandryAnimals().length === animalN - 1, '可以移除畜牧格里的动物');
 E.S.techs['animal_husbandry'] = true;
 const hubPick = U.ioList(E.HUSBANDRY_ANIMALS['兔子'].outputs);
-ok(hubPick.includes('肉类食材'), '动物列表面板能显示产出');
+ok(hubPick.includes('兔肉'), '动物列表面板能显示产出');
 
 // 随机普通角色名字：加入其它国家 / 地区译名
 const genNames = [];
@@ -861,7 +867,7 @@ E.addItem('甜菜种子', 10);
 const beetIdx = E.jobRecipes(E.JOB_BY_ID.farming).findIndex(r => r.name === '甜菜');
 E.assignSlot('farming', beetIdx, 'player');
 for (let i = 0; i < 100; i++) E.produceJob('farming', 0.2);
-ok(E.count('甜菜') > 0 && E.count('甜菜种子') < 10, '甜菜项目消耗甜菜种子、产出甜菜：' + E.count('甜菜'));
+ok(E.count('甜菜') > 0 && E.count('甜菜种子') === 10, '甜菜项目消耗 1 甜菜种子、产出甜菜并返还 1 种子：' + E.count('甜菜'));
 
 // 药草项目：药草种子 → 药草（仓库材料），不产草料
 E.S = E.newState('药草种植');
@@ -871,7 +877,7 @@ E.addItem('药草种子', 10);
 const herbIdx = E.jobRecipes(E.JOB_BY_ID.farming).findIndex(r => r.name === '药草');
 E.assignSlot('farming', herbIdx, 'player');
 for (let i = 0; i < 100; i++) E.produceJob('farming', 0.2);
-ok(E.count('药草') > 0 && E.count('药草种子') < 10, '药草项目消耗药草种子、产出药草：' + E.count('药草'));
+ok(E.count('药草') > 0 && E.count('药草种子') === 10, '药草项目消耗 1 药草种子、产出药草并返还 1 种子：' + E.count('药草'));
 ok(E.count('草料') === 0, '药草项目不产草料');
 
 // 石油开采：独立工作产出石油，采矿不再出石油
@@ -917,7 +923,9 @@ ok(E.jobRecipes(E.JOB_BY_ID.husbandry)[0].outputs['草料'] === 12, '加工草�
 // 模糊投入筛选：没勾选的组成物品不计入够料判断
 const feed034 = E.jobRecipes(E.JOB_BY_ID.husbandry)[0];
 E.S.items[E.N2I('浆果')] = 20; E.S.items[E.N2I('块根')] = 20;
-ok(E.genericItemIds('素食食材').length === 4, '素食食材 = 4 种组成物');
+ok(E.genericItemIds('素食食材').length === 8, '素食食材 = 8 种带「素食」标签的物品');
+ok(E.GENERIC_IN['肉食食材'].length === 16 && E.GENERIC_IN['肉食食材'].indexOf('兔肉') >= 0, '肉食食材由「肉食」标签自动生成（16 种）');
+ok(E.GENERIC_IN['金属'].length === 7 && E.GENERIC_IN['金属'].indexOf('钢铁') >= 0, '金属筛选由「金属」标签自动生成（7 种锭）');
 ok(E.canMake(feed034, 1, 'husbandry'), '全选时够料');
 E.setInputSelection('husbandry', feed034, '素食食材', [E.N2I('浆果')]);
 E.S.items[E.N2I('浆果')] = 1;
@@ -935,9 +943,9 @@ const hub034Html = U.pageJob('husbandry');
 ok(hub034Html.includes('data-act="inpfilter"'), '模糊投入徽章可点开筛选');
 ok(!hub034Html.includes('喂养一次消耗') && !hub034Html.includes('每只 1 / 天'), '畜牧页删除草料数值说明');
 const feed034b = E.jobRecipes(E.JOB_BY_ID.husbandry)[0];
-E.S.ui.inpOpen[E.inputFilterKey('husbandry', feed034b, '素食食材')] = true;
-const hub034Open = U.pageJob('husbandry');
-ok(hub034Open.includes('inpPanel') && hub034Open.includes('全不选'), '筛选面板展开后有全选 / 全不选');
+const badge034 = U.inputBadge(E.JOB_BY_ID.husbandry, feed034b, 0, '素食食材', 2);
+ok((badge034.match(/<svg/g) || []).length === 1 && !badge034.includes('▾'), '模糊投入徽章缩成普通消耗栏：只显示第一个图标');
+ok(!hub034Html.includes('inpPanel'), '筛选下拉不再塞进项目槽位（改为浮层）');
 ok(!U.pageCharacters().includes('DPS'), '角色页删除 DPS 行');
 
 // 旧存档迁移：采集槽位后移 2 格；跨工作装备按名字搬回
@@ -1134,6 +1142,121 @@ ok(!techHtmlNormal.includes('data-act="devDegradeTech"'), '普通模式：科技
 E.S.dev = true;
 const techHtmlDev = U.pageTech();
 ok(techHtmlDev.includes('data-act="devDegradeTech"') && techHtmlDev.includes('退化'), '开发者模式：已完成科技显示「退化」');
+
+console.log('== v0.0.38：种子 / 肉食 / 筛选 / 金属锻造 ==');
+// 种子：标签、2400 秒半衰期、种植返还
+const seedId = E.N2I('谷物种子');
+ok(!!seedId && E.ITEMS[seedId].tags.indexOf('种子') >= 0 && E.ITEMS[seedId].baseHalfLife === 2400,
+  '种子带「种子」标签且基础半衰期 2400 秒');
+E.S = E.newState('v038腐坏');
+E.S.items[seedId] = 100;
+E.S.items[E.N2I('浆果')] = 100;
+E.granaryDecay(600);
+ok(Math.abs(E.S.items[seedId] - 84.09) < 0.02, '种子 600 秒后剩 ≈84.09（2400 秒减半）：' + E.S.items[seedId].toFixed(2));
+ok(Math.abs(E.S.items[E.N2I('浆果')] - 50) < 0.01, '普通食物 600 秒后剩 50（600 秒减半）：' + E.S.items[E.N2I('浆果')].toFixed(2));
+ok(Math.round(E.granaryHalfLife(seedId)) === 2400 && Math.round(E.granaryHalfLife(E.N2I('浆果'))) === 600,
+  '有效半衰期按物品区分：种子 2400 / 食物 600');
+ok(U.itemTipHtml(seedId).includes('2400 秒减半'), '种子物品面板显示 2400 秒半衰期');
+E.S.ui.tab.wh = 'granary';
+E.addFood(seedId, 10, { silent: true });
+E.addFood(E.N2I('浆果'), 10, { silent: true });
+const gr38 = U.pageWarehouse();
+ok(gr38.includes('种子 2400 秒减半') && gr38.includes('−0.029%/秒'), '粮仓页面按行显示种子腐坏速度');
+E.S = E.newState('v038腐坏2');
+const beetFarm = E.jobRecipes(E.JOB_BY_ID.farming).find(r => r.name === '甜菜');
+ok(beetFarm.outputs['甜菜种子'] === 1 && beetFarm.outputs['甜菜'] === 6, '种植额外返还 1 颗对应种子');
+const bushR = E.jobRecipes(E.JOB_BY_ID.gathering).find(r => r.name === '灌木');
+ok(bushR.icon === 'bush' && U.recipeIcon(E.JOB_BY_ID.gathering, bushR).startsWith('<svg'), '灌木项目有独立图标');
+
+// 肉类：删除肉类食材，16 种动物肉，狩猎 / 畜牧同步
+ok(!E.ITEMS.meat && E.N2I('肉类食材') === null, '肉类食材已删除');
+const meats = E.ITEM_ORDER.filter(id => E.ITEMS[id].tags && E.ITEMS[id].tags.indexOf('肉食') >= 0);
+ok(meats.length === 16, '肉食标签自动生成 16 种肉：' + meats.length);
+ok(E.HUSBANDRY_ANIMALS['兔子'].outputs['兔肉'] === 1 && E.HUSBANDRY_ANIMALS['犀牛'].outputs['犀牛肉'] === 24,
+  '畜牧产出改为各自动物肉');
+ok(E.ENEMIES.find(e => e.name === '兔子').loot.some(l => l.name === '兔肉'), '狩猎掉落改为兔肉');
+const meatOld = E.newState('v038肉类迁移');
+meatOld.items = { meat: 5 };
+meatOld.chars.player.food = 'meat';
+meatOld.seen.items = { meat: true };
+meatOld.ever = { meat: 1 };
+const meatMig = E.migrate(meatOld);
+ok(meatMig.items.rabbit_meat === 5 && !meatMig.items.meat && meatMig.chars.player.food === 'rabbit_meat',
+  '旧肉类食材数量 / 食物选择迁移到兔肉');
+ok(meatMig.seen.items.rabbit_meat && meatMig.ever.rabbit_meat, '肉类食材的图鉴 / 曾经拥有同步迁移');
+
+// 开发者摧毁按钮：与建造按钮同位置同尺寸，且不再弹确认
+E.S = E.newState('v038按钮');
+E.S.dev = true;
+E.S.milestones.wood_stone = true;
+E.addItem('木材', 80, { silent: true });
+E.addItem('石头', 80, { silent: true });
+const upgHtml = U.pageJob('woodcutting');
+ok(upgHtml.includes('>建造</button>') && !upgHtml.includes('>购买</button>'), '升级项按钮改名「建造」');
+ok(E.buyUpgrade('woodcutting', 0).ok, '先建造石斧');
+const upgHtml2 = U.pageJob('woodcutting');
+const destroyAt = upgHtml2.indexOf('data-act="devDestroyUpg"');
+ok(destroyAt > 0 && upgHtml2.slice(destroyAt - 120, destroyAt).includes('width:100%'), '摧毁按钮与建造按钮同宽同位置');
+ok(!upgHtml2.includes('确认摧毁'), '摧毁不再要求二次确认');
+E.revokeUpgrade('woodcutting', 0);
+ok(!E.S.jobs.woodcutting.up[0], '摧毁直接撤销升级项');
+
+// 金属标签 + 战斗修正
+const ingotIds = E.ITEM_ORDER.filter(id => E.ITEMS[id].tags && E.ITEMS[id].tags.indexOf('金属') >= 0);
+ok(ingotIds.length === 7, '7 种金属锭带「金属」标签：' + ingotIds.length);
+const ironTip = U.itemTipHtml(E.N2I('铁锭'));
+ok(ironTip.includes('战斗数值修正') && ironTip.includes('伤害减免 ×1.00'), '金属物品面板显示战斗数值修正');
+ok(E.GENERIC_IN['金属'].length === 7 && E.GENERIC_IN['金属'].indexOf('钢铁') >= 0, '金属筛选由标签自动生成');
+
+// 锻造：金属筛选、动态命名、属性修正
+E.S = E.newState('v038锻造');
+E.S.techs.metal_smelting = true;
+E.S.techs.forging = true;
+E.S.jobs.forging.up[0] = 1;
+E.addItem('铁锭', 100, { silent: true });
+E.addItem('钢铁', 100, { silent: true });
+E.addItem('木材', 100, { silent: true });
+E.addItem('中型皮革', 10, { silent: true });
+const forgeJob38 = E.JOB_BY_ID.forging;
+const helmR = E.jobRecipes(forgeJob38).find(r => r.name === '头盔');
+ok(!!helmR && helmR.metalBase === 'helmet' && Object.keys(helmR.inputs).join(',') === '金属',
+  '头盔项目只按「金属」标签投料');
+ok(E.metalForRecipe(helmR, 'forging', true) === 'steel', '多种金属时优先选战斗修正最高的钢铁');
+E.setInputSelection('forging', helmR, '金属', [E.N2I('铁锭')]);
+ok(E.metalForRecipe(helmR, 'forging', true) === 'iron_ingot', '只勾选铁锭时选铁锭');
+ok(E.metalForRecipe(helmR, 'forging', true) !== 'steel' && E.metalPreviewId('forging', helmR) === E.N2I('铁锭头盔'),
+  '界面预览铁锭头盔');
+E.assignSlot('forging', 0, 'player');
+const ironBefore = E.count('铁锭'), steelBefore = E.count('钢铁');
+for (let i = 0; i < 80; i++) E.produceJob('forging', 0.2);
+ok(E.count('铁锭') < ironBefore && E.count('钢铁') === steelBefore, '只消耗勾选的铁锭，不动钢铁');
+const ironHelm = E.ITEMS[E.N2I('铁锭头盔')];
+ok(!!ironHelm && ironHelm.dr === 6 && ironHelm.str === 1, '铁锭头盔按铁锭基准：dr 6 / str 1');
+E.setInputSelection('forging', helmR, '金属', [E.N2I('钢铁')]);
+for (let i = 0; i < 80; i++) E.produceJob('forging', 0.2);
+const steelHelm = E.ITEMS[E.N2I('钢铁头盔')];
+ok(!!steelHelm && steelHelm.dr === 9 && steelHelm.str === 2, '钢铁头盔按钢铁修正：dr 9 / str 2');
+ok(E.N2I('钢铁头盔') !== E.N2I('工业钢盔'), '动态钢铁头盔与工业钢盔不重名');
+// 旧锻造装备迁移
+const oldForge = E.newState('v038装备迁移');
+oldForge.items = { iron_helm: 2 };
+oldForge.chars.player.eq.head = 'iron_helm';
+oldForge.seen.items = { iron_helm: true };
+oldForge.ever = { iron_helm: 1 };
+const forgeMig = E.migrate(oldForge);
+ok(forgeMig.items.metal_iron_ingot_helmet === 2 && forgeMig.chars.player.eq.head === 'metal_iron_ingot_helmet',
+  '旧铁盔库存 / 装备迁移到铁锭头盔');
+ok(!forgeMig.items.iron_helm && forgeMig.seen.items.metal_iron_ingot_helmet && forgeMig.ever.metal_iron_ingot_helmet,
+  '旧铁盔的图鉴 / 曾经拥有同步迁移');
+// 旧锻造槽：只派了钢盔（下标 1），合并后不能因为「头盔」先匹配到铁盔下标而丢人
+const oldForgeSlot = E.newState('v038槽迁移');
+oldForgeSlot.dataVer = 37;
+oldForgeSlot.jobs.forging.rnames = ['铁盔', '钢盔'];
+oldForgeSlot.jobs.forging.slots = [null, 'player'];
+oldForgeSlot.jobs.forging.prog = [0, 0.7];
+const slotMig = E.migrate(oldForgeSlot);
+ok(slotMig.jobs.forging.slots[0] === 'player', '钢盔槽合并到「头盔」后仍保留入驻角色');
+ok(Math.abs(slotMig.jobs.forging.prog[0] - 0.7) < 1e-9, '合并后的进度保留');
 
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);

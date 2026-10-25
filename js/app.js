@@ -4,7 +4,7 @@
 'use strict';
 (function () {
   const E = window.Engine, U = window.UI;
-  let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null, giftMenuEl = null;
+  let tickTimer = null, saveTimer = null, lastTick = 0, dragData = null, slotMenuEl = null, giftMenuEl = null, filterMenuEl = null;
   let pendingOffline = null;
   let resetting = false;   // 「重开」确认后置 true，阻止 beforeunload/visibilitychange 把旧存档写回去
   let devTapCount = 0, devTapTimer = null;
@@ -169,7 +169,12 @@
       if (e.target.closest('#slotMenu') || e.target.closest('[data-act="recslot"],[data-act="cardrec"]')) return;
       closeSlotMenu();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlotMenu(); closeGiftMenu(); U.hideTip(); } });
+    document.addEventListener('click', e => {
+      if (!filterMenuEl) return;
+      if (e.target.closest('#inputMenu') || e.target.closest('[data-act="inpfilter"]')) return;
+      closeFilterMenu();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlotMenu(); closeGiftMenu(); closeFilterMenu(); U.hideTip(); } });
     // 物品悬浮面板：mouseover 决定显示谁，mousemove 只记坐标（整页重绘后 syncTip 靠坐标找回锚点）
     document.addEventListener('mouseover', e => U.onHover(e));
     document.addEventListener('mousemove', e => U.onHoverMove(e), { passive: true });
@@ -270,28 +275,12 @@
         break;
       }
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
-      /* v0.0.34：模糊投入的筛选面板（素食食材 / 肉食食材 / 种子） */
+      /* v0.0.38：模糊投入的浮层筛选面板（素食食材 / 肉食食材 / 种子 / 金属） */
       case 'inpfilter': {
         const job = E.JOB_BY_ID[el.dataset.job];
         const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
-        if (!r) break;
-        S.ui.inpOpen = S.ui.inpOpen || {};
-        const key = E.inputFilterKey(job.id, r, el.dataset.in);
-        S.ui.inpOpen[key] = !S.ui.inpOpen[key];
-        U.render(); break;
-      }
-      case 'inptoggle': {
-        const job = E.JOB_BY_ID[el.dataset.job];
-        const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
-        if (r) E.toggleInputSelection(job.id, r, el.dataset.in, el.dataset.id);
-        U.render(); break;
-      }
-      case 'inpall':
-      case 'inpnone': {
-        const job = E.JOB_BY_ID[el.dataset.job];
-        const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
-        if (r) E.setInputSelection(job.id, r, el.dataset.in, act === 'inpall' ? E.genericItemIds(el.dataset.in) : []);
-        U.render(); break;
+        if (job && r) openInputFilter(job.id, +(el.dataset.i || 0), el.dataset.in, el);
+        break;
       }
       case 'hubPanel': openHusbandryPanel(); break;
       case 'hubRemove': {
@@ -301,7 +290,7 @@
       }
       case 'upg': {
         const r = E.buyUpgrade(id, +i);
-        U.toast(r.ok ? '已购买升级' : (r.why || '无法购买'), r.ok ? 'good' : 'bad');
+        U.toast(r.ok ? '已建造升级' : (r.why || '无法建造'), r.ok ? 'good' : 'bad');
         U.render(); break;
       }
       case 'tech': {
@@ -309,7 +298,12 @@
         U.toast(r.ok ? '研究完成' : (r.why || '无法研究'), r.ok ? 'good' : 'bad');
         U.render(); break;
       }
-      case 'devDestroyUpg': confirmDestroyUpgrade(id, +i); break;
+      case 'devDestroyUpg': {
+        const r = E.revokeUpgrade(id, +i);
+        if (r.ok) E.save(true);
+        U.toast(r.ok ? '已摧毁：' + r.list.map(x => x.name).join('、') : (r.why || '无法摧毁'), r.ok ? 'good' : 'bad');
+        U.render(); break;
+      }
       case 'devDegradeTech': confirmDegradeTech(id); break;
       case 'sell': { const g = E.sellItem(id, 1); if (g) U.toast('卖出获得 ' + E.fmt(g) + ' 金'); U.render(); break; }
       case 'sellall': { const g = E.sellItem(id, S.items[id] || 0); if (g) U.toast('卖出获得 ' + E.fmt(g) + ' 金'); U.render(); break; }
@@ -439,6 +433,78 @@
   function closeSlotMenu() {
     if (slotMenuEl) { slotMenuEl.remove(); slotMenuEl = null; }
   }
+  function closeFilterMenu() {
+    if (filterMenuEl) { filterMenuEl.remove(); filterMenuEl = null; }
+  }
+  /* 模糊投入筛选：与入驻槽一样的浮层下拉列表，不再塞进项目卡内部。
+     勾选先改本地集合，点「应用」才写回存档。 */
+  function openInputFilter(jobId, slotIdx, inputName, anchor) {
+    closeSlotMenu();
+    closeFilterMenu();
+    const S = E.S, job = E.JOB_BY_ID[jobId];
+    const r = job ? E.jobRecipes(job)[slotIdx] : null;
+    if (!job || !r || !anchor) return;
+    const all = E.genericItemIds(inputName);
+    const selected = new Set(E.inputSelection(jobId, r, inputName).filter(id => all.indexOf(id) >= 0));
+    const tip = inputName === '金属'
+      ? '只消耗勾选的金属；多种金属时优先消耗战斗修正最高且库存足够的一种。列表按「金属」标签自动生成。'
+      : '只用勾选的材料；未勾选的不计入消耗。列表按物品标签自动生成。';
+    const menu = document.createElement('div');
+    menu.id = 'inputMenu';
+    menu.className = 'slotmenu inpmenu';
+    menu.innerHTML = `
+      <div class="pmh">筛选 · ${U.esc(inputName)}</div>
+      <div class="pms">${tip}</div>
+      <div class="pmlist">${all.length ? all.map(id => {
+        const it = E.ITEMS[id]; if (!it) return '';
+        const on = selected.has(id);
+        return `<button type="button" class="pmitem ${on ? 'on' : ''}" data-pickitem="${id}">
+          ${U.itemIcon(it)}<span class="nm">${U.esc(it.name)}</span><span class="mm">×${E.fmt(E.count(id))}</span><span class="tick">${on ? '✓' : '＋'}</span>
+        </button>`;
+      }).join('') : '<div class="pmempty">没有可筛选的物品</div>'}</div>
+      <div class="pmfoot inpfoot">
+        <button type="button" data-menu-all>全选</button>
+        <button type="button" data-menu-none>全不选</button>
+        <button type="button" data-menu-cancel>取消</button>
+        <button type="button" class="primary" data-menu-apply>应用</button>
+      </div>`;
+    document.body.appendChild(menu);
+    const rct = anchor.getBoundingClientRect();
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    let left = Math.max(8, Math.min(rct.left, window.innerWidth - mw - 8));
+    let top = rct.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, rct.top - mh - 6);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    filterMenuEl = menu;
+    menu.querySelectorAll('[data-pickitem]').forEach(el => el.onclick = () => {
+      const id = el.dataset.pickitem;
+      if (selected.has(id)) selected.delete(id); else selected.add(id);
+      const on = selected.has(id);
+      el.classList.toggle('on', on);
+      const tick = el.querySelector('.tick');
+      if (tick) tick.textContent = on ? '✓' : '＋';
+    });
+    const setAll = on => {
+      selected.clear();
+      if (on) all.forEach(id => selected.add(id));
+      menu.querySelectorAll('[data-pickitem]').forEach(el => {
+        const onNow = selected.has(el.dataset.pickitem);
+        el.classList.toggle('on', onNow);
+        const tick = el.querySelector('.tick');
+        if (tick) tick.textContent = onNow ? '✓' : '＋';
+      });
+    };
+    menu.querySelector('[data-menu-all]').onclick = () => setAll(true);
+    menu.querySelector('[data-menu-none]').onclick = () => setAll(false);
+    menu.querySelector('[data-menu-cancel]').onclick = closeFilterMenu;
+    menu.querySelector('[data-menu-apply]').onclick = () => {
+      E.setInputSelection(jobId, r, inputName, Array.from(selected));
+      closeFilterMenu();
+      E.save(true);
+      U.render();
+    };
+  }
   /* 畜牧「＋」面板：列出可圈养动物（名称 / 消耗 / 产出 / 时间 / 占用容量 / 认知度门槛） */
   function openHusbandryPanel() {
     const cap = E.husbandryCapacity(), used = E.husbandryUsed();
@@ -494,6 +560,7 @@
   }
   function openJobSlot(jobId, slotIdx, anchor) {
     closeSlotMenu();
+    closeFilterMenu();
     const S = E.S, job = E.JOB_BY_ID[jobId];
     if (!job || !anchor) return;
     const idx = slotIdx || 0;
@@ -979,32 +1046,7 @@
       U.toast('开发者模式已关闭');
     }
   }
-  /* 开发者专用：确认后摧毁已购升级项 / 退化已研究科技。只回退状态，不返还材料或科研点。 */
-  function confirmDestroyUpgrade(jobId, idx) {
-    const S = E.S;
-    if (!S || !S.dev) return;
-    const plan = E.upgradeRevokePlan(jobId, idx);
-    if (!plan.ok) { U.toast(plan.why || '无法摧毁', 'bad'); return; }
-    const job = E.JOB_BY_ID[jobId] || {};
-    const names = plan.list.map(x => U.esc(x.name));
-    const cascade = names.length > 1 ? `<div class="tiny muted" style="margin-top:6px">依赖它的后续档位会一起摧毁：${names.slice(1).join('、')}</div>` : '';
-    U.modal(`<h3 class="red">摧毁升级项？</h3>
-      <div class="sub">工作：<b>${U.esc(job.name || jobId)}</b></div>
-      <div class="card" style="margin-top:10px">
-        <div class="small">将摧毁：<b class="red">${names.join('、')}</b></div>
-        ${cascade}
-        ${plan.gate ? '<div class="tiny muted" style="margin-top:6px">这是本工作的项目门槛档：项目会重新上锁，正在项目上的角色会被撤下。</div>' : ''}
-        <div class="tiny muted" style="margin-top:6px">不返还材料；其它升级项与角色精通不受影响。</div>
-      </div>
-      <div class="acts"><button data-act="closeModal">取消</button><button class="danger" id="devUpgOk">确认摧毁</button></div>`);
-    document.getElementById('devUpgOk').onclick = () => {
-      const r = E.revokeUpgrade(jobId, idx);
-      U.closeModal();
-      E.save(true);
-      U.render();
-      U.toast(r.ok ? '已摧毁：' + r.list.map(x => x.name).join('、') : (r.why || '无法摧毁'), r.ok ? 'good' : 'bad');
-    };
-  }
+  /* 开发者专用：直接摧毁已购升级项（不弹确认，不返还材料）。 */
   function confirmDegradeTech(id) {
     const S = E.S;
     if (!S || !S.dev) return;

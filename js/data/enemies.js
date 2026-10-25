@@ -34,7 +34,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 2, max: 2 },
+      { name: "兔肉", min: 2, max: 2 },
       { name: "小型皮革", min: null, max: null }
     ],
     note: null
@@ -54,7 +54,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 2, max: 2 },
+      { name: "松鸡肉", min: 2, max: 2 },
       { name: "羽毛", min: null, max: null }
     ],
     note: null
@@ -74,7 +74,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 6, max: 6 },
+      { name: "鹿肉", min: 6, max: 6 },
       { name: "中型皮革", min: null, max: null }
     ],
     note: null
@@ -94,7 +94,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 8, max: 8 },
+      { name: "野猪肉", min: 8, max: 8 },
       { name: "中型皮革", min: null, max: null },
       { name: "骨/角", min: 1, max: 2 }
     ],
@@ -115,7 +115,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 10, max: 10 },
+      { name: "狼肉", min: 10, max: 10 },
       { name: "狼皮", min: null, max: null }
     ],
     note: null
@@ -135,7 +135,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 18, max: 18 },
+      { name: "熊肉", min: 18, max: 18 },
       { name: "熊皮", min: null, max: null },
       { name: "骨/角", min: 1, max: 2 }
     ],
@@ -158,7 +158,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 5, max: 5 },
+      { name: "山羊肉", min: 5, max: 5 },
       { name: "中型皮革", min: null, max: null }
     ],
     note: null
@@ -178,7 +178,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 8, max: 8 },
+      { name: "羚羊肉", min: 8, max: 8 },
       { name: "中型皮革", min: null, max: null }
     ],
     note: null
@@ -198,7 +198,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 20, max: 20 },
+      { name: "驼鹿肉", min: 20, max: 20 },
       { name: "厚重皮革", min: null, max: null }
     ],
     note: null
@@ -218,7 +218,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 25, max: 25 },
+      { name: "野牛肉", min: 25, max: 25 },
       { name: "厚重皮革", min: null, max: null }
     ],
     note: null
@@ -240,7 +240,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 30, max: 30 },
+      { name: "猛犸肉", min: 30, max: 30 },
       { name: "厚重皮革", min: null, max: null },
       { name: "骨/角", min: 1, max: 2 }
     ],
@@ -263,7 +263,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 15, max: 15 },
+      { name: "鳄鱼肉", min: 15, max: 15 },
       { name: "鳄鱼皮", min: null, max: null }
     ],
     note: null
@@ -283,7 +283,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 20, max: 20 },
+      { name: "巨蜥肉", min: 20, max: 20 },
       { name: "厚重皮革", min: null, max: null }
     ],
     note: null
@@ -305,7 +305,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 40, max: 40 },
+      { name: "犀牛肉", min: 40, max: 40 },
       { name: "厚重皮革", min: null, max: null },
       { name: "骨/角", min: 1, max: 2 }
     ],
@@ -349,7 +349,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 60, max: 60 },
+      { name: "变异巨兽肉", min: 60, max: 60 },
       { name: "厚重皮革", min: null, max: null }
     ],
     note: null
@@ -371,7 +371,7 @@ window.ENEMIES = [
     tier: null,
     unlockLevel: null,
     loot: [
-      { name: "肉类食材", min: 80, max: 80 },
+      { name: "外星掠食者肉", min: 80, max: 80 },
       { name: "外星皮革", min: null, max: null }
     ],
     note: null
@@ -630,22 +630,22 @@ window.WEAPON_COMBAT = {
  * 机械兽 / 硅基生物不能畜牧，因此不在本表里。
  * ==========================================================================*/
 window.HUSBANDRY_ANIMALS = {
-  "兔子":     { size: "极小", duration: 8,  consume: 1, outputs: { "肉类食材": 1,  "小型皮革": 1 } },
-  "松鸡":     { size: "极小", duration: 8,  consume: 1, outputs: { "肉类食材": 1,  "羽毛": 1 } },
-  "鹿":       { size: "小",   duration: 12, consume: 1, outputs: { "肉类食材": 4,  "中型皮革": 1 } },
-  "野山羊":   { size: "小",   duration: 10, consume: 1, outputs: { "肉类食材": 3,  "毛料": 1, "中型皮革": 1 } },
-  "羚羊":     { size: "小",   duration: 12, consume: 1, outputs: { "肉类食材": 5,  "中型皮革": 1 } },
-  "野猪":     { size: "中",   duration: 16, consume: 1, outputs: { "肉类食材": 5,  "中型皮革": 1, "骨 / 角": 1 } },
-  "狼":       { size: "中",   duration: 18, consume: 1, outputs: { "肉类食材": 6,  "狼皮": 1 } },
-  "鳄鱼":     { size: "中",   duration: 30, consume: 1, outputs: { "肉类食材": 9,  "鳄鱼皮": 1 } },
-  "巨蜥":     { size: "中",   duration: 28, consume: 1, outputs: { "肉类食材": 12, "厚重皮革": 1 } },
-  "熊":       { size: "大",   duration: 28, consume: 1, outputs: { "肉类食材": 11, "熊皮": 1, "骨 / 角": 1 } },
-  "驼鹿":     { size: "大",   duration: 30, consume: 1, outputs: { "肉类食材": 12, "厚重皮革": 1 } },
-  "野牛":     { size: "大",   duration: 32, consume: 1, outputs: { "肉类食材": 15, "厚重皮革": 1 } },
-  "犀牛":     { size: "大",   duration: 42, consume: 1, outputs: { "肉类食材": 24, "厚重皮革": 1, "骨 / 角": 1 } },
-  "猛犸":     { size: "极大", duration: 45, consume: 1, outputs: { "肉类食材": 18, "厚重皮革": 1, "骨 / 角": 1 } },
-  "变异巨兽": { size: "极大", duration: 55, consume: 1, outputs: { "肉类食材": 36, "厚重皮革": 1 } },
-  "外星掠食者": { size: "极大", duration: 55, consume: 1, outputs: { "肉类食材": 48, "外星皮革": 1 } }
+  "兔子":     { size: "极小", duration: 8,  consume: 1, outputs: { "兔肉": 1,  "小型皮革": 1 } },
+  "松鸡":     { size: "极小", duration: 8,  consume: 1, outputs: { "松鸡肉": 1,  "羽毛": 1 } },
+  "鹿":       { size: "小",   duration: 12, consume: 1, outputs: { "鹿肉": 4,  "中型皮革": 1 } },
+  "野山羊":   { size: "小",   duration: 10, consume: 1, outputs: { "山羊肉": 3,  "毛料": 1, "中型皮革": 1 } },
+  "羚羊":     { size: "小",   duration: 12, consume: 1, outputs: { "羚羊肉": 5,  "中型皮革": 1 } },
+  "野猪":     { size: "中",   duration: 16, consume: 1, outputs: { "野猪肉": 5,  "中型皮革": 1, "骨 / 角": 1 } },
+  "狼":       { size: "中",   duration: 18, consume: 1, outputs: { "狼肉": 6,  "狼皮": 1 } },
+  "鳄鱼":     { size: "中",   duration: 30, consume: 1, outputs: { "鳄鱼肉": 9,  "鳄鱼皮": 1 } },
+  "巨蜥":     { size: "中",   duration: 28, consume: 1, outputs: { "巨蜥肉": 12, "厚重皮革": 1 } },
+  "熊":       { size: "大",   duration: 28, consume: 1, outputs: { "熊肉": 11, "熊皮": 1, "骨 / 角": 1 } },
+  "驼鹿":     { size: "大",   duration: 30, consume: 1, outputs: { "驼鹿肉": 12, "厚重皮革": 1 } },
+  "野牛":     { size: "大",   duration: 32, consume: 1, outputs: { "野牛肉": 15, "厚重皮革": 1 } },
+  "犀牛":     { size: "大",   duration: 42, consume: 1, outputs: { "犀牛肉": 24, "厚重皮革": 1, "骨 / 角": 1 } },
+  "猛犸":     { size: "极大", duration: 45, consume: 1, outputs: { "猛犸肉": 18, "厚重皮革": 1, "骨 / 角": 1 } },
+  "变异巨兽": { size: "极大", duration: 55, consume: 1, outputs: { "变异巨兽肉": 36, "厚重皮革": 1 } },
+  "外星掠食者": { size: "极大", duration: 55, consume: 1, outputs: { "外星掠食者肉": 48, "外星皮革": 1 } }
 };
 
 /* 战斗常数。所有数值都有文档出处；文档没写的记 null 并在 notes 里点名。 */
@@ -756,7 +756,7 @@ window.COMBAT_CONST = {
   /* ---- 畜牧（工作表.md §4.6） ---- */
   husbandry: {
     expectedOutputMultiplier: 2.5,          // 狩猎期望 × 2.5
-    meatMultiplier: 0.6,                    // 肉类食材 × 0.6
+    meatMultiplier: 0.6,                    // 各自动物肉 × 0.6
     feedPerDay: 1,                          // 1 草料 / 只 / 天
     initialCapacity: 5,
     sizeCost: { "极小": 0.5, "小": 1, "中": 2, "大": 3, "极大": 5 },
