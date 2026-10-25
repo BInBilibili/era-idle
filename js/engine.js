@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.41';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.42';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -800,11 +800,15 @@ function materialGearItem(materialId, templateOrKey, kind) {
     price: Math.max(1, Math.round((base.price || 0) * priceMul)),
     slot: base.slot,
     twoHanded: base.twoHanded,
-    temp: base.temp,
+    temp: base.temp ? r2((base.temp || 0) * rel('temp')) : base.temp,
     dr: r2((base.dr || 0) * rel('dr')),
     str: r2((wc.str !== undefined ? wc.str : base.str) * rel('str')),
     atk: r2(((wc.atk !== undefined ? wc.atk : base.atk) || 0) * rel('atk')),
-    interval: wc.interval !== undefined ? wc.interval : base.interval,
+    interval: (() => {
+      // v0.0.42：攻击间隔按材料倍率修正（轻金属出手更快、重甲更慢）
+      const iv = wc.interval !== undefined ? wc.interval : base.interval;
+      return iv != null ? Math.max(0.5, r2(iv * rel('interval'))) : iv;
+    })(),
     range: wc.range !== undefined ? wc.range : base.range,
     armorPen: wc.armorPen || base.armorPen,
     crit: wc.crit || base.crit,
@@ -826,7 +830,8 @@ function materialGearItem(materialId, templateOrKey, kind) {
     leatherName: kind === 'leather' ? material.name : undefined,
     baseName: t.name,
     hidden: true,
-    tags: kind === 'leather' ? ['皮革'] : [],
+    // v0.0.42：皮革成品只是装备，不再挂「皮革」标签（标签只留给可投料的皮革材料）
+    tags: [],
     src: (kind === 'metal' ? '锻造' : '加工') + '（' + material.name + '）',
     use: base.use || '装备',
   };
@@ -1400,7 +1405,8 @@ function produceJob(jobId, dt) {
       }
       for (const name in rawOuts) {
         const n = rawOuts[name];
-        if (name.indexOf('科研') >= 0) { S.research += n; continue; }
+        // v0.0.42：科研点不是仓库物品，但也要弹一条「获得」消息
+        if (name.indexOf('科研') >= 0) { S.research += n; lootItem('科研点', n); continue; }
         if (name.indexOf('电力') >= 0) continue;
         if (GENERIC_OUT[name]) {
           for (let k = 0; k < n; k++) {

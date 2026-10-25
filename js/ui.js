@@ -95,13 +95,16 @@ const UI = {
     }
     row.exp = Date.now() + this.LOOT_TTL;
   },
+  /* 科研点不是仓库物品，但 v0.0.42 起也走同一条「获得」消息（图标 🔬） */
+  PSEUDO_LOOT: { '科研点': { name: '科研点', icon: '🔬' } },
   loot(id, qty) {
     if (typeof document === 'undefined') return;   // node 无头冒烟测试
     qty = Number(qty) || 0;
     if (!id || qty <= 0) return;
     const it = E.ITEMS[id];
+    const pseudo = it ? null : this.PSEUDO_LOOT[id];
     const feed = document.getElementById('lootFeed');
-    if (!it || !feed) return;
+    if ((!it && !pseudo) || !feed) return;
     const box = this._lootBoxEl(feed);
     let row = this._lootRows.get(id);
     if (!row) {
@@ -109,8 +112,8 @@ const UI = {
       const el = document.createElement('div');
       el.className = 'lootrow';
       el.innerHTML = '<span class="ic"></span><span class="n"></span><span class="q mono"></span>';
-      el.querySelector('.ic').innerHTML = this.itemIcon(it);
-      el.querySelector('.n').textContent = it.name;
+      el.querySelector('.ic').innerHTML = it ? this.itemIcon(it) : pseudo.icon;
+      el.querySelector('.n').textContent = it ? it.name : pseudo.name;
       box.appendChild(el);
       row = { el, n: 0, q: el.querySelector('.q'), exp: 0, fading: false, removeAt: 0 };
       this._lootRows.set(id, row);
@@ -311,12 +314,13 @@ const UI = {
 
     const matMods = it.metalMods || it.leatherMods;
     if (matMods) {
-      const labels = { dr: '伤害减免', str: '力量', atk: '命中' };
+      const labels = { dr: '伤害减免', str: '力量', atk: '命中', temp: '保暖', interval: '攻击间隔' };
       // v0.0.39：和经济一样用两列网格逐行排，不再挤在「金属加成」一行里竖向折行
-      // v0.0.40：皮革也走同一套「战斗数值修正」
-      const rows = ['dr', 'str', 'atk'].filter(k => matMods[k] != null)
+      // v0.0.40：皮革也走同一套修正
+      // v0.0.42：改名「属性修正」，补保暖 / 攻击间隔两项（皮革越厚越保暖、重金属挥动更慢）
+      const rows = ['dr', 'str', 'atk', 'temp', 'interval'].filter(k => matMods[k] != null)
         .map(k => row(labels[k], '×' + Number(matMods[k]).toFixed(2), 'gold'));
-      h += `<div class="ttSec">战斗数值修正</div><div class="ttRows">${rows.join('')}</div>`;
+      h += `<div class="ttSec">属性修正</div><div class="ttRows">${rows.join('')}</div>`;
     }
 
     const buyRow = it.kind === 'starPotion'

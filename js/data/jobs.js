@@ -161,15 +161,15 @@ window.JOBS = [
     category: "collect",
     duration: 3,
     inputs: { "谷物种子": 1 },
-    outputs: { "谷物": 6 },
+    outputs: { "谷物": 3 },
     powerUse: 0,
     recipes: [
-      { name: "谷物", inputs: { "谷物种子": 1 }, outputs: { "谷物": 6, "谷物种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "大豆", inputs: { "大豆种子": 1 }, outputs: { "大豆": 6, "大豆种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "蔬菜", inputs: { "蔬菜种子": 1 }, outputs: { "蔬菜": 6, "蔬菜种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "甜菜", inputs: { "甜菜种子": 1 }, outputs: { "甜菜": 6, "甜菜种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
-      { name: "药草", inputs: { "药草种子": 1 }, outputs: { "药草": 6, "药草种子": 1 }, era: "stone", unlockTech: null, duration: 3,
-        note: "药草种子 → 6 药草（进仓库，供医疗），不产食材" },
+      { name: "谷物", inputs: { "谷物种子": 1 }, outputs: { "谷物": 3, "谷物种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "大豆", inputs: { "大豆种子": 1 }, outputs: { "大豆": 3, "大豆种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "蔬菜", inputs: { "蔬菜种子": 1 }, outputs: { "蔬菜": 3, "蔬菜种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "甜菜", inputs: { "甜菜种子": 1 }, outputs: { "甜菜": 3, "甜菜种子": 1 }, era: "stone", unlockTech: null, duration: 3 },
+      { name: "药草", inputs: { "药草种子": 1 }, outputs: { "药草": 3, "药草种子": 1 }, era: "stone", unlockTech: null, duration: 3,
+        note: "药草种子 → 3 药草（进仓库，供医疗），不产食材" },
       { name: "干草", inputs: {}, outputs: { "草料": 6 }, era: "stone", unlockTech: null, duration: 4,
         note: "不消耗种子 / 食材，4 秒晒制 6 草料" }
     ],
@@ -180,7 +180,7 @@ window.JOBS = [
       { name: "化肥", watt: 0, bonusPct: 100, cost: { "堆肥": 150, "草料": 110, "木材": 75 }, note: "" }
     ],
     special: null,
-    note: "1 种子 → 6 对应作物 + 1 对应种子（种子净消耗为 0），不再附赠草料；收成由播的种子决定：谷物 / 大豆 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 6 药草（仓库材料，供医疗，不是食材）。草料只由「干草」项目产出：不消耗任何物品，4 秒产 6 草料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工需 1 个烹饪工（120 食材/分钟）。"
+    note: "1 种子 → 3 对应作物 + 1 对应种子（种子净消耗为 0），不再附赠草料；收成由播的种子决定：谷物 / 大豆 / 蔬菜 / 甜菜 种子 → 对应作物，药草种子 → 3 药草（仓库材料，供医疗，不是食材）。草料只由「干草」项目产出：不消耗任何物品，4 秒产 6 草料。大麻 / 棉花 种子需 *缝制（中世纪 120）解锁。upgrades[2] 温室是第 3 档，故第 4 档「化肥」不带 ⚡。1 个种植工约供 0.5 个烹饪工（60 食材/分钟），即 2 个种植工配 1 个烹饪工。"
   },
   {
     id: "hunting",

@@ -78,6 +78,19 @@ const lootBefore = lootGot.length;
 E.produceJob('gathering', 10);
 E.clearSlot('gathering', 0);
 ok(lootGot.length > lootBefore, '工作持续产出（采集）也会进消息框：' + lootGot.slice(lootBefore).map(x => x[0] + '+' + x[1]).join(','));
+// v0.0.42：科研点不是仓库物品，但也要上报一条「获得」消息
+const savedLootState = E.S;
+const resLootState = E.newState('科研消息');
+resLootState.milestones.research_ready = true;
+resLootState.jobs.research.up[0] = 1;
+E.S = resLootState;
+const researchLoot = [];
+window.UI = { loot: (id, n) => researchLoot.push([id, n]) };
+E.assignSlot('research', 0, 'player');
+E.produceJob('research', 60);
+ok(resLootState.research > 0 && researchLoot.some(x => x[0] === '科研点'),
+  '科研点产出也进消息框：' + JSON.stringify(researchLoot));
+E.S = savedLootState;
 window.UI = undefined;
 
 console.log('== 住房：6 档住满 = 18 人 ==');
@@ -773,7 +786,10 @@ ok(Object.keys(farmRs.find(r => r.name === '甜菜').inputs).join(',') === '甜�
 const hayR = farmRs.find(r => r.name === '干草');
 ok(Object.keys(hayR.inputs).length === 0 && hayR.outputs['草料'] === 6, '干草不消耗、产出 6 草料');
 const herbR = farmRs.find(r => r.name === '药草');
-ok(herbR.outputs['药草'] === 6 && !('草料' in herbR.outputs), '药草项目直接产 6 药草，不产草料');
+ok(herbR.outputs['药草'] === 3 && !('草料' in herbR.outputs), '药草项目直接产 3 药草，不产草料');
+ok(farmRs.filter(r => r !== hayR).every(r => Object.keys(r.outputs).filter(n => n.indexOf('种子') < 0)
+  .every(n => r.outputs[n] === 3)), 'v0.0.42：种植非干草项目的非种子产物都是 3');
+ok(E.JOB_BY_ID.farming.outputs['谷物'] === 3, '种植工作默认产物同步为 3');
 ok(farmRs.filter(r => r !== herbR && r !== hayR).every(r => !('草料' in r.outputs)), '其余 4 个作物项目都不产草料');
 ok(E.N2I('药草作物') === null && !E.ITEMS.herb_crop, '药草作物已删除');
 
@@ -1165,7 +1181,7 @@ const gr38 = U.pageWarehouse();
 ok(gr38.includes('种子 2400 秒减半') && gr38.includes('−0.029%/秒'), '粮仓页面按行显示种子腐坏速度');
 E.S = E.newState('v038腐坏2');
 const beetFarm = E.jobRecipes(E.JOB_BY_ID.farming).find(r => r.name === '甜菜');
-ok(beetFarm.outputs['甜菜种子'] === 1 && beetFarm.outputs['甜菜'] === 6, '种植额外返还 1 颗对应种子');
+ok(beetFarm.outputs['甜菜种子'] === 1 && beetFarm.outputs['甜菜'] === 3, '种植额外返还 1 颗对应种子、每次产 3 甜菜');
 const bushR = E.jobRecipes(E.JOB_BY_ID.gathering).find(r => r.name === '灌木');
 ok(bushR.icon === 'bush' && U.recipeIcon(E.JOB_BY_ID.gathering, bushR).startsWith('<svg'), '灌木项目有独立图标');
 
@@ -1206,8 +1222,9 @@ ok(!E.S.jobs.woodcutting.up[0], '摧毁直接撤销升级项');
 const ingotIds = E.ITEM_ORDER.filter(id => E.ITEMS[id].tags && E.ITEMS[id].tags.indexOf('金属') >= 0);
 ok(ingotIds.length === 7, '7 种金属锭带「金属」标签：' + ingotIds.length);
 const ironTip = U.itemTipHtml(E.N2I('铁锭'));
-ok(ironTip.includes('战斗数值修正') && ironTip.includes('>伤害减免<') && ironTip.includes('>力量<') && ironTip.includes('>命中<')
-  && ironTip.includes('×1.00') && !ironTip.includes('金属加成'), '金属物品面板显示战斗数值修正（三行）');
+ok(ironTip.includes('属性修正') && ironTip.includes('>伤害减免<') && ironTip.includes('>力量<') && ironTip.includes('>命中<')
+  && ironTip.includes('>保暖<') && ironTip.includes('>攻击间隔<') && ironTip.includes('×1.00')
+  && !ironTip.includes('战斗数值修正') && !ironTip.includes('金属加成'), '金属物品面板显示属性修正（五行，含保暖 / 攻击间隔）');
 ok(E.GENERIC_IN['金属'].length === 7 && E.GENERIC_IN['金属'].indexOf('钢铁') >= 0, '金属筛选由标签自动生成');
 
 // 锻造：金属筛选、动态命名、属性修正
@@ -1243,6 +1260,11 @@ const steelHelm = steelPreviewId ? E.ITEMS[steelPreviewId] : null;
 ok(!!steelHelm && steelHelm.name === '钢铁头盔' && steelHelm.dr === 9 && steelHelm.str === 2 && steelHelm.tint === 'steel',
   '钢铁头盔按钢铁修正：dr 9 / str 2');
 ok(steelPreviewId !== E.N2I('工业钢盔'), '动态钢铁头盔与工业钢盔不重名');
+// v0.0.42：攻击间隔 / 保暖也按金属修正
+const steelDagger = E.ITEMS[E.metalGearItem('steel', 'dagger')];
+ok(steelDagger && steelDagger.interval === 1.62, '钢铁匕首攻击间隔 1.5 → 1.62 秒');
+ok(E.ITEMS[E.metalGearItem('iron_ingot', 'dagger')].interval === 1.5, '铁匕首攻击间隔为基准 1.5 秒');
+ok(E.ITEMS[E.metalGearItem('steel', 'boots')].temp === 0.95, '钢铁靴保暖按钢铁修正 0.95');
 // 旧锻造装备迁移
 const oldForge = E.newState('v038装备迁移');
 oldForge.items = { iron_helm: 2 };
@@ -1276,7 +1298,8 @@ const leatherIds = E.ITEM_ORDER.filter(id => E.ITEMS[id].tags && E.ITEMS[id].tag
 ok(leatherIds.length === 7, '7 种皮革带「皮革」标签：' + leatherIds.length);
 const leatherTip = U.itemTipHtml(E.N2I('中型皮革'));
 ok(leatherTip.includes('>皮革<') && !leatherTip.includes('动物产物'), '皮革物品面板显示「皮革」、不再显示「动物产物」');
-ok(leatherTip.includes('战斗数值修正') && leatherTip.includes('×1.00'), '皮革物品面板显示战斗数值修正');
+ok(leatherTip.includes('属性修正') && leatherTip.includes('>保暖<') && leatherTip.includes('>攻击间隔<')
+  && leatherTip.includes('×1.00'), '皮革物品面板显示属性修正（含保暖 / 攻击间隔）');
 ok(E.ITEMS[E.N2I('中型皮革')].tint === 'leatherM' && E.ITEMS[E.N2I('厚重皮革')].tint === 'leatherH',
   '皮革带隐藏颜色属性 tint');
 ok(E.GENERIC_IN['皮革'].length === 7 && E.GENERIC_IN['皮革'].indexOf('厚重皮革') >= 0, '「皮革」筛选由标签自动生成');
@@ -1303,6 +1326,9 @@ for (let i = 0; i < 80; i++) E.produceJob('crafting', 0.2);
 const heavyArmor = E.ITEMS[heavyPreview];
 ok(E.count(heavyPreview) > 0 && heavyArmor.dr === 6.5 && heavyArmor.str === 2.4,
   '厚重皮革皮甲按 leatherMods 修正：dr 6.5 / str 2.4');
+ok(heavyArmor.temp === 1.25 && Array.isArray(heavyArmor.tags) && heavyArmor.tags.length === 0,
+  '厚重皮革皮甲保暖 ×1.25，成品不再带「皮革」标签');
+ok(U.itemTipHtml(heavyPreview).indexOf('>皮革<') < 0, '皮革成品面板不再显示「皮革」标签');
 ok(E.ITEMS[E.N2I('厚重皮革')].tint === 'leatherH'
   && ICONS.item(heavyArmor) !== ICONS.item('leather_armor'), '皮甲图标用皮革色，与基础模板图标不同');
 const oldLeather = E.newState('v040皮革迁移');

@@ -153,6 +153,7 @@
       const steps = Math.min(300, Math.max(1, Math.ceil(dt / 0.2)));
       for (let i = 0; i < steps; i++) E.tick(dt / steps);
       U.tick();
+      refreshFilterMenuCounts();
     } catch (e) { console.error(e); }
   }
 
@@ -457,6 +458,18 @@
   }
   function closeFilterMenu() {
     if (filterMenuEl) { filterMenuEl.remove(); filterMenuEl = null; }
+  }
+  /* v0.0.42：筛选下拉开着时，物品可能被项目 / 建造 / 商店实时消耗，
+     每帧把「×数量」重写一遍，不再停留在打开那一刻的库存。 */
+  function refreshFilterMenuCounts() {
+    const menu = filterMenuEl;
+    if (!menu || !menu.isConnected || !E.S || !E.S.seen) return;
+    menu.querySelectorAll('[data-pickitem]').forEach(el => {
+      const id = el.dataset.pickitem;
+      const mm = el.querySelector('.mm');
+      if (!mm) return;
+      mm.textContent = E.S.seen.items[id] ? '×' + E.fmt(E.count(id)) : '×？';
+    });
   }
   /* 模糊投入筛选：与入驻槽一样的浮层下拉列表，不再塞进项目卡内部。
      v0.0.39：点选即写回存档（无需「应用」）；「取消」撤销本次打开后的所有改动。 */
@@ -1108,6 +1121,12 @@
       U.toast(r.ok ? '已退化：' + r.list.map(x => x.name).join('、') + cleared : (r.why || '无法退化'), r.ok ? 'good' : 'bad');
     };
   }
+  /* 开发者操作 id → 中文提示（v0.0.42：新增畜牧认知度，顺便不再把内部 id 弹给玩家） */
+  const DEV_ACTION_LABEL = {
+    gold: '金币 +100,000', research: '科研点 +100,000', items: '每种物品 +100', food: '粮仓每种 +500',
+    techs: '解锁全部科技', unlock: '一键全解锁', husbandry: '解锁所有畜牧认知度',
+    heal: '治愈所有角色', codex: '解锁全部图鉴', shop: '刷新商店', uninjured: '清除「受伤」里程碑',
+  };
   function devAction(action) {
     const S = E.S;
     if (!S || !S.dev) return;
@@ -1134,6 +1153,14 @@
         S.jobs[j.id].up = new Array((j.upgrades || []).length).fill(1);
       });
       E.refreshMilestones();
+    } else if (action === 'husbandry') {
+      // v0.0.42：把所有动物的图鉴认知度拉满，畜牧面板全部解锁
+      Object.keys(S.chars).forEach(id => {
+        const c = S.chars[id];
+        if (!c) return;
+        if (!c.know) c.know = {};
+        Object.keys(E.HUSBANDRY_ANIMALS).forEach(nm => { c.know[nm] = E.HUSBANDRY_UNLOCK_KNOW; });
+      });
     } else if (action === 'heal') {
       Object.keys(S.chars).forEach(id => {
         const c = S.chars[id];
@@ -1156,7 +1183,7 @@
     }
     E.save(true);
     U.render();
-    U.toast('开发者操作已执行：' + action, 'good');
+    U.toast('开发者操作已执行：' + (DEV_ACTION_LABEL[action] || action), 'good');
   }
   function openDevPanel() {
     const S = E.S;
@@ -1168,7 +1195,7 @@
         <div class="row" style="margin-top:8px">${btn('gold', '金币 +100,000', 'gold')}${btn('research', '科研点 +100,000')}${btn('items', '每种物品 +100')}${btn('food', '粮仓每种 +500')}</div>
       </div>
       <div class="card" style="margin-bottom:8px"><b>解锁</b>
-        <div class="row" style="margin-top:8px">${btn('techs', '解锁全部科技', 'primary')}${btn('unlock', '一键全解锁（科技 + 工作 + 升级项）', 'gold')}${btn('codex', '解锁全部图鉴')}</div>
+        <div class="row" style="margin-top:8px">${btn('techs', '解锁全部科技', 'primary')}${btn('unlock', '一键全解锁（科技 + 工作 + 升级项）', 'gold')}${btn('codex', '解锁全部图鉴')}${btn('husbandry', '解锁所有畜牧认知度')}</div>
       </div>
       <div class="card" style="margin-bottom:8px"><b>维护</b>
         <div class="row" style="margin-top:8px">${btn('heal', '治愈所有角色')}${btn('shop', '刷新商店')}${btn('uninjured', '清除「受伤」里程碑')}</div>
@@ -1184,6 +1211,7 @@
     open: openDevPanel,
     items: () => devAction('items'),
     unlock: () => devAction('unlock'),
+    husbandry: () => devAction('husbandry'),
     heal: () => devAction('heal'),
     gold: () => devAction('gold'),
   };
