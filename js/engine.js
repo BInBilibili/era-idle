@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.40';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.41';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -792,8 +792,8 @@ function materialGearItem(materialId, templateOrKey, kind) {
   const priceMul = baseMaterial && baseMaterial.price ? (material.price || 1) / baseMaterial.price : 1;
   const it = {
     id,
-    // v0.0.40：成品名不再拼材料前缀（不再出现「铜锭护腿」），材料只放在隐藏字段 / 徽章里
-    name: t.name,
+    // v0.0.41：恢复材料前缀（铁锭头盔 / 厚重皮革皮甲），颜色仍由隐藏 tint 决定
+    name: material.name + t.name,
     era: base.era || (kind === 'metal' ? 'medieval' : 'stone'),
     cat: base.cat,
     storage: 'warehouse',
@@ -831,7 +831,7 @@ function materialGearItem(materialId, templateOrKey, kind) {
     use: base.use || '装备',
   };
   ITEMS[id] = it;
-  if (!BY_NAME[it.name]) BY_NAME[it.name] = it;
+  BY_NAME[it.name] = it;
   ITEM_ORDER.push(id);
   return id;
 }

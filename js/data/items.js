@@ -433,8 +433,8 @@ window.METAL_GEAR_TEMPLATES = [
 /* ============================================================================
  * 皮革装备模板（v0.0.40）
  * 皮帽 / 皮甲 / 皮裤 / 皮靴 / 皮带不再写死「中型皮革」：投料按「皮革」标签筛选，
- * 成品仍是同一件装备；图标颜色取实际消耗皮革的 tint，战斗数值按 leatherMods 修正。
- * 这里只登记 5 个模板，不新增静态物品定义；基础物品仍保留作属性 / 价格模板。
+ * 成品名 = 皮革名 + 模板名（厚重皮革皮甲），图标颜色取实际消耗皮革的 tint，
+ * 战斗数值按 leatherMods 修正。基础物品仍保留作属性 / 价格模板。
  * ==========================================================================*/
 window.LEATHER_GEAR_TEMPLATES = [
   { key: 'cap',   name: '皮帽', baseId: 'leather_cap',   baseMaterial: 'leather_medium', leatherCount: 3, leatherStats: ['dr', 'str'], iconId: 'leather_cap' },

@@ -291,7 +291,7 @@ const UI = {
     let h = `<div class="ttHead"><span class="ttIcon">${this.itemIcon(it)}</span><div class="ttTitle">
       <b>${esc(it.name)}</b>
       <div class="ttTags">${it.era && ERA_TAG_NAME[it.era] ? tag(ERA_TAG_NAME[it.era]) : ''}${leatherMat ? '' : tag(ITEM_CAT_NAME[it.cat] || it.cat)}
-      ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}${(it.tags || []).map(t => tag(t)).join('')}${it.materialName ? tag(it.materialName, 'mat') : ''}</div></div></div>`;
+      ${it.slot ? tag(ITEM_SLOT_NAME[it.slot] || it.slot) : ''}${it.twoHanded ? tag('双手', 'warn') : ''}${(it.tags || []).map(t => tag(t)).join('')}</div></div></div>`;
 
     if (info.gear) {
       const rows = [];
@@ -1233,7 +1233,7 @@ const UI = {
       <table class="t" style="margin-top:10px"><thead><tr><th>物品</th><th class="r">数量</th><th class="r">单价</th><th class="r">总价值</th><th class="r">操作</th></tr></thead><tbody>
       ${ids.map(id => {
         const it = E.ITEMS[id], q = S.items[id];
-        return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}${it.materialName ? ` <span class="tiny dim">${this.esc(it.materialName)}</span>` : ''}${it.cat === 'book' ? ' <span class="tiny dim">技能书</span>' : ''}</td>
+        return `<tr><td data-tip-item="${id}">${this.itemIcon(it)} ${this.esc(it.name)}${it.cat === 'book' ? ' <span class="tiny dim">技能书</span>' : ''}</td>
           <td class="r mono">${E.fmt(q)}</td><td class="r mono">${E.fmt(it.price)}</td><td class="r mono gold">${E.fmt(q * it.price)}</td>
           <td class="r"><button class="sm" data-act="sell" data-id="${id}">卖 1</button> <button data-act="sellall" data-id="${id}">全卖</button></td></tr>`;
       }).join('')}</tbody></table>`}

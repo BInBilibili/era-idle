@@ -1228,20 +1228,20 @@ E.setInputSelection('forging', helmR, '金属', [E.N2I('铁锭')]);
 ok(E.metalForRecipe(helmR, 'forging', true) === 'iron_ingot', '只勾选铁锭时选铁锭');
 const ironPreviewId = E.materialPreviewId('forging', helmR);
 ok(E.metalForRecipe(helmR, 'forging', true) !== 'steel' && !!ironPreviewId
-  && E.ITEMS[ironPreviewId].name === '头盔' && E.ITEMS[ironPreviewId].tint === 'iron'
-  && !E.ITEMS[ironPreviewId].name.includes('铁锭'), '界面预览铁色「头盔」，成品名不再拼材料前缀');
+  && E.ITEMS[ironPreviewId].name === '铁锭头盔' && E.ITEMS[ironPreviewId].tint === 'iron'
+  && E.N2I('铁锭头盔') === ironPreviewId, '界面预览「铁锭头盔」，名称带材料前缀且可反查');
 E.assignSlot('forging', 0, 'player');
 const ironBefore = E.count('铁锭'), steelBefore = E.count('钢铁');
 for (let i = 0; i < 80; i++) E.produceJob('forging', 0.2);
 ok(E.count('铁锭') < ironBefore && E.count('钢铁') === steelBefore, '只消耗勾选的铁锭，不动钢铁');
 const ironHelm = E.ITEMS[ironPreviewId];
-ok(!!ironHelm && ironHelm.dr === 6 && ironHelm.str === 1, '铁色头盔按铁锭基准：dr 6 / str 1');
+ok(!!ironHelm && ironHelm.dr === 6 && ironHelm.str === 1, '铁锭头盔按铁锭基准：dr 6 / str 1');
 E.setInputSelection('forging', helmR, '金属', [E.N2I('钢铁')]);
 for (let i = 0; i < 80; i++) E.produceJob('forging', 0.2);
 const steelPreviewId = E.materialPreviewId('forging', helmR);
 const steelHelm = steelPreviewId ? E.ITEMS[steelPreviewId] : null;
-ok(!!steelHelm && steelHelm.dr === 9 && steelHelm.str === 2 && steelHelm.tint === 'steel',
-  '钢色头盔按钢铁修正：dr 9 / str 2');
+ok(!!steelHelm && steelHelm.name === '钢铁头盔' && steelHelm.dr === 9 && steelHelm.str === 2 && steelHelm.tint === 'steel',
+  '钢铁头盔按钢铁修正：dr 9 / str 2');
 ok(steelPreviewId !== E.N2I('工业钢盔'), '动态钢铁头盔与工业钢盔不重名');
 // 旧锻造装备迁移
 const oldForge = E.newState('v038装备迁移');
@@ -1296,8 +1296,8 @@ E.addItem('厚重皮革', 20, { silent: true });
 const armorR = E.jobRecipes(E.JOB_BY_ID.crafting).find(r => r.name === '皮甲');
 const armorIdx = E.jobRecipes(E.JOB_BY_ID.crafting).indexOf(armorR);
 const heavyPreview = E.materialPreviewId('crafting', armorR);
-ok(heavyPreview && E.ITEMS[heavyPreview].name === '皮甲' && E.ITEMS[heavyPreview].tint === 'leatherH'
-  && !E.ITEMS[heavyPreview].name.includes('厚重'), '皮甲按厚重皮革预览为深色，名字不拼材料前缀');
+ok(heavyPreview && E.ITEMS[heavyPreview].name === '厚重皮革皮甲' && E.ITEMS[heavyPreview].tint === 'leatherH'
+  && E.N2I('厚重皮革皮甲') === heavyPreview, '厚重皮革皮甲预览为深色，名称带皮革前缀且可反查');
 E.assignSlot('crafting', armorIdx, 'player');
 for (let i = 0; i < 80; i++) E.produceJob('crafting', 0.2);
 const heavyArmor = E.ITEMS[heavyPreview];
