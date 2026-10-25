@@ -249,8 +249,9 @@ const UI = {
     info.power = it.cat === 'weapon' ? info.str * 2 + info.atk : (it.dr || 0) * 5 + info.str * 2;   // 与 engine.gearPower 同权重
     return info;
   },
-  /* v0.0.33：物品面板的「获取」只写来源，不再展开配方细节。
-     例：医药 的 src「医疗（药剂配方 + 化学燃料）」→ 显示「医疗」。
+  /* 物品面板的「获取 / 用途」只写主分类，不再展开括号里的配方 / 材料细节。
+     例：医药 的 src「医疗（药剂配方 + 化学燃料）」→ 显示「医疗」；
+     植物纤维的 use「加工（内衬衣物）、编织（地毯）、裁缝（弓）」→「加工、编织、裁缝」。
      全角 / 半角括号里的补充说明（材料、具体动物、*缝制 等）统一去掉。 */
   srcText(src) {
     return String(src === undefined || src === null ? '' : src)
@@ -308,9 +309,10 @@ const UI = {
 
     if (it.metalMods) {
       const labels = { dr: '伤害减免', str: '力量', atk: '命中' };
-      const mods = ['dr', 'str', 'atk'].filter(k => it.metalMods[k] != null)
-        .map(k => labels[k] + ' ×' + Number(it.metalMods[k]).toFixed(2)).join(' · ');
-      h += `<div class="ttSec">战斗数值修正</div><div class="ttRows">${row('金属加成', mods, 'gold')}</div>`;
+      // v0.0.39：和经济一样用两列网格逐行排，不再挤在「金属加成」一行里竖向折行
+      const rows = ['dr', 'str', 'atk'].filter(k => it.metalMods[k] != null)
+        .map(k => row(labels[k], '×' + Number(it.metalMods[k]).toFixed(2), 'gold'));
+      h += `<div class="ttSec">战斗数值修正</div><div class="ttRows">${rows.join('')}</div>`;
     }
 
     const buyRow = it.kind === 'starPotion'
@@ -345,7 +347,8 @@ const UI = {
 
     const srcText = it.src ? this.srcText(it.src) : '';
     if (srcText) h += `<div class="ttSec">获取</div><div class="ttDesc">${esc(srcText)}</div>`;
-    if (it.use) h += `<div class="ttDesc">用途：${esc(it.use)}</div>`;
+    const useText = it.use ? this.srcText(it.use) : '';
+    if (useText) h += `<div class="ttDesc">用途：${esc(useText)}</div>`;
     if (it.note) h += `<div class="ttDesc">备注：${esc(it.note)}</div>`;
 
     if (it.cost) {
@@ -417,7 +420,19 @@ const UI = {
     const a = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
     const pad = 8, gap = 8, vw = window.innerWidth, vh = window.innerHeight;
     let left, top;
-    if (a) {
+    // v0.0.39：筛选下拉里的物品面板贴在下拉旁边，避免盖住列表导致悬停项来回跳
+    const menu = el && el.closest ? el.closest('#inputMenu') : null;
+    if (a && menu) {
+      const m = menu.getBoundingClientRect();
+      const right = m.right + gap, leftSide = m.left - r.width - gap;
+      if (right + r.width <= vw - pad) { left = right; top = a.top; }
+      else if (leftSide >= pad) { left = leftSide; top = a.top; }
+      else {
+        left = a.left + a.width / 2 - r.width / 2;
+        top = a.bottom + gap;
+      }
+      top = Math.min(Math.max(pad, top), Math.max(pad, vh - r.height - pad));
+    } else if (a) {
       left = a.left + a.width / 2 - r.width / 2;
       top = a.bottom + gap;                                    // 优先下方
       if (top + r.height > vh - pad) {
@@ -685,7 +700,11 @@ const UI = {
   priceLine(cost) {
     return Object.entries(cost || {}).map(([n, q]) => {
       const id = E.iid(n), have = id ? E.count(id) : 0;
-      return `<span class="${have >= q ? 'ok' : 'no'}">${this.esc(n)} ${E.fmt(have)}/${E.fmt(q)}</span>`;
+      const it = id ? E.ITEMS[id] : null;
+      // v0.0.39：材料前面带物品图标，悬停图标看物品面板
+      return `<span class="pice ${have >= q ? 'ok' : 'no'}">`
+        + (it ? `<span class="pico" data-tip-item="${id}">${this.itemIcon(it)}</span>` : '')
+        + `<span>${this.esc(n)} ${E.fmt(have)}/${E.fmt(q)}</span></span>`;
     }).join('');
   },
   /* ---------------- 工作页 ---------------- */
@@ -919,9 +938,11 @@ const UI = {
       ? !E.metalForRecipe(r, job.id, true)
       : E.stockOf(n, sel) < q;
     const first = (sel[0] || all[0]) ? E.ITEMS[sel[0] || all[0]] : null;
+    const firstId = first ? (sel[0] || all[0]) : null;
     const icon = first ? this.itemIcon(first) : '';
+    // v0.0.39：不再写「点击筛选」原生提示；悬停显示当前图标的物品面板
     return `<span class="badge io inpbadge ${lack ? 'bad' : ''}" role="button" tabindex="0"
-      data-act="inpfilter" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}" title="点击筛选「${this.esc(n)}」">
+      data-act="inpfilter" data-job="${job.id}" data-i="${i}" data-in="${this.esc(n)}"${firstId ? ` data-tip-item="${firstId}"` : ''}>
       ${icon}${icon ? ' ' : ''}<span class="${lack ? 'red' : ''}">${this.esc(n)} ×${E.fmt(q)}</span></span>`;
   },
   ioList(obj, checkStock) {

@@ -437,28 +437,25 @@
     if (filterMenuEl) { filterMenuEl.remove(); filterMenuEl = null; }
   }
   /* 模糊投入筛选：与入驻槽一样的浮层下拉列表，不再塞进项目卡内部。
-     勾选先改本地集合，点「应用」才写回存档。 */
+     v0.0.39：点选即写回存档（无需「应用」）；「取消」撤销本次打开后的所有改动。 */
   function openInputFilter(jobId, slotIdx, inputName, anchor) {
     closeSlotMenu();
     closeFilterMenu();
-    const S = E.S, job = E.JOB_BY_ID[jobId];
+    const job = E.JOB_BY_ID[jobId];
     const r = job ? E.jobRecipes(job)[slotIdx] : null;
     if (!job || !r || !anchor) return;
     const all = E.genericItemIds(inputName);
-    const selected = new Set(E.inputSelection(jobId, r, inputName).filter(id => all.indexOf(id) >= 0));
-    const tip = inputName === '金属'
-      ? '只消耗勾选的金属；多种金属时优先消耗战斗修正最高且库存足够的一种。列表按「金属」标签自动生成。'
-      : '只用勾选的材料；未勾选的不计入消耗。列表按物品标签自动生成。';
+    const initial = E.inputSelection(jobId, r, inputName).filter(id => all.indexOf(id) >= 0);
+    const selected = new Set(initial);
     const menu = document.createElement('div');
     menu.id = 'inputMenu';
     menu.className = 'slotmenu inpmenu';
     menu.innerHTML = `
-      <div class="pmh">筛选 · ${U.esc(inputName)}</div>
-      <div class="pms">${tip}</div>
+      <div class="pmh">筛选</div>
       <div class="pmlist">${all.length ? all.map(id => {
         const it = E.ITEMS[id]; if (!it) return '';
         const on = selected.has(id);
-        return `<button type="button" class="pmitem ${on ? 'on' : ''}" data-pickitem="${id}">
+        return `<button type="button" class="pmitem ${on ? 'on' : ''}" data-pickitem="${id}" data-tip-item="${id}">
           ${U.itemIcon(it)}<span class="nm">${U.esc(it.name)}</span><span class="mm">×${E.fmt(E.count(id))}</span><span class="tick">${on ? '✓' : '＋'}</span>
         </button>`;
       }).join('') : '<div class="pmempty">没有可筛选的物品</div>'}</div>
@@ -466,28 +463,23 @@
         <button type="button" data-menu-all>全选</button>
         <button type="button" data-menu-none>全不选</button>
         <button type="button" data-menu-cancel>取消</button>
-        <button type="button" class="primary" data-menu-apply>应用</button>
       </div>`;
     document.body.appendChild(menu);
     const rct = anchor.getBoundingClientRect();
     const mw = menu.offsetWidth, mh = menu.offsetHeight;
-    let left = Math.max(8, Math.min(rct.left, window.innerWidth - mw - 8));
+    const left = Math.max(8, Math.min(rct.left, window.innerWidth - mw - 8));
     let top = rct.bottom + 6;
     if (top + mh > window.innerHeight - 8) top = Math.max(8, rct.top - mh - 6);
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
     filterMenuEl = menu;
-    menu.querySelectorAll('[data-pickitem]').forEach(el => el.onclick = () => {
-      const id = el.dataset.pickitem;
-      if (selected.has(id)) selected.delete(id); else selected.add(id);
-      const on = selected.has(id);
-      el.classList.toggle('on', on);
-      const tick = el.querySelector('.tick');
-      if (tick) tick.textContent = on ? '✓' : '＋';
-    });
-    const setAll = on => {
-      selected.clear();
-      if (on) all.forEach(id => selected.add(id));
+    /* 每次改动立即写存档并重绘页面（徽章 / 够不够料同步变化），下拉本身留在原地 */
+    const apply = () => {
+      E.setInputSelection(jobId, r, inputName, Array.from(selected));
+      E.save(true);
+      U.render();
+    };
+    const paint = () => {
       menu.querySelectorAll('[data-pickitem]').forEach(el => {
         const onNow = selected.has(el.dataset.pickitem);
         el.classList.toggle('on', onNow);
@@ -495,11 +487,22 @@
         if (tick) tick.textContent = onNow ? '✓' : '＋';
       });
     };
+    menu.querySelectorAll('[data-pickitem]').forEach(el => el.onclick = () => {
+      const id = el.dataset.pickitem;
+      if (selected.has(id)) selected.delete(id); else selected.add(id);
+      paint();
+      apply();
+    });
+    const setAll = on => {
+      selected.clear();
+      if (on) all.forEach(id => selected.add(id));
+      paint();
+      apply();
+    };
     menu.querySelector('[data-menu-all]').onclick = () => setAll(true);
     menu.querySelector('[data-menu-none]').onclick = () => setAll(false);
-    menu.querySelector('[data-menu-cancel]').onclick = closeFilterMenu;
-    menu.querySelector('[data-menu-apply]').onclick = () => {
-      E.setInputSelection(jobId, r, inputName, Array.from(selected));
+    menu.querySelector('[data-menu-cancel]').onclick = () => {
+      E.setInputSelection(jobId, r, inputName, initial);
       closeFilterMenu();
       E.save(true);
       U.render();

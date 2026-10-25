@@ -1205,7 +1205,8 @@ ok(!E.S.jobs.woodcutting.up[0], '摧毁直接撤销升级项');
 const ingotIds = E.ITEM_ORDER.filter(id => E.ITEMS[id].tags && E.ITEMS[id].tags.indexOf('金属') >= 0);
 ok(ingotIds.length === 7, '7 种金属锭带「金属」标签：' + ingotIds.length);
 const ironTip = U.itemTipHtml(E.N2I('铁锭'));
-ok(ironTip.includes('战斗数值修正') && ironTip.includes('伤害减免 ×1.00'), '金属物品面板显示战斗数值修正');
+ok(ironTip.includes('战斗数值修正') && ironTip.includes('>伤害减免<') && ironTip.includes('>力量<') && ironTip.includes('>命中<')
+  && ironTip.includes('×1.00') && !ironTip.includes('金属加成'), '金属物品面板显示战斗数值修正（三行）');
 ok(E.GENERIC_IN['金属'].length === 7 && E.GENERIC_IN['金属'].indexOf('钢铁') >= 0, '金属筛选由标签自动生成');
 
 // 锻造：金属筛选、动态命名、属性修正

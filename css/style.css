@@ -147,6 +147,9 @@ main#page{overflow-y:auto;padding:18px 20px 60px;min-width:0}
 .upg.off{opacity:.45}
 .price{display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
 .price .ok{color:var(--green)}.price .no{color:var(--red)}
+.price .pice{display:inline-flex;align-items:center;gap:3px}
+.price .pico{display:inline-flex;width:14px;height:14px;flex:none}
+.price .pico .icSvg{width:14px;height:14px;vertical-align:0}
 .progresswrap{position:relative}
 .progresswrap .big{height:26px}
 .progresswrap .big>i{background:linear-gradient(90deg,#2b527d,#3f8fd4,#68a9e6)}
@@ -244,7 +247,7 @@ table.t td.c,table.t th.c{text-align:center}
 .drawArt .icSvg{width:84px;height:84px;vertical-align:0}
 
 /* 物品悬浮面板 */
-#itemTip{position:fixed;z-index:90;display:none;width:284px;max-height:min(72vh,520px);overflow:auto;
+#itemTip{position:fixed;z-index:160;display:none;width:284px;max-height:min(72vh,520px);overflow:auto;
  background:linear-gradient(180deg,#1a2331,#101821);border:1px solid var(--line2);border-radius:10px;
  padding:10px 12px;box-shadow:0 14px 38px #000b;font-size:12px;line-height:1.45;color:var(--text);
  pointer-events:none;animation:ttin .12s ease-out}
