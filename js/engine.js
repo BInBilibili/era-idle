@@ -5,7 +5,7 @@
 'use strict';
 
 /* ---------- 常量 ---------- */
-const APP_VERSION = 'v0.0.39';   // 测试版版本号（0.0.x 阶段）
+const APP_VERSION = 'v0.0.40';   // 测试版版本号（0.0.x 阶段）
 const GAME = {
   tickMs: 200,
   saveKey: 'eraIdleSave_v1',
@@ -124,6 +124,9 @@ const N2I = name => (BY_NAME[name] ? BY_NAME[name].id : null);
 const METAL_GEAR_TEMPLATES = window.METAL_GEAR_TEMPLATES || [];
 const METAL_GEAR_BY_KEY = {};
 METAL_GEAR_TEMPLATES.forEach(t => { METAL_GEAR_BY_KEY[t.key] = t; });
+const LEATHER_GEAR_TEMPLATES = window.LEATHER_GEAR_TEMPLATES || [];
+const LEATHER_GEAR_BY_KEY = {};
+LEATHER_GEAR_TEMPLATES.forEach(t => { LEATHER_GEAR_BY_KEY[t.key] = t; });
 const JOB_BY_ID = {}; JOBS.forEach(j => JOB_BY_ID[j.id] = j);
 const JOB_BY_NAME = {}; JOBS.forEach(j => JOB_BY_NAME[j.name] = j);
 const TECH_BY_NAME = {}; TECHS.forEach(t => TECH_BY_NAME[t.name] = t);
@@ -251,7 +254,7 @@ function newChar(cid, opts) {
 function newState(name) {
   const st = {
     v: 1, name: name || '无名者', created: Date.now(), lastSave: Date.now(),
-    dataVer: 34,       // 工作数据版本：迁移时据此重排配方槽位（v0.0.34 采集新增两个项目）
+    dataVer: 40,       // 工作数据版本：迁移时据此重排配方槽位（v0.0.40 皮革装备改模板）
     playtime: 0,
     gold: 0, research: 0,
     items: {}, seen: { items:{}, enemies:{}, chars:{} },
@@ -398,6 +401,8 @@ function itemEver(idOrName) {
             (S.seen && S.seen.items && S.seen.items[id]));
 }
 function everOwnedAll(cost) {
+  // 开发者模式直接视为「曾经拥有」：资源不足 / 从没攒齐也能看到并建造全部档位
+  if (S && S.dev) return true;
   for (const name in (cost || {})) {
     const id = iid(normName(name));
     if (!id || !itemEver(id)) return false;
@@ -604,7 +609,8 @@ function charStats(c) {
     dr += it.dr || 0; str += it.str || 0; atk += it.atk || 0; temp += it.temp || 0; shield += it.shield || 0;
   }
   const w = weaponOf(c);
-  const wc = w ? (WEAPON_COMBAT[w.name] || {}) : {};
+  // 动态材料武器把倍率算进了 it.str / it.atk，不能再按模板中文名查基础武器数值
+  const wc = (w && !w.dynamicMaterial) ? (WEAPON_COMBAT[w.name] || {}) : {};
   const wStr = wc.str !== undefined ? wc.str : (w ? (w.str || 0) : 0);
   const wAtk = wc.atk !== undefined ? wc.atk : (w ? (w.atk || 0) : 0);
   const foodLv = foodAtkStrBonus(c);   // 肉餐：命中 / 力量 +10 级（临时，只作用于该角色）
@@ -705,64 +711,90 @@ function miningRecipes(job) {
     duration: Math.round((GAME.mineBaseSec * 100 / (o.weight || 1)) * 10) / 10,
   }));
 }
-/* ---------- 金属锻造（v0.0.38） ----------
-   锻造项目不再写死铁 / 钢：投料是「金属」标签筛选，成品按消耗的金属动态生成。
-   金属 item.metalMods = { dr, str, atk } 是倍率；项目用到的战斗数值（metalStats）
-   修正最高的金属优先（同分按物品表顺序）。 */
+/* ---------- 材料锻造 / 加工（v0.0.38 金属，v0.0.40 皮革） ----------
+   锻造与皮革加工不再写死某一种材料：投料分别用「金属」「皮革」标签筛选，
+   成品仍是模板里的那一件（头盔 / 皮甲…），只带一个隐藏 tint 让图标按实际
+   消耗的材料换色。材料 item.metalMods / leatherMods = { dr, str, atk } 是倍率；
+   项目用到的战斗数值（metalStats / leatherStats）修正最高的材料优先。 */
 const METAL_RECIPE_CACHE = {};
+const LEATHER_RECIPE_CACHE = {};
 function metalIngotIds() {
   return ITEM_ORDER.filter(id => {
     const it = ITEMS[id];
     return !!it && !it.dynamicMetal && Array.isArray(it.tags) && it.tags.indexOf('金属') >= 0;
   });
 }
-function metalModScore(metal, stats) {
-  const mods = (metal && metal.metalMods) || {};
+function leatherItemIds() {
+  return ITEM_ORDER.filter(id => {
+    const it = ITEMS[id];
+    return !!it && !it.dynamicLeather && !it.leatherBase
+      && Array.isArray(it.tags) && it.tags.indexOf('皮革') >= 0;
+  });
+}
+function materialLabel(r) {
+  if (!r) return null;
+  return r.metalBase ? '金属' : (r.leatherBase ? '皮革' : null);
+}
+function materialNeed(r, mult) { return ((r && (r.metalCount || r.leatherCount)) || 1) * (mult || 1); }
+function metalNeed(r, mult) { return ((r && r.metalCount) || 1) * (mult || 1); }
+function materialModScore(it, stats, label) {
+  const mods = (it && (label === '金属' ? it.metalMods : it.leatherMods)) || {};
   return (stats || []).reduce((a, k) => a + (mods[k] != null ? mods[k] : 1), 0);
 }
-function metalNeed(r, mult) { return ((r && r.metalCount) || 1) * (mult || 1); }
-/* requireStock=true 时只考虑「当前库存足够一次投料」的金属；
-   requireStock=false 仅用于不看库存的候选扫描（界面预览也优先看库存，没有可开工金属时显示占位名）。 */
-function metalForRecipe(r, jobId, requireStock, mult) {
-  if (!r || !r.metalBase || !S) return null;
-  const ids = jobId ? inputSelection(jobId, r, '金属') : metalIngotIds();
-  const need = metalNeed(r, mult);
+function metalModScore(metal, stats) { return materialModScore(metal, stats, '金属'); }
+/* requireStock=true 时只考虑「当前库存足够一次投料」的材料；
+   requireStock=false 仅用于不看库存的候选扫描（界面预览也优先看库存，没有可开工材料时显示占位名）。 */
+function materialForRecipe(r, jobId, requireStock, mult) {
+  const label = materialLabel(r);
+  if (!label || !S) return null;
+  const ids = jobId ? inputSelection(jobId, r, label)
+    : (label === '金属' ? metalIngotIds() : leatherItemIds());
+  const need = materialNeed(r, mult);
+  const stats = r.metalBase ? r.metalStats : r.leatherStats;
   let best = null, bestScore = -1;
   for (const id of ids) {
     if (requireStock && (S.items[id] || 0) < need) continue;
     const it = ITEMS[id];
     if (!it) continue;
-    const score = metalModScore(it, r.metalStats);
+    const score = materialModScore(it, stats, label);
     if (score > bestScore) { bestScore = score; best = id; }
   }
   return best;
 }
-function metalGearId(metalId, template) {
-  return 'metal_' + metalId + '_' + (template && template.key);
+function metalForRecipe(r, jobId, requireStock, mult) {
+  if (!r || !r.metalBase) return null;
+  return materialForRecipe(r, jobId, requireStock, mult);
 }
-function metalGearItem(metalId, templateOrKey) {
-  const t = typeof templateOrKey === 'string' ? METAL_GEAR_BY_KEY[templateOrKey] : templateOrKey;
-  const metal = ITEMS[metalId];
-  if (!t || !metal) return null;
+function materialGearId(materialId, template, kind) {
+  return (kind === 'leather' ? 'lgear_' : 'metal_') + materialId + '_' + (template && template.key);
+}
+function metalGearId(metalId, template) { return materialGearId(metalId, template, 'metal'); }
+function leatherGearId(leatherId, template) { return materialGearId(leatherId, template, 'leather'); }
+function materialGearItem(materialId, templateOrKey, kind) {
+  const byKey = kind === 'leather' ? LEATHER_GEAR_BY_KEY : METAL_GEAR_BY_KEY;
+  const t = typeof templateOrKey === 'string' ? byKey[templateOrKey] : templateOrKey;
+  const material = ITEMS[materialId];
+  if (!t || !material) return null;
   const base = ITEMS[t.baseId];
   if (!base) return null;
-  const id = metalGearId(metalId, t);
+  const id = materialGearId(materialId, t, kind);
   if (ITEMS[id]) return id;
-  const mods = metal.metalMods || {};
-  const baseMetal = ITEMS[t.baseMetal];
-  const baseMods = (baseMetal && baseMetal.metalMods) || {};
+  const mods = (kind === 'leather' ? material.leatherMods : material.metalMods) || {};
+  const baseMaterial = ITEMS[kind === 'leather' ? t.baseMaterial : t.baseMetal];
+  const baseMods = (baseMaterial && (kind === 'leather' ? baseMaterial.leatherMods : baseMaterial.metalMods)) || {};
   const rel = k => {
     const m = mods[k] != null ? mods[k] : 1;
     const b = baseMods[k] != null ? baseMods[k] : 1;
     return m / b;
   };
-  const wc = base.cat === 'weapon' ? (WEAPON_COMBAT[base.name] || {}) : {};
+  const wc = (kind === 'metal' && base.cat === 'weapon') ? (WEAPON_COMBAT[base.name] || {}) : {};
   const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
-  const priceMul = baseMetal && baseMetal.price ? (metal.price || 1) / baseMetal.price : 1;
+  const priceMul = baseMaterial && baseMaterial.price ? (material.price || 1) / baseMaterial.price : 1;
   const it = {
     id,
-    name: metal.name + t.name,
-    era: 'medieval',
+    // v0.0.40：成品名不再拼材料前缀（不再出现「铜锭护腿」），材料只放在隐藏字段 / 徽章里
+    name: t.name,
+    era: base.era || (kind === 'metal' ? 'medieval' : 'stone'),
     cat: base.cat,
     storage: 'warehouse',
     price: Math.max(1, Math.round((base.price || 0) * priceMul)),
@@ -779,19 +811,35 @@ function metalGearItem(metalId, templateOrKey) {
     ignoreDR: wc.ignoreDR || base.ignoreDR,
     shield: base.shield,
     iconId: t.iconId || base.iconId,
-    metal: metalId,
-    metalBase: t.key,
-    metalName: metal.name,
+    tint: material.tint || '',
+    material: materialId,
+    materialName: material.name,
+    materialKind: kind,
+    dynamicMaterial: true,
+    dynamicMetal: kind === 'metal',
+    dynamicLeather: kind === 'leather',
+    // 兼容旧字段：金属模板 / 迁移逻辑仍从这两个字段取元数据
+    metal: kind === 'metal' ? materialId : undefined,
+    metalBase: kind === 'metal' ? t.key : undefined,
+    metalName: kind === 'metal' ? material.name : undefined,
+    leatherBase: kind === 'leather' ? t.key : undefined,
+    leatherName: kind === 'leather' ? material.name : undefined,
     baseName: t.name,
-    dynamicMetal: true,
     hidden: true,
-    src: '锻造（' + metal.name + '）',
+    tags: kind === 'leather' ? ['皮革'] : [],
+    src: (kind === 'metal' ? '锻造' : '加工') + '（' + material.name + '）',
     use: base.use || '装备',
   };
   ITEMS[id] = it;
-  BY_NAME[it.name] = it;
+  if (!BY_NAME[it.name]) BY_NAME[it.name] = it;
   ITEM_ORDER.push(id);
   return id;
+}
+function metalGearItem(metalId, templateOrKey) {
+  return materialGearItem(metalId, templateOrKey, 'metal');
+}
+function leatherGearItem(leatherId, templateOrKey) {
+  return materialGearItem(leatherId, templateOrKey, 'leather');
 }
 /* 读档时动态装备 id 还没有定义：按 id 反推并重建条目。 */
 function ensureMetalGearId(id) {
@@ -806,9 +854,31 @@ function ensureMetalGearId(id) {
   }
   return id;
 }
+function ensureLeatherGearId(id) {
+  if (!id || id.indexOf('lgear_') !== 0 || ITEMS[id]) return id;
+  const rest = id.slice(6);
+  for (const t of LEATHER_GEAR_TEMPLATES) {
+    const suffix = '_' + t.key;
+    if (rest.length > suffix.length && rest.slice(-suffix.length) === suffix) {
+      const leatherId = rest.slice(0, -suffix.length);
+      if (ITEMS[leatherId]) return leatherGearItem(leatherId, t) || id;
+    }
+  }
+  return id;
+}
+function ensureMaterialGearId(id) {
+  return ensureLeatherGearId(ensureMetalGearId(id));
+}
+function materialPreviewId(jobId, r) {
+  const mid = materialForRecipe(r, jobId, true);
+  if (!mid) return null;
+  if (r.metalBase) return metalGearItem(mid, r.metalBase);
+  if (r.leatherBase) return leatherGearItem(mid, r.leatherBase);
+  return null;
+}
 function metalPreviewId(jobId, r) {
-  const mid = metalForRecipe(r, jobId, true);
-  return mid ? metalGearItem(mid, r.metalBase) : null;
+  if (!r || !r.metalBase) return null;
+  return materialPreviewId(jobId, r);
 }
 function metalGearRecipes(job) {
   if (METAL_RECIPE_CACHE[job.id]) return METAL_RECIPE_CACHE[job.id];
@@ -818,7 +888,7 @@ function metalGearRecipes(job) {
     return {
       name: t.name,
       inputs,
-      outputs: { [t.name]: 1 },   // 占位；实际产出在 produceJob 里按金属生成
+      outputs: { [t.name]: 1 },   // 占位；实际产出在 produceJob 里按材料生成
       era: 'medieval',
       unlockTech: null,
       duration: job.equipDuration || job.duration || 5,
@@ -828,6 +898,22 @@ function metalGearRecipes(job) {
     };
   });
   METAL_RECIPE_CACHE[job.id] = list;
+  return list;
+}
+function leatherGearRecipes(job) {
+  if (LEATHER_RECIPE_CACHE[job.id]) return LEATHER_RECIPE_CACHE[job.id];
+  const list = LEATHER_GEAR_TEMPLATES.map(t => ({
+    name: t.name,
+    inputs: { '皮革': t.leatherCount },
+    outputs: { [t.name]: 1 },     // 占位；实际产出在 produceJob 里按材料生成
+    era: 'stone',
+    unlockTech: null,
+    duration: job.equipDuration || job.duration || 6,
+    leatherBase: t.key,
+    leatherCount: t.leatherCount,
+    leatherStats: t.leatherStats,
+  }));
+  LEATHER_RECIPE_CACHE[job.id] = list;
   return list;
 }
 
@@ -854,6 +940,7 @@ function equipmentRecipes(job) {
     const it = ITEMS[id];
     if (!it || (it.cat !== 'equip' && it.cat !== 'weapon') || !it.cost) continue;
     if (it.cost.soul || it.cost.ember) continue;          // 黑魂套是抽卡掉落，不走制造
+    if (it.leatherBase) continue;                          // v0.0.40：皮革装备改用模板，不再读取基础物品的固定造价
     if (equipmentJobId(it) !== job.id) continue;
     const inputs = {};
     for (const cid in it.cost) inputs[itemName(cid)] = it.cost[cid];
@@ -865,6 +952,7 @@ function equipmentRecipes(job) {
       era: it.era, unlockTech, duration: job.equipDuration || job.duration || 3,
     });
   }
+  if (job.id === 'crafting' && LEATHER_GEAR_TEMPLATES.length) list.push(...leatherGearRecipes(job));
   EQUIP_RECIPE_CACHE[job.id] = list;
   return list;
 }
@@ -983,7 +1071,7 @@ function recipeInputs(r) {
   return o;
 }
 function recipeOutputs(r) {
-  if (r && r.metalBase) return {};
+  if (r && (r.metalBase || r.leatherBase)) return {};
   const o = {};
   for (const k in (r.outputs || {})) {
     if (GENERIC_IN[k]) continue;
@@ -999,6 +1087,7 @@ const GENERIC_TAGS = {
   '肉食食材': '肉食',
   '种子': '种子',
   '金属': '金属',
+  '皮革': '皮革',
 };
 const GENERIC_IN = {};
 function rebuildGenericInputs() {
@@ -1055,16 +1144,17 @@ function stockOf(name, sel) {
   const id = iid(normName(name));
   return id ? (S.items[id] || 0) : 0;
 }
-function consumeInputs(r, jobId, metalId) {
+function consumeInputs(r, jobId, materialId) {
   const ins = r.inputs || {};
-  // 金属锻造：只消耗实际选中的那一种金属（同一批料不能混用）
-  if (r.metalBase) {
-    const mid = metalId || metalForRecipe(r, jobId, true);
-    if (!mid || (S.items[mid] || 0) < metalNeed(r)) return false;
-    removeItem(mid, metalNeed(r));
+  const label = materialLabel(r);
+  // 金属 / 皮革筛选：只消耗实际选中的那一种材料（同一批料不能混用）
+  if (label) {
+    const mid = materialId || materialForRecipe(r, jobId, true);
+    if (!mid || (S.items[mid] || 0) < materialNeed(r)) return false;
+    removeItem(mid, materialNeed(r));
   }
   for (const name in ins) {
-    if (r.metalBase && name === '金属') continue;
+    if (label && name === label) continue;
     let need = ins[name];
     if (GENERIC_IN[name]) {
       const list = jobId ? inputSelection(jobId, r, name) : genericItemIds(name);
@@ -1083,12 +1173,13 @@ function consumeInputs(r, jobId, metalId) {
 }
 function canMake(r, mult, jobId) {
   const ins = r.inputs || {}; mult = mult || 1;
-  if (r.metalBase) {
-    const mid = metalForRecipe(r, jobId, true, mult);
-    if (!mid || (S.items[mid] || 0) < metalNeed(r, mult)) return false;
+  const label = materialLabel(r);
+  if (label) {
+    const mid = materialForRecipe(r, jobId, true, mult);
+    if (!mid || (S.items[mid] || 0) < materialNeed(r, mult)) return false;
   }
   for (const name in ins) {
-    if (r.metalBase && name === '金属') continue;
+    if (label && name === label) continue;
     const need = ins[name] * mult;
     if (GENERIC_IN[name]) {
       const sel = jobId ? inputSelection(jobId, r, name) : null;
@@ -1121,7 +1212,21 @@ function jobSpeed(jobId, slotIdx) {
   return m;
 }
 /* ---------- 畜牧（v0.0.30） ---------- */
-const HUSBANDRY_UNLOCK_KNOW = 100;   // 图鉴认知度满级才能圈养
+const HUSBANDRY_UNLOCK_KNOW = 100;   // 图鉴认知度上限（旧版固定门槛；v0.0.40 起按动物战力算门槛）
+/* 敌人「战力」只用于畜牧门槛：血厚、打人疼、减伤高的动物需要更多击杀。
+   与角色战力公式解耦，不写进 ENEMIES 数据，避免和「敌人表没有战力列」冲突。 */
+function enemyThreat(e) {
+  if (!e) return 0;
+  return (e.hp || 0) + (e.maxHit || 0) * 2 + (e.atk || 0) * 3
+    + (e.str || 0) * 3 + (e.def || 0) * 2 + (e.dr || 0) * 3;
+}
+/* 认知度门槛 = 战力 / 40，最低 2（兔子 / 松鸡打两只）、上限 100。
+   例：兔子 2、鹿 4、野猪 8、熊 16、猛犸 26。 */
+function husbandryKnowNeed(name) {
+  const e = ENEMY_BY_NAME[name];
+  if (!e) return HUSBANDRY_UNLOCK_KNOW;
+  return Math.max(2, Math.min(HUSBANDRY_UNLOCK_KNOW, Math.ceil(enemyThreat(e) / 40)));
+}
 function husbandryAnimals() {
   const js = S.jobs.husbandry;
   if (!js) return [];
@@ -1156,11 +1261,11 @@ function animalKnown(name) {
 function husbandryAnimalList() {
   return Object.keys(HUSBANDRY_ANIMALS).map(name => {
     const d = HUSBANDRY_ANIMALS[name];
-    const know = animalKnown(name);
+    const know = animalKnown(name), need = husbandryKnowNeed(name);
     return {
       name, size: d.size, duration: d.duration, consume: d.consume || 1,
       outputs: d.outputs || {}, sizeCost: husbandrySizeCost(name),
-      know, unlocked: know >= HUSBANDRY_UNLOCK_KNOW,
+      know, need, unlocked: know >= need,
     };
   });
 }
@@ -1169,7 +1274,8 @@ function addHusbandryAnimal(name) {
   const def = husbandryAnimalDef(name);
   if (!job || !js) return { ok: false, why: '畜牧工作不存在' };
   if (!def) return { ok: false, why: '这种动物不能畜牧' };
-  if (animalKnown(name) < HUSBANDRY_UNLOCK_KNOW) return { ok: false, why: '图鉴认知度未满 ' + HUSBANDRY_UNLOCK_KNOW };
+  const need = husbandryKnowNeed(name);
+  if (animalKnown(name) < need) return { ok: false, why: '图鉴认知度 ' + animalKnown(name) + '/' + need };
   const used = husbandryUsed(), cap = husbandryCapacity();
   if (used + husbandrySizeCost(name) > cap + 1e-9) return { ok: false, why: '畜牧容量不足（' + fmt(used) + ' / ' + fmt(cap) + '）' };
   husbandryAnimals().push({ name, prog: 0, done: 0 });
@@ -1266,16 +1372,28 @@ function produceJob(jobId, dt) {
     while (js.prog[i] >= 1) {
       js.prog[i] -= 1;
       if (Object.keys(ins).length && !canMake(r, 1, jobId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
-      const metalId = r.metalBase ? metalForRecipe(r, jobId, true) : null;
-      if (!consumeInputs(r, jobId, metalId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
+      const materialId = materialLabel(r) ? materialForRecipe(r, jobId, true) : null;
+      if (!consumeInputs(r, jobId, materialId)) { js.prog[i] = 0; js.blocked[i] = 'input'; break; }
       if (job.special === 'power') {
         // 电力的产出由 powerProduced() 统一结算（10 瓦），这里只消耗燃料
         gainMastery(c, jobId, recipeDuration(job, r)); js.done = (js.done||0) + 1; continue;
       }
-      if (r.metalBase) {
-        const t = METAL_GEAR_BY_KEY[r.metalBase];
-        const outId = metalGearItem(metalId, t);
-        if (outId) addProducedItem(outId, 1);
+      if (r.metalBase || r.leatherBase) {
+        const outId = r.metalBase
+          ? metalGearItem(materialId, METAL_GEAR_BY_KEY[r.metalBase])
+          : leatherGearItem(materialId, LEATHER_GEAR_BY_KEY[r.leatherBase]);
+        if (outId) {
+          addProducedItem(outId, 1);
+          // 皮革模板的基础物品仍在图鉴里：产出动态成品时也把图鉴条目点亮
+          if (r.leatherBase) {
+            const t = LEATHER_GEAR_BY_KEY[r.leatherBase];
+            if (t && t.baseId) {
+              S.seen.items[t.baseId] = true;
+              if (!S.ever) S.ever = {};
+              S.ever[t.baseId] = 1;
+            }
+          }
+        }
         gainMastery(c, jobId, recipeDuration(job, r));
         js.done = (js.done||0) + 1;
         continue;
@@ -1331,7 +1449,7 @@ function pickItem(fn) {
   const list = Object.values(ITEMS).filter(fn);
   return list.length ? PICK(list).name : null;
 }
-const NAME_ALIAS = { '骨/角': '骨 / 角' };
+const NAME_ALIAS = { '骨/角': '骨头', '骨 / 角': '骨头' };
 function normName(n) {
   if (!n) return n;
   if (NAME_ALIAS[n]) return NAME_ALIAS[n];
@@ -1753,10 +1871,14 @@ function starUp(cid) {
 
 /* ---------- 被动购买 ---------- */
 function affordCost(cost) {
+  // v0.0.40：开发者模式无视材料不足，所有建造 / 升级按钮保持可点
+  if (S && S.dev) return true;
   for (const name in cost) { const id = iid(name); if (!id || (S.items[id]||0) < cost[name]) return false; }
   return true;
 }
 function payCost(cost) {
+  // 开发者模式直接放行，也不扣材料（否则按钮亮了却买不了 / 升级失败）
+  if (S && S.dev) return true;
   for (const name in cost) { const id = iid(name); if (!id) return false; if ((S.items[id]||0) < cost[name]) return false; }
   for (const name in cost) removeItem(iid(name), cost[name]);
   return true;
@@ -2364,6 +2486,29 @@ function migrate(st) {
       Object.keys(c.eq).forEach(s => { if (c.eq[s] === oldId) c.eq[s] = newId; });
     });
   });
+  // v0.0.40：皮革装备改为模板产物。旧档里的皮帽 / 皮甲…统一迁到「中型皮革」成品；
+  // 基础物品的图鉴记录保留（基础物品仍作为属性模板存在），所以不删 seen / ever。
+  LEATHER_GEAR_TEMPLATES.forEach(t => {
+    const oldId = t.baseId;
+    const hasCount = (merged.items[oldId] || 0) > 0;
+    let inEq = false;
+    Object.keys(merged.chars || {}).forEach(cid => {
+      const c = merged.chars[cid];
+      if (c && c.eq) Object.keys(c.eq).forEach(s => { if (c.eq[s] === oldId) inEq = true; });
+    });
+    if (!hasCount && !inEq) return;
+    const newId = leatherGearItem(t.baseMaterial, t);
+    if (!newId) return;
+    if (hasCount) {
+      merged.items[newId] = (merged.items[newId] || 0) + merged.items[oldId];
+      delete merged.items[oldId];
+    }
+    Object.keys(merged.chars || {}).forEach(cid => {
+      const c = merged.chars[cid];
+      if (!c || !c.eq) return;
+      Object.keys(c.eq).forEach(s => { if (c.eq[s] === oldId) c.eq[s] = newId; });
+    });
+  });
   // v0.0.30：药剂工作并入医疗，药剂精通书并入医疗精通书
   if ('book_alchemy' in merged.items) {
     const n = merged.items.book_alchemy || 0;
@@ -2481,6 +2626,8 @@ function migrate(st) {
       js.rnames = names;
     }
     ensureSlots(js, nR);
+    // 读档时 blocked 只是上一局的瞬时缺料 / 重伤标记；配方表变了以后下标会错位，统一清空等下一跳重算
+    if (Array.isArray(js.blocked)) js.blocked = js.blocked.map(() => null);
     // v0.0.30：锻造 51→16、裁缝 17→5，旧存档里指向已移走装备的槽位必须清掉，
     // 否则角色会卡在一个不会推进的幽灵槽里（assignedCount 也会多算）。
     if (js.slots.length > nR) {
@@ -2535,7 +2682,7 @@ function migrate(st) {
       }
     });
   }
-  merged.dataVer = Math.max(Number(merged.dataVer) || 0, 38);
+  merged.dataVer = Math.max(Number(merged.dataVer) || 0, 40);
   merged.ui = Object.assign({ page:'warehouse', charSel:null, tab:{}, inpOpen:{} }, st.ui || {});
   merged.settings = Object.assign({ theme:'dark' }, st.settings || {});
   merged.gacha = Object.assign({ pity:{}, pulls:0, noNew:{}, genSeq:0 }, st.gacha || {});
@@ -2556,13 +2703,13 @@ function migrate(st) {
   merged.raid = Object.assign({ next: merged.playtime + GAME.raidPeriod, last:null, count:0 }, st.raid || {});
   merged.power = Object.assign({ built:{}, on:{} }, st.power || {});
   // 动态金属装备按 id 重建定义（重开游戏后仓库/角色装备里的条目不能变成未定义物品）
-  Object.keys(merged.items).forEach(ensureMetalGearId);
+  Object.keys(merged.items).forEach(ensureMaterialGearId);
   Object.keys(merged.chars || {}).forEach(cid => {
     const c = merged.chars[cid];
-    if (c && c.eq) Object.keys(c.eq).forEach(s => { if (c.eq[s]) ensureMetalGearId(c.eq[s]); });
+    if (c && c.eq) Object.keys(c.eq).forEach(s => { if (c.eq[s]) ensureMaterialGearId(c.eq[s]); });
   });
-  Object.keys(merged.seen.items || {}).forEach(ensureMetalGearId);
-  Object.keys(merged.ever || {}).forEach(ensureMetalGearId);
+  Object.keys(merged.seen.items || {}).forEach(ensureMaterialGearId);
+  Object.keys(merged.ever || {}).forEach(ensureMaterialGearId);
   return merged;
 }
 function exportSave() {
@@ -2598,9 +2745,10 @@ window.Engine = {
   jobRecipeGate, upgradeBonus, jobProjectLabel, upgradeDesc,
   recipeInputs, recipeOutputs, canMake, stockOf, GENERIC_IN, genericItems, genericItemIds,
   inputFilterKey, inputSelection, setInputSelection, toggleInputSelection,
-  METAL_GEAR_TEMPLATES, metalIngotIds, metalForRecipe, metalGearItem, metalPreviewId, metalGearRecipes,
+  METAL_GEAR_TEMPLATES, LEATHER_GEAR_TEMPLATES, metalIngotIds, leatherItemIds, metalForRecipe, materialForRecipe,
+  metalGearItem, leatherGearItem, metalPreviewId, materialPreviewId, metalGearRecipes, leatherGearRecipes,
   jobSpeed, jobGate, produceJob, combatState, healerPresent,
-  HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
+  HUSBANDRY_ANIMALS, HUSBANDRY_UNLOCK_KNOW, enemyThreat, husbandryKnowNeed, husbandryCapacity, husbandryUsed, husbandryAnimals, husbandryAnimalList, husbandrySizeCost,
   addHusbandryAnimal, removeHusbandryAnimal, husbandryFeedPerSec, husbandryFeedCost, husbandryFeedDuration, husbandrySpeed,
   refreshShop, buyShopSlot, sellItem, shopPool,
   gachaPity, gachaPityLimit, shardCount, ownsHero, poolComplete, poolMembers, poolHeroList, makeNormal, genDef, heroDef,

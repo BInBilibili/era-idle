@@ -35,30 +35,30 @@ window.ITEMS = {
   plant_fiber:   { name: '植物纤维', era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集', use: '加工（内衬衣物）、编织（地毯）、裁缝（弓）' },
   fodder:        { name: '草料',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植 / 畜牧（加工草料）', use: '畜牧饲料' },
   herb:          { name: '药草',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.5, src: '采集 / 种植', use: '医疗' },
-  bone_horn:     { name: '骨 / 角',  era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.5, src: '狩猎', use: '加工（骨项链 + 骨器升级项）' },
+  bone_horn:     { name: '骨头',    era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.5, src: '狩猎', use: '加工（骨项链 + 骨器升级项）' },
   compost:       { name: '堆肥',     era: 'stone', cat: 'material', storage: 'warehouse', price: 0.1, src: '腐坏转化', use: '种植化肥（+50% 产出）' },
   pottery:       { name: '陶器',     era: 'stone', cat: 'material', storage: 'warehouse', price: 8.5, src: '制陶（沙）', use: '粮仓防腐升级项' },
-  leather_small: { name: '小型皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 2,   src: '狩猎 / 畜牧（兔子）', use: '低级衣物' },
-  leather_medium:{ name: '中型皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 3,   src: '狩猎 / 畜牧（鹿、山羊、野猪、羚羊）', use: '中级护甲' },
-  leather_heavy: { name: '厚重皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 5,   src: '狩猎 / 畜牧（驼鹿、野牛、巨蜥）', use: '高级护甲' },
+  leather_small: { name: '小型皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 2,   src: '狩猎 / 畜牧（兔子）', use: '低级衣物', tags: ['皮革'], leatherMods: { dr: 0.80, str: 0.80, atk: 0.90 }, tint: 'leatherS' },
+  leather_medium:{ name: '中型皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 3,   src: '狩猎 / 畜牧（鹿、山羊、野猪、羚羊）', use: '中级护甲', tags: ['皮革'], leatherMods: { dr: 1.00, str: 1.00, atk: 1.00 }, tint: 'leatherM' },
+  leather_heavy: { name: '厚重皮革', era: 'stone', cat: 'animal',   storage: 'warehouse', price: 5,   src: '狩猎 / 畜牧（驼鹿、野牛、巨蜥）', use: '高级护甲', tags: ['皮革'], leatherMods: { dr: 1.30, str: 1.20, atk: 0.95 }, tint: 'leatherH' },
   feather:       { name: '羽毛',     era: 'stone', cat: 'animal',   storage: 'warehouse', price: 0.3, src: '狩猎 / 畜牧（松鸡）', use: '枕头、装饰' },
-  wolf_pelt:     { name: '狼皮',     era: 'stone', cat: 'animal',   storage: 'warehouse', price: 6,   src: '狩猎 / 畜牧（狼）', use: '高级衣物' },
-  bear_pelt:     { name: '熊皮',     era: 'stone', cat: 'animal',   storage: 'warehouse', price: 10,  src: '狩猎 / 畜牧（熊）', use: '高级护甲' },
+  wolf_pelt:     { name: '狼皮',     era: 'stone', cat: 'animal',   storage: 'warehouse', price: 6,   src: '狩猎 / 畜牧（狼）', use: '高级衣物', tags: ['皮革'], leatherMods: { dr: 1.15, str: 1.15, atk: 1.05 }, tint: 'furWolf' },
+  bear_pelt:     { name: '熊皮',     era: 'stone', cat: 'animal',   storage: 'warehouse', price: 10,  src: '狩猎 / 畜牧（熊）', use: '高级护甲', tags: ['皮革'], leatherMods: { dr: 1.50, str: 1.35, atk: 1.00 }, tint: 'furBear' },
 
   /* ============================================================
    * §三 石器时代 · 3.2 装备与武器（15 件）
    * ============================================================ */
-  leather_cap:     { name: '皮帽',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 13.5, slot: 'head',      dr: 2, temp: 1, cost: { leather_medium: 3 } },
+  leather_cap:     { name: '皮帽',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 13.5, slot: 'head',      dr: 2, temp: 1, cost: { leather_medium: 3 }, leatherBase: true },
   linen_headscarf: { name: '亚麻头巾', era: 'stone', cat: 'equip', storage: 'warehouse', price: 2.2,  slot: 'headInner', temp: 3, cost: { plant_fiber: 3 } },
-  leather_armor:   { name: '皮甲',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 27,   slot: 'body',      dr: 5, str: 2, temp: 1, cost: { leather_medium: 6 } },
+  leather_armor:   { name: '皮甲',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 27,   slot: 'body',      dr: 5, str: 2, temp: 1, cost: { leather_medium: 6 }, leatherBase: true },
   linen_shirt:     { name: '亚麻衬衣', era: 'stone', cat: 'equip', storage: 'warehouse', price: 3,    slot: 'bodyInner', temp: 4, cost: { plant_fiber: 4 } },
-  leather_pants:   { name: '皮裤',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 18,   slot: 'legs',      dr: 3, temp: 1, cost: { leather_medium: 4 } },
+  leather_pants:   { name: '皮裤',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 18,   slot: 'legs',      dr: 3, temp: 1, cost: { leather_medium: 4 }, leatherBase: true },
   linen_underpants:{ name: '亚麻衬裤', era: 'stone', cat: 'equip', storage: 'warehouse', price: 2.2,  slot: 'legsInner', temp: 3, cost: { plant_fiber: 3 } },
-  leather_boots:   { name: '皮靴',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 13.5, slot: 'feet',      dr: 2, temp: 2, cost: { leather_medium: 3 } },
+  leather_boots:   { name: '皮靴',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 13.5, slot: 'feet',      dr: 2, temp: 2, cost: { leather_medium: 3 }, leatherBase: true },
   wool_socks:      { name: '毛袜',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 6,    slot: 'socks',     temp: 4, cost: { wool: 2 } },
   wood_shield:     { name: '木盾',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 12,   slot: 'offhand',   dr: 6, cost: { wood: 8 } },
   bone_necklace:   { name: '骨项链',   era: 'stone', cat: 'equip', storage: 'warehouse', price: 1.5,  slot: 'neck',      str: 1, cost: { bone_horn: 2 } },
-  leather_belt:    { name: '皮带',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 13.5, slot: 'belt',      dr: 1, cost: { leather_medium: 3 } },
+  leather_belt:    { name: '皮带',     era: 'stone', cat: 'equip', storage: 'warehouse', price: 13.5, slot: 'belt',      dr: 1, cost: { leather_medium: 3 }, leatherBase: true },
 
   stone_dagger: { name: '石匕首', era: 'stone', cat: 'weapon', storage: 'warehouse', price: 52.5, slot: 'mainhand',             str: 0,  cost: { wood: 20, stone: 10 } },
   stone_axe:    { name: '石斧',   era: 'stone', cat: 'weapon', storage: 'warehouse', price: 90,   slot: 'mainhand',             str: 18, cost: { wood: 30, stone: 20 } },
@@ -69,17 +69,17 @@ window.ITEMS = {
    * §四 中世纪 · 4.1 资源（12 种）
    * ============================================================ */
   plank:        { name: '木板',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 4,  src: '木工', use: '建造、家具升级项' },
-  copper_ingot: { name: '铜锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 11, src: '熔炼', use: '锻造（铜武器）、机械加工（电子元件）', tags: ['金属'], metalMods: { dr: 0.90, str: 0.625, atk: 0.80 } },
-  iron_ingot:   { name: '铁锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 18, src: '熔炼', use: '锻造、木工（工具）、建造', tags: ['金属'], metalMods: { dr: 1.00, str: 1.00, atk: 1.00 } },
-  steel:        { name: '钢铁',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 27, src: '熔炼（*钢铁）', use: '锻造（中世纪 + 工业装备）、机械加工、建造', tags: ['金属'], metalMods: { dr: 1.50, str: 2.00, atk: 1.50 } },
-  silver_ingot: { name: '银锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 41, src: '熔炼', use: '裁缝（银项链）、医疗（医疗设备）、商店高价出售品', tags: ['金属'], metalMods: { dr: 1.05, str: 1.25, atk: 1.60 } },
-  gold_ingot:   { name: '金锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 78, src: '熔炼', use: '商店最高价出售品（金币的主要来源）', tags: ['金属'], metalMods: { dr: 1.10, str: 1.10, atk: 1.20 } },
+  copper_ingot: { name: '铜锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 11, src: '熔炼', use: '锻造（铜武器）、机械加工（电子元件）', tags: ['金属'], metalMods: { dr: 0.90, str: 0.625, atk: 0.80 }, tint: 'copper' },
+  iron_ingot:   { name: '铁锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 18, src: '熔炼', use: '锻造、木工（工具）、建造', tags: ['金属'], metalMods: { dr: 1.00, str: 1.00, atk: 1.00 }, tint: 'iron' },
+  steel:        { name: '钢铁',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 27, src: '熔炼（*钢铁）', use: '锻造（中世纪 + 工业装备）、机械加工、建造', tags: ['金属'], metalMods: { dr: 1.50, str: 2.00, atk: 1.50 }, tint: 'steel' },
+  silver_ingot: { name: '银锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 41, src: '熔炼', use: '裁缝（银项链）、医疗（医疗设备）、商店高价出售品', tags: ['金属'], metalMods: { dr: 1.05, str: 1.25, atk: 1.60 }, tint: 'silver' },
+  gold_ingot:   { name: '金锭',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 78, src: '熔炼', use: '商店最高价出售品（金币的主要来源）', tags: ['金属'], metalMods: { dr: 1.10, str: 1.10, atk: 1.20 }, tint: 'gold' },
   hemp:         { name: '大麻',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植（*缝制）', use: '纺织' },
   cotton:       { name: '棉花',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 0.5, src: '种植（*缝制）', use: '纺织' },
   cloth:        { name: '布料',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 3,  src: '纺织', use: '裁缝（衣物）、编织（地毯）' },
   wool:         { name: '毛料',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 2,  src: '畜牧（野山羊）', use: '裁缝（保暖衣物、袜子）' },
   paper:        { name: '纸张',   era: 'medieval', cat: 'material', storage: 'warehouse', price: 5,  src: '造纸', use: '科研（可选消耗品，+50% 科研点）' },
-  croc_leather: { name: '鳄鱼皮', era: 'medieval', cat: 'animal',   storage: 'warehouse', price: 8,  src: '狩猎 / 畜牧（鳄鱼）', use: '裁缝（高级轻甲）' },
+  croc_leather: { name: '鳄鱼皮', era: 'medieval', cat: 'animal',   storage: 'warehouse', price: 8,  src: '狩猎 / 畜牧（鳄鱼）', use: '裁缝（高级轻甲）', tags: ['皮革'], leatherMods: { dr: 1.40, str: 1.10, atk: 1.05 }, tint: 'hideCroc' },
 
   /* ============================================================
    * §四 中世纪 · 4.2 装备与武器（23 件）
@@ -150,8 +150,8 @@ window.ITEMS = {
   optical_fiber:   { name: '光纤',     era: 'info', cat: 'material', storage: 'warehouse', price: 37,    src: '玻璃制造（2 玻璃）', use: '精密装配' },
   precision_part:  { name: '精密零件', era: 'info', cat: 'material', storage: 'warehouse', price: 347,   src: '精密装配', use: '信息时代装备、太空时代装备、合成制造、仓库升级' },
   chip:            { name: '芯片',     era: 'info', cat: 'material', storage: 'warehouse', price: 110.5, src: '半导体制造', use: '精密装配、AI 核心、信息时代装备、电池升级项' },
-  aluminum_alloy:  { name: '铝合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 28,    src: '熔炼（铝土矿）', use: '战术头盔、复合护腿、防暴盾', tags: ['金属'], metalMods: { dr: 1.30, str: 1.20, atk: 1.10 } },
-  titanium_alloy:  { name: '钛合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 59,    src: '熔炼（钛矿）', use: '信息时代装备、仓库升级', tags: ['金属'], metalMods: { dr: 2.00, str: 2.20, atk: 1.60 } },
+  aluminum_alloy:  { name: '铝合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 28,    src: '熔炼（铝土矿）', use: '战术头盔、复合护腿、防暴盾', tags: ['金属'], metalMods: { dr: 1.30, str: 1.20, atk: 1.10 }, tint: 'aluminum' },
+  titanium_alloy:  { name: '钛合金',   era: 'info', cat: 'material', storage: 'warehouse', price: 59,    src: '熔炼（钛矿）', use: '信息时代装备、仓库升级', tags: ['金属'], metalMods: { dr: 2.00, str: 2.20, atk: 1.60 }, tint: 'titanium' },
   nuclear_fuel:    { name: '核燃料',   era: 'info', cat: 'material', storage: 'warehouse', price: 52,    src: '机械加工', use: '核电站' },
 
   /* ============================================================
@@ -183,7 +183,7 @@ window.ITEMS = {
   ai_core:           { name: 'AI 核心',      era: 'space', cat: 'material', storage: 'warehouse', price: 751.5, src: '合成制造', use: '动力装甲、自动化升级项' },
   life_support_unit: { name: '生命维持单元', era: 'space', cat: 'material', storage: 'warehouse', price: 751.5, src: '合成制造', use: '殖民舱（角色上限大幅提高）' },
   warp_core:         { name: '曲速核心',     era: 'space', cat: 'material', storage: 'warehouse', price: 776.5, src: '曲速核心制造', use: '终局目标' },
-  alien_leather:     { name: '外星皮革',     era: 'space', cat: 'animal',   storage: 'warehouse', price: 40,    src: '狩猎 / 畜牧（外星掠食者）', use: '太空时代护甲' },
+  alien_leather:     { name: '外星皮革',     era: 'space', cat: 'animal',   storage: 'warehouse', price: 40,    src: '狩猎 / 畜牧（外星掠食者）', use: '太空时代护甲', tags: ['皮革'], leatherMods: { dr: 2.20, str: 1.80, atk: 2.00 }, tint: 'hideAlien' },
 
   /* ============================================================
    * §七 太空时代 · 7.2 装备与武器（15 件）
@@ -421,11 +421,25 @@ window.METAL_GEAR_TEMPLATES = [
   { key: 'legs',      name: '护腿',   baseId: 'iron_legs',        baseMetal: 'iron_ingot', metalCount: 8,   extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_legs' },
   { key: 'boots',     name: '靴子',   baseId: 'iron_boots',       baseMetal: 'iron_ingot', metalCount: 6,   extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_boots' },
   { key: 'shield',    name: '盾牌',   baseId: 'iron_shield',      baseMetal: 'iron_ingot', metalCount: 10,  extraInputs: {},                    metalStats: ['dr', 'str'],   iconId: 'iron_shield' },
-  { key: 'belt',      name: '腰带',   baseId: 'iron_belt',        baseMetal: 'iron_ingot', metalCount: 2,   extraInputs: { '中型皮革': 3 },     metalStats: ['dr', 'str'],   iconId: 'iron_belt' },
+  { key: 'belt',      name: '腰带',   baseId: 'iron_belt',        baseMetal: 'iron_ingot', metalCount: 2,   extraInputs: { '皮革': 3 },         metalStats: ['dr', 'str'],   iconId: 'iron_belt' },
   { key: 'dagger',    name: '匕首',   baseId: 'iron_dagger',      baseMetal: 'iron_ingot', metalCount: 20,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'iron_dagger' },
   { key: 'sword',     name: '短剑',   baseId: 'short_sword',      baseMetal: 'iron_ingot', metalCount: 40,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'short_sword' },
   { key: 'spear',     name: '长矛',   baseId: 'iron_spear',       baseMetal: 'iron_ingot', metalCount: 30,  extraInputs: { '木材': 20 },        metalStats: ['str', 'atk'],  iconId: 'iron_spear' },
   { key: 'battleaxe', name: '战斧',   baseId: 'battle_axe',       baseMetal: 'iron_ingot', metalCount: 60,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'battle_axe' },
   { key: 'greatsword',name: '双手剑', baseId: 'two_handed_sword', baseMetal: 'steel',      metalCount: 80,  extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'two_handed_sword' },
   { key: 'hammer',    name: '巨锤',   baseId: 'great_hammer',     baseMetal: 'steel',      metalCount: 100, extraInputs: {},                    metalStats: ['str', 'atk'],  iconId: 'great_hammer' },
+];
+
+/* ============================================================================
+ * 皮革装备模板（v0.0.40）
+ * 皮帽 / 皮甲 / 皮裤 / 皮靴 / 皮带不再写死「中型皮革」：投料按「皮革」标签筛选，
+ * 成品仍是同一件装备；图标颜色取实际消耗皮革的 tint，战斗数值按 leatherMods 修正。
+ * 这里只登记 5 个模板，不新增静态物品定义；基础物品仍保留作属性 / 价格模板。
+ * ==========================================================================*/
+window.LEATHER_GEAR_TEMPLATES = [
+  { key: 'cap',   name: '皮帽', baseId: 'leather_cap',   baseMaterial: 'leather_medium', leatherCount: 3, leatherStats: ['dr', 'str'], iconId: 'leather_cap' },
+  { key: 'armor', name: '皮甲', baseId: 'leather_armor', baseMaterial: 'leather_medium', leatherCount: 6, leatherStats: ['dr', 'str'], iconId: 'leather_armor' },
+  { key: 'pants', name: '皮裤', baseId: 'leather_pants', baseMaterial: 'leather_medium', leatherCount: 4, leatherStats: ['dr', 'str'], iconId: 'leather_pants' },
+  { key: 'boots', name: '皮靴', baseId: 'leather_boots', baseMaterial: 'leather_medium', leatherCount: 3, leatherStats: ['dr', 'str'], iconId: 'leather_boots' },
+  { key: 'belt',  name: '皮带', baseId: 'leather_belt',  baseMaterial: 'leather_medium', leatherCount: 3, leatherStats: ['dr', 'str'], iconId: 'leather_belt' },
 ];

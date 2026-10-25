@@ -261,7 +261,16 @@
         break;
       case 'tab': S.ui.tab[k] = v; U.render(); break;
       case 'sort': S.ui.tab.whSort = v; U.render(); break;
-      case 'recslot': openJobSlot(el.dataset.job || id, +(i || 0), el); break;
+      case 'recslot': {
+        const jobId = el.dataset.job || id, idx = +(i || 0);
+        // v0.0.40：再次点击同一个入驻槽 = 收起下拉，不再重开
+        if (slotMenuEl && slotMenuEl.dataset.job === jobId && +slotMenuEl.dataset.i === idx) {
+          closeSlotMenu();
+          break;
+        }
+        openJobSlot(jobId, idx, el);
+        break;
+      }
       /* 整张项目卡：空置 → 弹出与入驻槽相同的下拉菜单；已有人 → 直接撤下 */
       case 'cardrec': {
         const jobId = el.dataset.job, idx = +(el.dataset.i || 0);
@@ -271,15 +280,28 @@
           E.clearSlot(jobId, idx);
           U.toast('已撤下 ' + E.charName(S.chars[cur]));
           U.render();
-        } else openJobSlot(jobId, idx, el);
+        } else {
+          if (slotMenuEl && slotMenuEl.dataset.job === jobId && +slotMenuEl.dataset.i === idx) {
+            closeSlotMenu();
+            break;
+          }
+          openJobSlot(jobId, idx, el);
+        }
         break;
       }
       case 'recipe': S.jobs[id].recipe = +i; U.render(); break;
       /* v0.0.38：模糊投入的浮层筛选面板（素食食材 / 肉食食材 / 种子 / 金属） */
       case 'inpfilter': {
-        const job = E.JOB_BY_ID[el.dataset.job];
-        const r = job ? E.jobRecipes(job)[+(el.dataset.i || 0)] : null;
-        if (job && r) openInputFilter(job.id, +(el.dataset.i || 0), el.dataset.in, el);
+        const jobId = el.dataset.job, slotIdx = +(el.dataset.i || 0);
+        // v0.0.40：再次点击同一个筛选徽章 = 收起下拉
+        if (filterMenuEl && filterMenuEl.dataset.job === jobId
+            && +filterMenuEl.dataset.i === slotIdx && filterMenuEl.dataset.in === el.dataset.in) {
+          closeFilterMenu();
+          break;
+        }
+        const job = E.JOB_BY_ID[jobId];
+        const r = job ? E.jobRecipes(job)[slotIdx] : null;
+        if (job && r) openInputFilter(job.id, slotIdx, el.dataset.in, el);
         break;
       }
       case 'hubPanel': openHusbandryPanel(); break;
@@ -450,11 +472,21 @@
     const menu = document.createElement('div');
     menu.id = 'inputMenu';
     menu.className = 'slotmenu inpmenu';
+    menu.dataset.job = jobId;
+    menu.dataset.i = slotIdx;
+    menu.dataset.in = inputName;
     menu.innerHTML = `
       <div class="pmh">筛选</div>
       <div class="pmlist">${all.length ? all.map(id => {
         const it = E.ITEMS[id]; if (!it) return '';
         const on = selected.has(id);
+        // v0.0.40：图鉴还没收录的物品不露图标 / 名称 / 库存，只显示问号
+        const seen = !!(E.S.seen && E.S.seen.items && E.S.seen.items[id]);
+        if (!seen) {
+          return `<button type="button" class="pmitem ${on ? 'on' : ''}" data-pickitem="${id}">
+            <span class="qmark">？</span><span class="nm">？？？</span><span class="mm">×？</span><span class="tick">${on ? '✓' : '＋'}</span>
+          </button>`;
+        }
         return `<button type="button" class="pmitem ${on ? 'on' : ''}" data-pickitem="${id}" data-tip-item="${id}">
           ${U.itemIcon(it)}<span class="nm">${U.esc(it.name)}</span><span class="mm">×${E.fmt(E.count(id))}</span><span class="tick">${on ? '✓' : '＋'}</span>
         </button>`;
@@ -516,7 +548,7 @@
       const e = E.ENEMY_BY_NAME[a.name];
       const canFit = used + a.sizeCost <= cap + 1e-9;
       const ok = a.unlocked && canFit;
-      const why = !a.unlocked ? '认知度 ' + a.know + '/' + E.HUSBANDRY_UNLOCK_KNOW
+      const why = !a.unlocked ? '认知度 ' + a.know + '/' + a.need
         : (!canFit ? '容量不足' : '');
       return `<button type="button" class="pickrow ${ok ? '' : 'lack'}" data-hubadd="${U.esc(a.name)}" ${ok ? '' : 'disabled'}>
         <span class="pi">${e ? U.enemyIcon(e, 'xs') : '🐾'}</span>
@@ -531,7 +563,7 @@
       </button>`;
     }).join('');
     U.modal(`<h3>可畜牧动物</h3>
-      <div class="sub" style="margin-bottom:10px">畜牧容量 <b class="mono">${E.fmt(used)} / ${E.fmt(cap)}</b>；狩猎把该动物的图鉴认知度刷满 100 后解锁。</div>
+      <div class="sub" style="margin-bottom:10px">畜牧容量 <b class="mono">${E.fmt(used)} / ${E.fmt(cap)}</b>；狩猎提高该动物的图鉴认知度，达到各自门槛后解锁（兔子约 2 只、熊约 16 只）。</div>
       <div class="picklist">${rows || '<div class="empty">暂无可畜牧动物</div>'}</div>
       <div class="acts"><button data-act="closeModal">关闭</button></div>`);
     document.querySelectorAll('#modalBox [data-hubadd]').forEach(el => {
@@ -573,6 +605,8 @@
     const menu = document.createElement('div');
     menu.id = 'slotMenu';
     menu.className = 'slotmenu';
+    menu.dataset.job = jobId;
+    menu.dataset.i = idx;
     menu.innerHTML = `
       <div class="pmh">入驻 · ${U.esc(job.name)}${E.jobRecipes(job).length > 1 ? ' · ' + U.esc(recipe.name) : ''}</div>
       <div class="pms">${curId ? '当前：' + U.esc(E.charName(S.chars[curId])) : '当前：空'}</div>

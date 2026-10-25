@@ -202,7 +202,7 @@ for (const r of [...craftRs, ...forgeRs, ...tailorRs, ...machGear, ...precGear])
   const ins = Object.keys(r.inputs || {});
   const generic = ins.filter(n => E.GENERIC_IN[n]).length;
   if (Object.keys(E.recipeInputs(r)).length !== ins.length - generic) badRecipe++;
-  if (r.metalBase) {
+  if (r.metalBase || r.leatherBase) {
     if (Object.keys(E.recipeOutputs(r)).length !== 0) badRecipe++;
   } else if (Object.keys(E.recipeOutputs(r)).length !== 1) badRecipe++;
 }
@@ -943,6 +943,7 @@ const hub034Html = U.pageJob('husbandry');
 ok(hub034Html.includes('data-act="inpfilter"'), '模糊投入徽章可点开筛选');
 ok(!hub034Html.includes('喂养一次消耗') && !hub034Html.includes('每只 1 / 天'), '畜牧页删除草料数值说明');
 const feed034b = E.jobRecipes(E.JOB_BY_ID.husbandry)[0];
+E.S.seen.items[E.N2I('浆果')] = true;   // 徽章只对已收录物品显示图标；未收录改显示问号
 const badge034 = U.inputBadge(E.JOB_BY_ID.husbandry, feed034b, 0, '素食食材', 2);
 ok((badge034.match(/<svg/g) || []).length === 1 && !badge034.includes('▾'), '模糊投入徽章缩成普通消耗栏：只显示第一个图标');
 ok(!hub034Html.includes('inpPanel'), '筛选下拉不再塞进项目槽位（改为浮层）');
@@ -1225,19 +1226,23 @@ ok(!!helmR && helmR.metalBase === 'helmet' && Object.keys(helmR.inputs).join(','
 ok(E.metalForRecipe(helmR, 'forging', true) === 'steel', '多种金属时优先选战斗修正最高的钢铁');
 E.setInputSelection('forging', helmR, '金属', [E.N2I('铁锭')]);
 ok(E.metalForRecipe(helmR, 'forging', true) === 'iron_ingot', '只勾选铁锭时选铁锭');
-ok(E.metalForRecipe(helmR, 'forging', true) !== 'steel' && E.metalPreviewId('forging', helmR) === E.N2I('铁锭头盔'),
-  '界面预览铁锭头盔');
+const ironPreviewId = E.materialPreviewId('forging', helmR);
+ok(E.metalForRecipe(helmR, 'forging', true) !== 'steel' && !!ironPreviewId
+  && E.ITEMS[ironPreviewId].name === '头盔' && E.ITEMS[ironPreviewId].tint === 'iron'
+  && !E.ITEMS[ironPreviewId].name.includes('铁锭'), '界面预览铁色「头盔」，成品名不再拼材料前缀');
 E.assignSlot('forging', 0, 'player');
 const ironBefore = E.count('铁锭'), steelBefore = E.count('钢铁');
 for (let i = 0; i < 80; i++) E.produceJob('forging', 0.2);
 ok(E.count('铁锭') < ironBefore && E.count('钢铁') === steelBefore, '只消耗勾选的铁锭，不动钢铁');
-const ironHelm = E.ITEMS[E.N2I('铁锭头盔')];
-ok(!!ironHelm && ironHelm.dr === 6 && ironHelm.str === 1, '铁锭头盔按铁锭基准：dr 6 / str 1');
+const ironHelm = E.ITEMS[ironPreviewId];
+ok(!!ironHelm && ironHelm.dr === 6 && ironHelm.str === 1, '铁色头盔按铁锭基准：dr 6 / str 1');
 E.setInputSelection('forging', helmR, '金属', [E.N2I('钢铁')]);
 for (let i = 0; i < 80; i++) E.produceJob('forging', 0.2);
-const steelHelm = E.ITEMS[E.N2I('钢铁头盔')];
-ok(!!steelHelm && steelHelm.dr === 9 && steelHelm.str === 2, '钢铁头盔按钢铁修正：dr 9 / str 2');
-ok(E.N2I('钢铁头盔') !== E.N2I('工业钢盔'), '动态钢铁头盔与工业钢盔不重名');
+const steelPreviewId = E.materialPreviewId('forging', helmR);
+const steelHelm = steelPreviewId ? E.ITEMS[steelPreviewId] : null;
+ok(!!steelHelm && steelHelm.dr === 9 && steelHelm.str === 2 && steelHelm.tint === 'steel',
+  '钢色头盔按钢铁修正：dr 9 / str 2');
+ok(steelPreviewId !== E.N2I('工业钢盔'), '动态钢铁头盔与工业钢盔不重名');
 // 旧锻造装备迁移
 const oldForge = E.newState('v038装备迁移');
 oldForge.items = { iron_helm: 2 };
@@ -1258,6 +1263,78 @@ oldForgeSlot.jobs.forging.prog = [0, 0.7];
 const slotMig = E.migrate(oldForgeSlot);
 ok(slotMig.jobs.forging.slots[0] === 'player', '钢盔槽合并到「头盔」后仍保留入驻角色');
 ok(Math.abs(slotMig.jobs.forging.prog[0] - 0.7) < 1e-9, '合并后的进度保留');
+
+console.log('== v0.0.40：骨头 / 皮革 / 材料换色 / 畜牧门槛 / 开发者无视材料 ==');
+// 骨头改名：物品、敌人掉落、畜牧产出三处都换了
+ok(E.N2I('骨头') === 'bone_horn' && E.ITEMS.bone_horn.name === '骨头'
+  && !E.N2I('骨 / 角') && !E.N2I('骨/角'), '「骨 / 角」已改名为「骨头」');
+ok(E.ENEMIES.find(e => e.name === '熊').loot.some(l => l.name === '骨头')
+  && E.HUSBANDRY_ANIMALS['熊'].outputs['骨头'] === 1, '敌人掉落 / 畜牧产出同步为「骨头」');
+
+// 皮革标签 / 战斗修正 / 隐藏颜色
+const leatherIds = E.ITEM_ORDER.filter(id => E.ITEMS[id].tags && E.ITEMS[id].tags.indexOf('皮革') >= 0);
+ok(leatherIds.length === 7, '7 种皮革带「皮革」标签：' + leatherIds.length);
+const leatherTip = U.itemTipHtml(E.N2I('中型皮革'));
+ok(leatherTip.includes('>皮革<') && !leatherTip.includes('动物产物'), '皮革物品面板显示「皮革」、不再显示「动物产物」');
+ok(leatherTip.includes('战斗数值修正') && leatherTip.includes('×1.00'), '皮革物品面板显示战斗数值修正');
+ok(E.ITEMS[E.N2I('中型皮革')].tint === 'leatherM' && E.ITEMS[E.N2I('厚重皮革')].tint === 'leatherH',
+  '皮革带隐藏颜色属性 tint');
+ok(E.GENERIC_IN['皮革'].length === 7 && E.GENERIC_IN['皮革'].indexOf('厚重皮革') >= 0, '「皮革」筛选由标签自动生成');
+
+// 皮革装备：5 个模板、按皮革筛选、产物按皮革换色
+const craftLeatherRs = E.jobRecipes(E.JOB_BY_ID.crafting).filter(r => r.leatherBase);
+ok(craftLeatherRs.length === 5, '皮革装备 5 个模板：' + craftLeatherRs.length);
+ok(craftLeatherRs.every(r => Object.keys(r.inputs).join(',') === '皮革'), '皮革装备只按「皮革」标签投料');
+ok(craftLeatherRs.find(r => r.name === '皮甲')
+  && Object.keys(E.recipeOutputs(craftLeatherRs.find(r => r.name === '皮甲'))).length === 0,
+  '皮革模板的产出由运行时按材料生成');
+E.S = E.newState('v040皮革');
+const stoneCraft = E.TECHS.find(t => t.name === '石器工艺').id;
+E.S.techs[stoneCraft] = true;
+E.S.jobs.crafting.up[0] = 1;
+E.addItem('厚重皮革', 20, { silent: true });
+const armorR = E.jobRecipes(E.JOB_BY_ID.crafting).find(r => r.name === '皮甲');
+const armorIdx = E.jobRecipes(E.JOB_BY_ID.crafting).indexOf(armorR);
+const heavyPreview = E.materialPreviewId('crafting', armorR);
+ok(heavyPreview && E.ITEMS[heavyPreview].name === '皮甲' && E.ITEMS[heavyPreview].tint === 'leatherH'
+  && !E.ITEMS[heavyPreview].name.includes('厚重'), '皮甲按厚重皮革预览为深色，名字不拼材料前缀');
+E.assignSlot('crafting', armorIdx, 'player');
+for (let i = 0; i < 80; i++) E.produceJob('crafting', 0.2);
+const heavyArmor = E.ITEMS[heavyPreview];
+ok(E.count(heavyPreview) > 0 && heavyArmor.dr === 6.5 && heavyArmor.str === 2.4,
+  '厚重皮革皮甲按 leatherMods 修正：dr 6.5 / str 2.4');
+ok(E.ITEMS[E.N2I('厚重皮革')].tint === 'leatherH'
+  && ICONS.item(heavyArmor) !== ICONS.item('leather_armor'), '皮甲图标用皮革色，与基础模板图标不同');
+const oldLeather = E.newState('v040皮革迁移');
+oldLeather.items = { leather_armor: 2 };
+oldLeather.chars.player.eq.body = 'leather_armor';
+oldLeather.seen.items = { leather_armor: true };
+oldLeather.ever = { leather_armor: 1 };
+const leatherMig = E.migrate(oldLeather);
+const mediumArmorId = 'lgear_leather_medium_armor';
+ok(leatherMig.items[mediumArmorId] === 2 && leatherMig.chars.player.eq.body === mediumArmorId,
+  '旧皮甲库存 / 装备迁移到「中型皮革」模板成品');
+ok(leatherMig.seen.items.leather_armor && !leatherMig.seen.items[mediumArmorId],
+  '基础皮甲的图鉴记录保留（模板成品隐藏，不进图鉴）');
+
+// 畜牧门槛随敌人战力变化：兔子 2 只左右，熊明显更多
+const rabbitNeed = E.husbandryKnowNeed('兔子'), bearNeed = E.husbandryKnowNeed('熊');
+ok(rabbitNeed === 2 && bearNeed >= 10 && bearNeed > rabbitNeed * 5,
+  '认知度门槛按战力：兔子 ' + rabbitNeed + '、熊 ' + bearNeed);
+const rabbitDef = E.husbandryAnimalList().find(a => a.name === '兔子');
+ok(rabbitDef.need === rabbitNeed && rabbitDef.unlocked === (rabbitDef.know >= rabbitNeed),
+  '畜牧列表返回每只动物自己的 need');
+
+// 开发者模式：资源不足也能建造，且不扣材料
+E.S = E.newState('v040开发者');
+E.S.dev = true;
+E.addItem('木材', 5, { silent: true });
+ok(E.affordCost({ '木材': 999 }) && E.payCost({ '木材': 999 }) === true, '开发者：材料不足也放行');
+ok(E.count('木材') === 5, '开发者：payCost 不扣材料');
+ok(E.buyUpgrade('woodcutting', 0).ok, '开发者：无材料也能建造升级项');
+E.S.dev = false;
+E.S.jobs.woodcutting.up[0] = 0;
+ok(!E.buyUpgrade('woodcutting', 0).ok, '普通模式：材料不足仍然不能建造');
 
 console.log(fails ? ('\n✗ 失败 ' + fails + ' 项') : '\n✓ 全部通过');
 process.exit(fails ? 1 : 0);

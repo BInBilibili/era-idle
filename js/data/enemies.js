@@ -96,7 +96,7 @@ window.ENEMIES = [
     loot: [
       { name: "野猪肉", min: 8, max: 8 },
       { name: "中型皮革", min: null, max: null },
-      { name: "骨/角", min: 1, max: 2 }
+      { name: "骨头", min: 1, max: 2 }
     ],
     note: null
   },
@@ -137,7 +137,7 @@ window.ENEMIES = [
     loot: [
       { name: "熊肉", min: 18, max: 18 },
       { name: "熊皮", min: null, max: null },
-      { name: "骨/角", min: 1, max: 2 }
+      { name: "骨头", min: 1, max: 2 }
     ],
     note: null
   },
@@ -242,7 +242,7 @@ window.ENEMIES = [
     loot: [
       { name: "猛犸肉", min: 30, max: 30 },
       { name: "厚重皮革", min: null, max: null },
-      { name: "骨/角", min: 1, max: 2 }
+      { name: "骨头", min: 1, max: 2 }
     ],
     note: null
   },
@@ -307,7 +307,7 @@ window.ENEMIES = [
     loot: [
       { name: "犀牛肉", min: 40, max: 40 },
       { name: "厚重皮革", min: null, max: null },
-      { name: "骨/角", min: 1, max: 2 }
+      { name: "骨头", min: 1, max: 2 }
     ],
     note: null
   },
@@ -635,15 +635,15 @@ window.HUSBANDRY_ANIMALS = {
   "鹿":       { size: "小",   duration: 12, consume: 1, outputs: { "鹿肉": 4,  "中型皮革": 1 } },
   "野山羊":   { size: "小",   duration: 10, consume: 1, outputs: { "山羊肉": 3,  "毛料": 1, "中型皮革": 1 } },
   "羚羊":     { size: "小",   duration: 12, consume: 1, outputs: { "羚羊肉": 5,  "中型皮革": 1 } },
-  "野猪":     { size: "中",   duration: 16, consume: 1, outputs: { "野猪肉": 5,  "中型皮革": 1, "骨 / 角": 1 } },
+  "野猪":     { size: "中",   duration: 16, consume: 1, outputs: { "野猪肉": 5,  "中型皮革": 1, "骨头": 1 } },
   "狼":       { size: "中",   duration: 18, consume: 1, outputs: { "狼肉": 6,  "狼皮": 1 } },
   "鳄鱼":     { size: "中",   duration: 30, consume: 1, outputs: { "鳄鱼肉": 9,  "鳄鱼皮": 1 } },
   "巨蜥":     { size: "中",   duration: 28, consume: 1, outputs: { "巨蜥肉": 12, "厚重皮革": 1 } },
-  "熊":       { size: "大",   duration: 28, consume: 1, outputs: { "熊肉": 11, "熊皮": 1, "骨 / 角": 1 } },
+  "熊":       { size: "大",   duration: 28, consume: 1, outputs: { "熊肉": 11, "熊皮": 1, "骨头": 1 } },
   "驼鹿":     { size: "大",   duration: 30, consume: 1, outputs: { "驼鹿肉": 12, "厚重皮革": 1 } },
   "野牛":     { size: "大",   duration: 32, consume: 1, outputs: { "野牛肉": 15, "厚重皮革": 1 } },
-  "犀牛":     { size: "大",   duration: 42, consume: 1, outputs: { "犀牛肉": 24, "厚重皮革": 1, "骨 / 角": 1 } },
-  "猛犸":     { size: "极大", duration: 45, consume: 1, outputs: { "猛犸肉": 18, "厚重皮革": 1, "骨 / 角": 1 } },
+  "犀牛":     { size: "大",   duration: 42, consume: 1, outputs: { "犀牛肉": 24, "厚重皮革": 1, "骨头": 1 } },
+  "猛犸":     { size: "极大", duration: 45, consume: 1, outputs: { "猛犸肉": 18, "厚重皮革": 1, "骨头": 1 } },
   "变异巨兽": { size: "极大", duration: 55, consume: 1, outputs: { "变异巨兽肉": 36, "厚重皮革": 1 } },
   "外星掠食者": { size: "极大", duration: 55, consume: 1, outputs: { "外星掠食者肉": 48, "外星皮革": 1 } }
 };

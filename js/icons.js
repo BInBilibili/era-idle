@@ -503,10 +503,13 @@
     const id = typeof x === 'string' ? x : (x && (x.id || NAME2ID[x.name]));
     if (!id) return svgWrap(SH.box(PAL.stone));
     const iconId = (x && typeof x === 'object' && x.iconId) || id;
-    const ck = 'i:' + id + ':' + iconId;
+    // v0.0.40：物品可带隐藏的 tint（调色板键），让同一模板按材料换色；
+    // 缓存键必须带上 tint，否则铜护腿和铁护腿会复用同一段 SVG。
+    const tint = (x && typeof x === 'object' && x.tint) || '';
+    const ck = 'i:' + id + ':' + iconId + ':' + tint;
     if (cache[ck]) return cache[ck];
     const spec = SPEC[iconId] || SPEC[id];
-    const c = PAL[spec && spec[1]] || PAL.stone;
+    const c = (tint && PAL[tint]) || PAL[spec && spec[1]] || PAL.stone;
     const fn = (spec && SH[spec[0]]) || SH.box;
     let out;
     try { out = fn(c, rng(id), spec && spec[2], spec && spec[3]); } catch (e) { out = SH.box(c); }
@@ -764,7 +767,7 @@
     return s;
   };
 
-  /* 骨 / 角 */
+  /* 骨头 */
   SH.horn = function (c) {
     let s = sh(24, 42, 11, 2.4);
     s += sil('M13 40 Q9 30 13 21 Q17 12 28 8 Q35 6 39 11 Q33 11 28 15 Q20 21 19 30 Q18.5 35 20 40 Z', c.m);
